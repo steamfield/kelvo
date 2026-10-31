@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## [0.3.1](https://github.com/tryopendata/kelvo/compare/v0.3.0...v0.3.1) - 2026-10-30
+
+### Fixed
+
+- Recorded app usage no longer stores per-process detail for idle processes, which
+  made history grow by roughly 80 MB a day. Under a small size limit that growth
+  trimmed all older history, including resource charts, back to the last day.
+  Processes are kept when they use at least 0.1% of a CPU core, any GPU or network,
+  or at least 100 MB of RAM. App totals still include every process.
 
 ### Changed
 

@@ -903,3 +903,62 @@ fn shared_app_helpers_keep_distinct_facts_and_advance_identity_timestamps() {
         .unwrap();
     assert_eq!(helper_count, 3);
 }
+
+#[test]
+fn idle_process_instances_keep_no_detail_rows_but_app_totals_include_them() {
+    let dir = temp_dir("usage-idle");
+    let store = open(&dir, "h.sqlite");
+    let w = store.writer();
+    w.upsert_host(host(1)).unwrap();
+    let quiet = |pid: i32, cpu: f64, mem: u64| UsageProcessFacts {
+        app_name: Arc::from("Editor"),
+        pid,
+        start_time_us: 1000,
+        name: Arc::from(format!("helper-{pid}")),
+        facts: UsageFacts {
+            network_rx_bytes: 0,
+            network_tx_bytes: 0,
+            ..facts(cpu, 0.0, mem)
+        },
+    };
+    let bucket = || {
+        let mut b = one(T0, 1.0);
+        // 0.009 s of one core over 10 s is 0.09%: under the floor.
+        b.processes.push(quiet(7, 0.009, 50_000_000));
+        // Idle, but holding RAM worth showing.
+        b.processes.push(quiet(8, 0.0, 200_000_000));
+        // Exactly 0.1% of one core.
+        b.processes.push(quiet(9, 0.01, 0));
+        b
+    };
+    let pids = |reply: UsageProcessReply| {
+        let mut p: Vec<_> = reply.processes.iter().map(|p| p.pid).collect();
+        p.sort_unstable();
+        p
+    };
+    let mut q = children(T0, T0 + 10_000);
+    q.page_size = 100;
+    // Not yet committed: the recent path applies the same floor.
+    let recent = store
+        .reader()
+        .unwrap()
+        .usage_processes_after(&q, || vec![bucket()])
+        .unwrap();
+    assert_eq!(pids(recent), vec![8, 9, 42]);
+
+    w.write_usage_bucket(host(1).id, bucket()).unwrap();
+    w.flush().unwrap();
+    let mut r = store.reader().unwrap();
+    assert_eq!(
+        pids(r.usage_processes_after(&q, Vec::new).unwrap()),
+        vec![8, 9, 42]
+    );
+    let apps = r
+        .historical_usage_after(
+            &request(T0, T0 + 10_000, HistoricalUsageMetric::Cpu),
+            Vec::new,
+        )
+        .unwrap();
+    assert_eq!(apps.apps[0].name, "Editor");
+    assert_eq!(apps.apps[0].figures.cpu_avg_pct, Some(10.0));
+}

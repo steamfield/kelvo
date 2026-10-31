@@ -387,7 +387,8 @@ fn add_recent(
         out.observe(b.from_ms, b.to_ms, b.source);
         if let Some(app) = process_app {
             for p in &b.processes {
-                if &*p.app_name == app {
+                // Same floor as the writer, so details do not vanish once committed.
+                if &*p.app_name == app && p.facts.is_active_process(b.to_ms - b.from_ms) {
                     out.processes
                         .entry((p.pid, p.start_time_us, p.name.to_string()))
                         .or_default()

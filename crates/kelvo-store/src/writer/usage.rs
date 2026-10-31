@@ -22,7 +22,12 @@ impl State {
                 .merge(&app.facts);
         }
         let mut processes = BTreeMap::new();
-        for p in &bucket.processes {
+        let width = bucket.to_ms - bucket.from_ms;
+        for p in bucket
+            .processes
+            .iter()
+            .filter(|p| p.facts.is_active_process(width))
+        {
             let app = self.usage_app_id(host, &p.app_name, bucket.to_ms, &mut app_ids)?;
             self.conn.prepare_cached("INSERT INTO usage_processes(host_id,app_id,pid,start_time_us,name,last_ms) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(host_id,app_id,pid,start_time_us) DO UPDATE SET last_ms=max(last_ms,excluded.last_ms)")?.execute(params![host,app,p.pid,p.start_time_us,&*p.name,bucket.to_ms])?;
             let id:i64 = self.conn.prepare_cached("SELECT id FROM usage_processes WHERE host_id=?1 AND pid=?2 AND start_time_us=?3 AND app_id=?4")?.query_row(params![host,p.pid,p.start_time_us,app],|r| r.get(0))?;

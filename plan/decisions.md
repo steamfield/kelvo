@@ -3858,3 +3858,21 @@ membership at most ten, process expansion pages at most one hundred with opaque
 snapshot-bound continuation, and at most eleven conservative uncertainty summaries.
 App queries read app facts separately from indexed process-detail blocks. Historical
 process facts are not truncated to enforce reply bounds.
+
+## D-121: Idle process instances keep no usage detail rows
+
+Date: 2026-10-30. Supersedes D-120's "without identity pruning" and "silently
+discarded identities" for process detail only.
+
+A 150 MB saved cap trimmed every metric back to the last day after 0.3.0: the 10 s
+usage tier alone measured about 80 MB/day, with ~950 process rows per frame of which
+95% used under 0.1% of a core. The user decided that process detail only matters for
+processes doing something.
+
+A process instance gets a detail row for a 10 s bucket only when it used at least
+0.1% of one core, any GPU time, any network bytes, or at least 100 MB peak RAM
+(`UsageFacts::is_active_process`). The writer and the recent-bucket read apply the
+same floor, so details do not disappear when a bucket commits. App rows are still
+recorded from every instance, so app totals and rankings stay exact; an app's process
+list may sum to less than the app. Existing rows age out under normal retention.
+Measured on the user's data, this keeps about 9% of process rows.
