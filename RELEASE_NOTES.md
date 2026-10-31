@@ -12,6 +12,8 @@ the last day.
 - Per-process usage detail is now kept only for processes that used at least 0.1%
   of a CPU core, any GPU or network, or 100 MB of RAM. App totals and rankings
   still include every process.
+- When history is over the size limit, Kelvo now removes the oldest process and
+  app-usage detail first. Resource charts are trimmed only if that is not enough.
 - Live charts do less animation work, and historical usage reads repeat less
   database work for apps with many helper processes.
 

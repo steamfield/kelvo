@@ -107,7 +107,11 @@ pub fn next_health(
     let Some(report) = report else {
         return h;
     };
-    match report.cap_trim {
+    // A trim of process detail alone (D-122) leaves chart history where it started.
+    match report
+        .cap_trim
+        .filter(|t| t.earliest_ts_ms != 0 || !t.cap_met)
+    {
         Some(trim) => {
             h.trimmed_before_ms = Some(trim.earliest_ts_ms);
             h.trimmed_limit_bytes = Some(retention.max_bytes);
@@ -345,6 +349,21 @@ mod tests {
         assert_eq!(next_health(start, None, false, later, &r), start);
         // Once retention alone would have dropped it, the note goes.
         let h = next_health(start, Some(&pruned), false, later, &r);
+        assert_eq!(h, HistoryHealth::default());
+    }
+
+    #[test]
+    fn a_detail_only_trim_leaves_no_history_note() {
+        let r = retention_for(&history(30, 150));
+        let detail_only = PruneReport {
+            cap_trim: Some(CapTrim {
+                detail_before_ms: Some(NOW - 2 * DAY),
+                cap_met: true,
+                ..CapTrim::default()
+            }),
+            ..PruneReport::default()
+        };
+        let h = next_health(HistoryHealth::default(), Some(&detail_only), false, NOW, &r);
         assert_eq!(h, HistoryHealth::default());
     }
 

@@ -321,7 +321,8 @@ pub struct PruneReport {
     pub size_bytes: u64,
 }
 
-/// What the byte cap trimmed: everything before `earliest_ts_ms`, on every host. The
+/// What the byte cap trimmed: process detail before `detail_before_ms`, then, only if that
+/// was not enough, everything before `earliest_ts_ms`, on every host. The
 /// trimmed span reads as "no data yet", like the start of history; nothing marks it as a
 /// gap, and every cursor behind it gets `Truncated`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -342,6 +343,9 @@ pub struct CapTrim {
     /// False when the cap could not be met without trimming into the last 24 hours,
     /// which the trim never does.
     pub cap_met: bool,
+    /// Where process and app-usage detail now starts, when the trim removed some
+    /// (D-122). `earliest_ts_ms` stays 0 when chart history was not trimmed.
+    pub detail_before_ms: Option<i64>,
 }
 
 /// What [`crate::Writer::begin_session`] repaired on startup.

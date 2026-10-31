@@ -407,3 +407,96 @@ fn a_run_that_ended_paused_starts_unpaused_with_the_hole_closed() {
         Tier::S10
     );
 }
+
+/// `days` of usage detail, one 10 s bucket every five minutes with `procs` active
+/// processes of varied facts, so the detail outweighs the minute tier.
+fn fill_usage(w: &Writer, h: kelvo_schema::HostId, start: i64, days: i64, procs: i32) {
+    use kelvo_store::usage::*;
+    let cov = [UsageSourceCoverage {
+        supported: true,
+        measured_ms: 10_000,
+        causes: 0,
+    }; 5];
+    let facts = |n: i64| UsageFacts {
+        cpu_seconds: (n * 7919 % 1000) as f64 / 100.0 + 0.5,
+        mem_peak_bytes: (n * 104_729 % 1_000_000) as u64,
+        present_ms: 10_000,
+        coverage: cov,
+        ..UsageFacts::default()
+    };
+    for b in 0..days * 24 * 12 {
+        let at = start + b * 5 * MIN;
+        let processes = (0..procs)
+            .map(|p| UsageProcessFacts {
+                app_name: Arc::from("Editor"),
+                pid: p,
+                start_time_us: i64::from(p),
+                name: Arc::from(format!("worker-{p}")),
+                facts: facts(b * 1000 + i64::from(p)),
+            })
+            .collect();
+        w.write_usage_bucket(
+            h,
+            UsageBucket {
+                from_ms: at,
+                to_ms: at + 10_000,
+                source: cov,
+                apps: vec![UsageAppFacts {
+                    name: Arc::from("Editor"),
+                    facts: facts(b),
+                }],
+                processes,
+                uncertain_network: Vec::new(),
+            },
+        )
+        .unwrap();
+    }
+    w.flush().unwrap();
+}
+
+#[test]
+fn cap_trims_process_detail_before_chart_history() {
+    let dir = temp_dir("cap-detail-first");
+    let store = open(&dir, "h.sqlite");
+    let w = store.writer();
+    let h = host(1);
+    w.upsert_host(h.clone()).unwrap();
+    let l = wide(10);
+    fill_m1(&w, h.id, &l, T0, 3 * 24 * 60);
+    fill_usage(&w, h.id, T0, 3, 300);
+    let now = T0 + 3 * DAY;
+    let full = w.prune(now, Retention::default()).unwrap();
+    assert!(full.cap_trim.is_none());
+    let db = raw(&store);
+    let minutes = count(&db, "SELECT count(*) FROM tier_1m");
+    assert_eq!(minutes, 3 * 24 * 60);
+
+    // Just over the cap, ~15% over its low-water mark: older detail alone covers it.
+    let retention = Retention {
+        max_bytes: full.size_bytes / 100 * 95,
+        ..Retention::default()
+    };
+    let report = w.prune(now, retention).unwrap();
+    let trim = report.cap_trim.expect("over the low-water mark: trimmed");
+    assert!(trim.cap_met, "{trim:?}");
+    assert!(trim.proc_rows > 0, "{trim:?}");
+    assert_eq!(trim.earliest_ts_ms, 0, "chart history untouched: {trim:?}");
+    assert_eq!((trim.m1_rows, trim.m15_rows, trim.s10_rows), (0, 0, 0));
+    let detail = trim.detail_before_ms.expect("detail trimmed");
+    assert!(detail > T0 && detail < now - DAY, "{detail}");
+    let db = raw(&store);
+    assert_eq!(count(&db, "SELECT count(*) FROM tier_1m"), minutes);
+    assert!(count(&db, "SELECT min(bucket_ts) FROM usage_coverage") >= detail);
+
+    // Far under: every day-old detail row goes before any chart row, then charts.
+    let tight = Retention {
+        max_bytes: 100_000,
+        ..Retention::default()
+    };
+    let trim = w.prune(now, tight).unwrap().cap_trim.expect("trimmed");
+    assert!(!trim.cap_met);
+    assert_eq!(trim.earliest_ts_ms, now - DAY);
+    let db = raw(&store);
+    assert!(count(&db, "SELECT min(bucket_ts) FROM usage_coverage") >= now - DAY);
+    assert_eq!(count(&db, "SELECT min(bucket_ts) FROM tier_1m"), now - DAY);
+}

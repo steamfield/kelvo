@@ -3876,3 +3876,19 @@ same floor, so details do not disappear when a bucket commits. App rows are stil
 recorded from every instance, so app totals and rankings stay exact; an app's process
 list may sum to less than the app. Existing rows age out under normal retention.
 Measured on the user's data, this keeps about 9% of process rows.
+
+## D-122: The size cap trims process detail before chart history
+
+Date: 2026-10-30. Amends D-057/D-059's cap trim.
+
+The user decided that when history is over the size limit, process data goes first,
+not the data behind charts. The cap trim now runs two phases. The first deletes the
+oldest process and app-usage detail (`proc_snap`, `proc_top_*`, `proc_net_*` and the
+usage bucket, coverage and uncertainty tables), down to the same last-day floor. Only
+if the file is still over the low-water mark does the second phase trim every table by
+time as before, which moves the chart tiers' `pruned` marks.
+
+A detail-only trim reports `detail_before_ms` and leaves `earliest_ts_ms` at 0, so the
+history notice ("History trimmed ... It starts ...") appears only when chart history
+was cut. Usage queries already report the trimmed span as pruned through
+`usage_recording_start.retained_from_ms`. Docker history keeps its own budget.

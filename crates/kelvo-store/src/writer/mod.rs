@@ -40,6 +40,7 @@ use crate::types::{
     BucketRow, CursorPage, IngestReport, NetBucket, ProcRow, PruneReport, Retention, SessionStart,
 };
 
+mod cap_trim;
 mod discard;
 mod docker;
 mod intern;

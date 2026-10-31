@@ -9,6 +9,9 @@
   trimmed all older history, including resource charts, back to the last day.
   Processes are kept when they use at least 0.1% of a CPU core, any GPU or network,
   or at least 100 MB of RAM. App totals still include every process.
+- When history is over the size limit, Kelvo now removes the oldest process and
+  app-usage detail first, and trims resource chart history only if that is not
+  enough.
 
 ### Changed
 
