@@ -3870,11 +3870,14 @@ usage tier alone measured about 80 MB/day, with ~950 process rows per frame of w
 processes doing something.
 
 A process instance gets a detail row for a 10 s bucket only when it used at least
-0.1% of one core, any GPU time, any network bytes, or at least 100 MB peak RAM
-(`UsageFacts::is_active_process`). The writer and the recent-bucket read apply the
+0.1% of one core, any GPU time, or at least 100 MB peak RAM
+(`UsageFacts::is_active_process`). Network is recorded per app only, so it cannot
+qualify a process. The writer and the recent-bucket read apply the
 same floor, so details do not disappear when a bucket commits. App rows are still
 recorded from every instance, so app totals and rankings stay exact; an app's process
-list may sum to less than the app. Existing rows age out under normal retention.
+list may sum to less than the app. A process's RAM average and peak cover only the
+buckets it was kept for, and its recorded time is its active time. Existing rows age
+out under normal retention.
 Measured on the user's data, this keeps about 9% of process rows.
 
 ## D-122: The size cap trims process detail before chart history
@@ -3884,8 +3887,10 @@ Date: 2026-10-30. Amends D-057/D-059's cap trim.
 The user decided that when history is over the size limit, process data goes first,
 not the data behind charts. The cap trim now runs two phases. The first deletes the
 oldest process and app-usage detail (`proc_snap`, `proc_top_*`, `proc_net_*` and the
-usage bucket, coverage and uncertainty tables), down to the same last-day floor. Only
-if the file is still over the low-water mark does the second phase trim every table by
+usage bucket, coverage and uncertainty tables, so app usage history for those days
+goes too and reads as pruned), down to the same last-day floor. Only
+if the file is still over the low-water mark, and all detail older than the floor is
+gone, does the second phase trim every table by
 time as before, which moves the chart tiers' `pruned` marks.
 
 A detail-only trim reports `detail_before_ms` and leaves `earliest_ts_ms` at 0, so the

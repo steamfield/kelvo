@@ -58,8 +58,9 @@ export function HistoricalUsageProcesses({
           colSpan={count}
           className={`${APP_CELL} whitespace-normal pl-13 text-muted-foreground`}
         >
-          Recorded instances in the current interval. RAM peaks need not add to
-          the app peak.
+          {pages.some((page) => page.processes.length > 0)
+            ? "Instances that were active in the current interval. Idle ones are not kept, so these need not add up to the app, and RAM peaks need not add to the app peak."
+            : "No instance was active enough in the current interval to keep its own detail."}
           {pages[0]?.network_app_level_only &&
             " Network is recorded at app level only."}
         </TableCell>

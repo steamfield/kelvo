@@ -487,6 +487,37 @@ fn cap_trims_process_detail_before_chart_history() {
     let db = raw(&store);
     assert_eq!(count(&db, "SELECT count(*) FROM tier_1m"), minutes);
     assert!(count(&db, "SELECT min(bucket_ts) FROM usage_coverage") >= detail);
+    let mut r = store.reader().unwrap();
+    // Chart sync is untouched: a cursor from the start still reads pages.
+    let start = Some(Cursor {
+        epoch: store.epoch(),
+        seq: 1,
+    });
+    assert!(matches!(
+        r.read_after(h.id, Tier::M1, start, 10, SyncKinds::ALL)
+            .unwrap(),
+        CursorRead::Page(_)
+    ));
+    // The trimmed usage span reads as pruned, not as a complete absence of usage.
+    let old = r
+        .historical_usage_after(
+            &kelvo_schema::durable_usage::HistoricalUsageRequest {
+                host: h.id,
+                from_ms: T0,
+                to_ms: T0 + HOUR,
+                by: kelvo_schema::durable_usage::HistoricalUsageMetric::Cpu,
+                app_names: Vec::new(),
+            },
+            Vec::new,
+        )
+        .unwrap();
+    assert!(old.apps.is_empty());
+    assert!(
+        old.range.coverage[0]
+            .coverage
+            .causes
+            .contains(&kelvo_schema::durable_usage::UsageIncompleteCause::Pruned)
+    );
 
     // Far under: every day-old detail row goes before any chart row, then charts.
     let tight = Retention {

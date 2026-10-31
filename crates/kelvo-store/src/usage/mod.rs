@@ -13,8 +13,8 @@ use kelvo_schema::durable_usage::{UsageIncompleteCause, UsageNetworkUncertainty}
 
 pub const RESOURCE_COUNT: usize = 5;
 pub const USAGE_BUCKET_MS: i64 = 10_000;
-/// Process-detail floor (D-121): below 0.1% of one core, no GPU or network and under
-/// 100 MB peak RAM, a process instance keeps no row of its own. App facts keep it.
+/// Process-detail floor (D-121): below 0.1% of one core, no GPU and under 100 MB peak
+/// RAM, a process instance keeps no row of its own. App facts keep it.
 pub const PROCESS_MIN_CPU_SHARE: f64 = 0.001;
 pub const PROCESS_MIN_MEM_BYTES: u64 = 100_000_000;
 
@@ -65,8 +65,6 @@ impl UsageFacts {
     pub fn is_active_process(&self, duration_ms: i64) -> bool {
         self.cpu_seconds >= PROCESS_MIN_CPU_SHARE * duration_ms as f64 / 1000.0
             || self.gpu_seconds > 0.0
-            || self.network_rx_bytes > 0
-            || self.network_tx_bytes > 0
             || self.mem_peak_bytes >= PROCESS_MIN_MEM_BYTES
     }
 }

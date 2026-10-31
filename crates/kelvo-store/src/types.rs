@@ -344,7 +344,8 @@ pub struct CapTrim {
     /// which the trim never does.
     pub cap_met: bool,
     /// Where process and app-usage detail now starts, when the trim removed some
-    /// (D-122). `earliest_ts_ms` stays 0 when chart history was not trimmed.
+    /// (D-122): never before `earliest_ts_ms`. `earliest_ts_ms` stays 0 when chart
+    /// history was not trimmed.
     pub detail_before_ms: Option<i64>,
 }
 

@@ -44,6 +44,16 @@ impl State {
         let mut used = self.used_bytes()?;
         if !mirror {
             used = self.trim_rounds(DETAIL_RANGE_SQL, true, floor, low_water, used, &mut trim)?;
+            if used > low_water {
+                // The rounds undershoot (they size steps against the whole file), so
+                // finish the detail at the floor before any chart row goes.
+                for host_ref in self.host_refs()? {
+                    self.trim_host(host_ref, floor, true, &mut trim)?;
+                }
+                trim.detail_before_ms = Some(floor);
+                self.incremental_vacuum()?;
+                used = self.used_bytes()?;
+            }
         }
         used = self.trim_rounds(
             cap_range_sql(mirror),
@@ -107,6 +117,7 @@ impl State {
                 trim.detail_before_ms = Some(cutoff);
             } else {
                 trim.earliest_ts_ms = cutoff;
+                trim.detail_before_ms = trim.detail_before_ms.max(Some(cutoff));
             }
             self.incremental_vacuum()?;
             used = self.used_bytes()?;

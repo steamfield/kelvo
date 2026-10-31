@@ -7,11 +7,11 @@
 - Recorded app usage no longer stores per-process detail for idle processes, which
   made history grow by roughly 80 MB a day. Under a small size limit that growth
   trimmed all older history, including resource charts, back to the last day.
-  Processes are kept when they use at least 0.1% of a CPU core, any GPU or network,
-  or at least 100 MB of RAM. App totals still include every process.
-- When history is over the size limit, Kelvo now removes the oldest process and
-  app-usage detail first, and trims resource chart history only if that is not
-  enough.
+  Processes are kept when they use at least 0.1% of a CPU core, any GPU, or at
+  least 100 MB of RAM. App totals still include every process.
+- When history is over the size limit, Kelvo now removes the oldest process
+  details and recorded app usage first, and trims resource chart history only if
+  that is not enough.
 
 ### Changed
 
