@@ -3927,3 +3927,15 @@ skips offline hosts and reports one result list. The row shows the new version o
 host reconnects; there is no per-host SSH polling of update policy. There is no system
 notification (a macOS click cannot route to a page) and no tray or popover marker,
 which would sit on the 1 Hz and idle-CPU paths for a rare event.
+
+## D-124: Tray-only engine core allocation ceiling is 11
+
+Date: 2026-11-01. Amends D-062 and D-094.
+
+The tray-only engine core ceiling in `perf-budget.json` (`trayOnly` and
+`trayOnlyHistoryOff`) is 11 allocations per tick, from 10. No code change made the engine
+more expensive: the same engine code passed the gate on 2026-11-01 and then measured
+10.12 to 10.57 in six of seven runs that day (9.82 in the other), with about 1,230
+processes running. The engine core's count follows how many processes and series the real
+collectors report, so a ceiling of 10 left no headroom on a busy machine. The window
+modes keep 12.
