@@ -78,10 +78,20 @@ fn validates_release_contract_before_any_download() {
         "http://github.com/tryopendata/kelvo/releases/download/v9.0.0/a",
         "https://evil.invalid/a",
         "https://github.com/tryopendata/kelvo/releases/download/v8.0.0/a",
+        "https://github.com/steamfield/kelvo/releases/download/v9.0.0/",
+        "https://github.com/someone/kelvo/releases/download/v9.0.0/a",
     ] {
         let mut release = good.clone();
         release.artifacts.get_mut("linux-aarch64").unwrap().url = url.into();
         assert!(validate(&release).is_err());
+    }
+    for url in [
+        "https://github.com/tryopendata/kelvo/releases/download/v9.0.0/a",
+        "https://github.com/steamfield/kelvo/releases/download/v9.0.0/a",
+    ] {
+        let mut release = good.clone();
+        release.artifacts.get_mut("linux-aarch64").unwrap().url = url.into();
+        assert!(validate(&release).is_ok(), "{url}");
     }
     let mut release = good.clone();
     release.schema_version = 2;

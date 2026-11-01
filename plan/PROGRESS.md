@@ -4,6 +4,29 @@ This file tracks where Kelvo is against the plan. Task-level checkboxes live in 
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Release 0.3.1 (2026-11-01, draft)
+
+Tagged `v0.3.1` at `57e94d5` and created the draft
+[Kelvo 0.3.1](https://github.com/steamfield/kelvo/releases/tag/v0.3.1). It fixes chart
+history lost to the size cap: 0.3.0 recorded about 80 MB/day of ten-second usage, so a
+150 MB cap trimmed every table to about a day. Process usage detail is now kept only for
+active instances (D-121), and the cap trims process and app-usage detail before chart
+history (D-122). Local gates passed: 1,171 Rust tests, 1,359 frontend tests, 492 browser
+cases and manifest tests. The pre-push engine perf gates failed four times while
+`fseventsd` held a core (load about 6) and passed on their own and on the fifth push;
+`main` measured the same allocations in the same sitting. The Linux Release workflow
+passed. The local build passed `codesign --verify --deep --strict`, `check-deps.sh`,
+`verify_release` and all three `verify-update-restart.py` scenarios. Evidence is under
+`target/qa/release-0.3.1/`. Open: fresh-account install and a real 0.3.0 → 0.3.1 update
+(step 4), then publishing. Settings' history projection still assumes every table
+shortens together.
+
+The repository moved to `steamfield/kelvo`. 0.3.1 still names `tryopendata/kelvo`, which
+GitHub redirects. Main now points links and update endpoints at `steamfield`, and the
+agent updater accepts either owner. Release manifests keep `tryopendata` artifact URLs
+because installed 0.3.x agents reject any other owner; switch them once no supported
+agent requires it.
+
 ## Open-tray CPU (2026-10-26, landed)
 
 Landed [PR #4](https://github.com/tryopendata/kelvo/pull/4) at

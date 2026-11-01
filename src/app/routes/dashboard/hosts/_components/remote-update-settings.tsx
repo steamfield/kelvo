@@ -9,7 +9,7 @@ import { Switch } from "~/components/ui/switch";
 import { useTransport } from "~/lib/transport-context";
 
 export const COORDINATED_UPGRADE_GUIDE =
-  "https://github.com/tryopendata/kelvo/blob/main/.github/releasing.md#coordinated-protocol-upgrades";
+  "https://github.com/steamfield/kelvo/blob/main/.github/releasing.md#coordinated-protocol-upgrades";
 
 function message(status: RemoteUpdateStatus): string {
   if (!status.supported)

@@ -125,7 +125,7 @@ If a fix doesn't resolve the issue after 2 attempts without running a new diagno
 
 The README's recordings live on the orphan `assets` branch under `media/`, not on main,
 so clones stay small; `scripts/install.sh` clones `--single-branch --branch main` so
-installs never fetch them. The README links `raw.githubusercontent.com/tryopendata/kelvo/assets/media/<name>.webp`.
+installs never fetch them. The README links `raw.githubusercontent.com/steamfield/kelvo/assets/media/<name>.webp`.
 
 - **Format:** animated WebP from an MP4 screen recording (GIF exports come out 2 to 3 times larger, and gifsicle/ffmpeg can't shrink them). Needs `brew install webp`; Homebrew's ffmpeg has no WebP encoder, so frames go through `img2webp`:
   ```bash

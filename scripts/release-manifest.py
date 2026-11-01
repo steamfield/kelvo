@@ -38,7 +38,7 @@ def manifest(version, signature, notes):
         "notes": notes,
         "platforms": {"darwin-aarch64": {
             "signature": signature.strip(),
-            "url": f"https://github.com/tryopendata/kelvo/releases/download/v{version}/Kelvo.app.tar.gz",
+            "url": f"{RELEASE_DOWNLOADS}/v{version}/Kelvo.app.tar.gz",
         }},
     }
 
@@ -53,12 +53,17 @@ def protocol_range():
     return {"min": constant("MIN_COMPATIBLE"), "max": constant("PROTO_VERSION")}
 
 
+# Installed 0.3.x agents accept artifact URLs only under tryopendata/kelvo, which GitHub
+# redirects to steamfield/kelvo. Switch once no supported updater requires it.
+RELEASE_DOWNLOADS = "https://github.com/tryopendata/kelvo/releases/download"
+
+
 def catalog(version, output, notes, protocol):
     artifacts = {}
     for target, name in {"darwin-aarch64": "Kelvo.app.tar.gz", **AGENTS}.items():
         path = output / name
         entry = {
-            "url": f"https://github.com/tryopendata/kelvo/releases/download/v{version}/{name}",
+            "url": f"{RELEASE_DOWNLOADS}/v{version}/{name}",
             "size": path.stat().st_size,
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         }

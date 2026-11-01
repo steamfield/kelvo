@@ -60,7 +60,7 @@ fn release_config_requires_a_signed_version_and_https() {
     assert_eq!(
         config["plugins"]["updater"]["endpoints"],
         serde_json::json!([
-            "https://github.com/tryopendata/kelvo/releases/latest/download/latest.json"
+            "https://github.com/steamfield/kelvo/releases/latest/download/latest.json"
         ])
     );
 }

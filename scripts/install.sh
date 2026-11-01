@@ -3,7 +3,7 @@
 # needs (Xcode Command Line Tools, Rust, Bun) when they are missing. Rerun it to update.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/tryopendata/kelvo/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/steamfield/kelvo/main/scripts/install.sh | bash
 #   scripts/install.sh            (from a checkout: builds that checkout as-is)
 #
 # Piped from curl, the source lives in $KELVO_SRC (default ~/.kelvo/src) and is
@@ -11,7 +11,7 @@
 # this Mac carries no quarantine flag, so Gatekeeper opens it without a prompt.
 set -euo pipefail
 
-REPO_URL="https://github.com/tryopendata/kelvo.git"
+REPO_URL="https://github.com/steamfield/kelvo.git"
 
 say() { printf '\033[1mkelvo:\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mkelvo:\033[0m %s\n' "$*" >&2; exit 1; }

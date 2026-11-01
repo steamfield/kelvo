@@ -7,13 +7,13 @@ Kelvo shows CPU, GPU, memory, power and sensors, network, disk and battery once 
 Kelvo is free and open source. Download the app below; no build tools are needed.
 See the [changelog](CHANGELOG.md) for release history.
 
-![The Kelvo dashboard switching between modules](https://raw.githubusercontent.com/tryopendata/kelvo/assets/media/dashboard.webp)
+![The Kelvo dashboard switching between modules](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/dashboard.webp)
 
 ## Install
 
 You need an Apple Silicon Mac (M1 or newer) on macOS 26 or newer. Intel Macs aren't supported because the power and sensor readings come from interfaces only Apple Silicon has.
 
-1. [Download Kelvo for Apple Silicon](https://github.com/tryopendata/kelvo/releases/latest/download/Kelvo_aarch64.dmg).
+1. [Download Kelvo for Apple Silicon](https://github.com/steamfield/kelvo/releases/latest/download/Kelvo_aarch64.dmg).
 2. Open the DMG and drag **Kelvo** into **Applications**.
 3. Eject the DMG, then open **Kelvo** from Applications.
 4. If macOS blocks the first launch, go to **System Settings → Privacy & Security → Open Anyway**, then confirm **Open**.
@@ -53,7 +53,7 @@ installer used `~/Applications`) so you do not keep two copies.
 For contributors and users who prefer source builds, install the [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/) (`xcode-select --install`), [Rust](https://rustup.rs) and [Bun](https://bun.sh), then:
 
 ```bash
-git clone https://github.com/tryopendata/kelvo.git
+git clone https://github.com/steamfield/kelvo.git
 cd kelvo
 scripts/install.sh
 ```
@@ -104,15 +104,15 @@ engine builds. Docker-managed usage is not the VM's allocated Mac footprint or a
 promise of immediately recovered Mac disk space. See the
 [storage and cleanup plan](plan/docker-storage-cleanup.md) for limits and verification.
 
-![The CPU page](https://raw.githubusercontent.com/tryopendata/kelvo/assets/media/cpu.webp)
+![The CPU page](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/cpu.webp)
 
-![The Memory page](https://raw.githubusercontent.com/tryopendata/kelvo/assets/media/memory.webp)
+![The Memory page](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/memory.webp)
 
-![The Network page](https://raw.githubusercontent.com/tryopendata/kelvo/assets/media/network.webp)
+![The Network page](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/network.webp)
 
 The Timeline puts every module on one chart covering the last hour, 24 hours, 7 days or 30 days, and marks events on it: fans ramping, thermal state changes, a process pinning the CPU, power spikes. Select an interval to zoom in, inspect its events and carry the range into module charts; Back restores the previous range. Recorded app usage shows the top ten app groups, sortable by CPU, GPU, RAM, estimated CPU power or network usage, with expandable process details and comparison with the previous interval. A heatmap shows CPU load or temperature by hour across available history. Any range exports to CSV.
 
-![The Timeline](https://raw.githubusercontent.com/tryopendata/kelvo/assets/media/timeline.webp)
+![The Timeline](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/timeline.webp)
 
 CPU, GPU, Memory, Power, Network and Disk also support rolling durations and fixed
 date ranges. Return to Live to resume a moving window; brush Network or Disk charts
@@ -231,7 +231,7 @@ remote host. This sharing uses SSH directly, with no Kelvo backend.
 
 ### Is there a Homebrew or Mac App Store version?
 
-Use the [DMG download](https://github.com/tryopendata/kelvo/releases/latest) and in-app
+Use the [DMG download](https://github.com/steamfield/kelvo/releases/latest) and in-app
 updates for now. Homebrew and Mac App Store distribution are not part of this release.
 Kelvo remains free; Apple notarization may be added later.
 

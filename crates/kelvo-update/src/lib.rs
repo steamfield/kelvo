@@ -12,7 +12,10 @@ mod client;
 pub use client::Client;
 
 pub const MANIFEST_URL: &str =
-    "https://github.com/tryopendata/kelvo/releases/latest/download/release.json";
+    "https://github.com/steamfield/kelvo/releases/latest/download/release.json";
+/// Repository owners whose release downloads are accepted. Manifests keep naming
+/// `tryopendata`, which GitHub redirects, until no installed updater accepts only it.
+const RELEASE_OWNERS: [&str; 2] = ["steamfield", "tryopendata"];
 pub const PUBLIC_KEY: &str = include_str!("../public-key.txt");
 pub const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
 pub const MAX_ARTIFACT_BYTES: u64 = 1024 * 1024 * 1024;
@@ -166,15 +169,18 @@ fn validate(release: &Release) -> Result<()> {
     }
     for (target, artifact) in &release.artifacts {
         let url = reqwest::Url::parse(&artifact.url).map_err(|e| Error::Invalid(e.to_string()))?;
-        let prefix = format!("/tryopendata/kelvo/releases/download/v{}/", release.version);
+        let prefix = format!("/kelvo/releases/download/v{}/", release.version);
+        let file = RELEASE_OWNERS
+            .iter()
+            .find_map(|owner| url.path().strip_prefix('/')?.strip_prefix(owner))
+            .and_then(|path| path.strip_prefix(prefix.as_str()));
         if url.scheme() != "https"
             || url.host_str() != Some("github.com")
             || !url.username().is_empty()
             || url.password().is_some()
             || url.query().is_some()
             || url.fragment().is_some()
-            || !url.path().starts_with(&prefix)
-            || url.path().len() <= prefix.len()
+            || file.is_none_or(str::is_empty)
             || artifact.size == 0
             || artifact.size > MAX_ARTIFACT_BYTES
             || artifact.sha256.len() != 64

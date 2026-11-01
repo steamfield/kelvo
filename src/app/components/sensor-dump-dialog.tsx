@@ -21,7 +21,7 @@ import { useHostId } from "~/stores/host-store";
  * project is public; no doc names it yet.
  */
 export const SENSOR_ISSUE_URL =
-  "https://github.com/tryopendata/kelvo/issues/new?labels=sensors&title=Sensor+map+for+";
+  "https://github.com/steamfield/kelvo/issues/new?labels=sensors&title=Sensor+map+for+";
 
 /** Issue link with the model in the title, so reports group by chip. */
 export function sensorIssueUrl(model: string | null): string {
