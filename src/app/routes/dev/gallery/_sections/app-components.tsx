@@ -33,6 +33,7 @@ import { Button } from "~/components/ui/button";
 import { Switch } from "~/components/ui/switch";
 import { UnsupportedNotice } from "~/components/unsupported-notice";
 import { VolumeTable } from "~/components/volume-table";
+import { HostUpdateNoticeView } from "~/routes/dashboard/_components/host-update-notice";
 import { ChartChooser } from "~/routes/dashboard/containers/_components/chart-chooser";
 import { ComparisonChart } from "~/routes/dashboard/containers/_components/comparison-chart";
 import { HistoryNotice } from "~/routes/dashboard/containers/_components/history-notice";
@@ -124,6 +125,13 @@ const SIDEBAR: SidebarProps = {
     {
       id: "tools",
       entries: [
+        {
+          id: "hosts",
+          href: "/dashboard/hosts",
+          label: "Hosts",
+          icon: "hosts",
+          attention: { count: 2, label: "2 hosts need an update" },
+        },
         {
           id: "processes",
           href: "/dashboard/processes",
@@ -714,6 +722,20 @@ export function AppComponentsSection() {
           </GalleryItem>
           <GalleryItem name="UnsupportedNotice" usedIn="Empty and gap states">
             <UnsupportedNotice modelId="Mac17,4" onShareDump={noop} />
+          </GalleryItem>
+          <GalleryItem name="HostUpdateNoticeView" usedIn="Dashboard pages">
+            <div className="flex flex-col gap-2">
+              <HostUpdateNoticeView
+                notice={{ kind: "hosts", count: 2, key: "hosts:0.4.0" }}
+                onOpen={noop}
+                onDismiss={noop}
+              />
+              <HostUpdateNoticeView
+                notice={{ kind: "required", count: 1 }}
+                onOpen={noop}
+                onDismiss={noop}
+              />
+            </div>
           </GalleryItem>
         </div>
       </div>

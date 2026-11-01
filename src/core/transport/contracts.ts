@@ -204,6 +204,9 @@ export interface Transport {
     tailscale: string | null
   ): Promise<CommandResult<RemoteHostPreparation>>;
   updateRemoteAgent(id: string): Promise<CommandResult<null>>;
+  /** The dashboard host-update notice last dismissed, `{variant}:{version}` (D-123). */
+  hostUpdateNoticeDismissed(): Promise<CommandResult<string | null>>;
+  dismissHostUpdateNotice(key: string): Promise<CommandResult<null>>;
   repairRemoteHost(id: string): Promise<CommandResult<RemoteHostRecord>>;
   getHost(host: HostId): Promise<CommandResult<HostRecord>>;
   getCapabilities(host: HostId): Promise<CommandResult<Capabilities>>;

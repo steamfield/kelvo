@@ -1,3 +1,4 @@
+import { releaseUrl } from "@core/remote-hosts";
 import capability from "../../../src-tauri/capabilities/default.json";
 import { COORDINATED_UPGRADE_GUIDE } from "../routes/dashboard/hosts/_components/remote-update-settings";
 import { sensorIssueUrl } from "./sensor-dump-dialog";
@@ -55,6 +56,10 @@ describe("opener capability scope", () => {
     expect(
       allowed(COORDINATED_UPGRADE_GUIDE.replace("releasing.md", "other.md"))
     ).toBe(false);
+  });
+
+  it("allows release notes for a version the hosts page links", () => {
+    expect(allowed(releaseUrl("0.3.1") ?? "")).toBe(true);
   });
 
   it("refuses every other URL", () => {

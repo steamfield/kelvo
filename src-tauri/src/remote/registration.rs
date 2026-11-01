@@ -25,16 +25,26 @@ pub(super) fn register(app: &AppHandle, saved: SavedHost) -> Result<(), CommandE
     let generation = Uuid::new_v4();
     state.remotes.generations.lock_ok().insert(id, generation);
     let handle = app.clone();
+    let linux = saved.is_linux();
     let cb = Arc::new(move |s: kelvo_remote::ConnectionStatus| {
         let state = handle.state::<AppState>();
         if state.remotes.generations.lock_ok().get(&id) != Some(&generation) {
             return;
         }
+        if let Some(version) = &s.remote_version {
+            remember_version(&handle, id, version);
+        }
+        let last = state
+            .remotes
+            .saved
+            .lock_ok()
+            .get(&id)
+            .and_then(|h| h.last_agent_version.clone());
         state
             .remotes
             .statuses
             .lock_ok()
-            .insert(id, connection_status(s));
+            .insert(id, connection_status(s, linux, last));
     });
     let source = RemoteSource::new(
         saved.record.clone(),
@@ -62,6 +72,12 @@ pub(super) fn register(app: &AppHandle, saved: SavedHost) -> Result<(), CommandE
             } else {
                 RemoteState::Disabled
             },
+            agent_update: super::commands::agent_update(
+                saved.is_linux(),
+                saved.last_agent_version.as_deref(),
+                false,
+            ),
+            agent_version: saved.last_agent_version.clone(),
             ..Default::default()
         },
     );
@@ -105,8 +121,32 @@ fn discard_host(state: &AppState, id: HostId) {
     }
 }
 
-fn connection_status(s: kelvo_remote::ConnectionStatus) -> RemoteHostStatus {
+/// Persists a newly reported version; unchanged versions write nothing.
+fn remember_version(app: &AppHandle, id: HostId, version: &str) {
+    let changed = match app.state::<AppState>().remotes.saved.lock_ok().get_mut(&id) {
+        Some(h) if h.last_agent_version.as_deref() != Some(version) => {
+            h.last_agent_version = Some(version.to_string());
+            true
+        }
+        _ => false,
+    };
+    if changed && let Err(error) = save(app) {
+        tracing::warn!(%error, "could not save the host's reported version");
+    }
+}
+
+pub(super) fn connection_status(
+    s: kelvo_remote::ConnectionStatus,
+    linux: bool,
+    last_version: Option<String>,
+) -> RemoteHostStatus {
+    let agent_version = s.remote_version.or(last_version);
     RemoteHostStatus {
+        agent_update: super::commands::agent_update(
+            linux,
+            agent_version.as_deref(),
+            s.incompatible,
+        ),
         state: if s.connected {
             RemoteState::Connected
         } else if s.retrying {
@@ -134,8 +174,7 @@ fn connection_status(s: kelvo_remote::ConnectionStatus) -> RemoteHostStatus {
         clock_offset_ms: s.clock_offset_ms as f64,
         cpu_pct: None,
         memory_pct: None,
-        agent_version: s.remote_version,
-        update_available: false,
+        agent_version,
         identity_changed: s.identity_changed.map(|id| id.to_string()),
     }
 }

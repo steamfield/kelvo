@@ -45,6 +45,10 @@ pub enum RemoteError {
     HostKey(String),
     #[error("incompatible remote: {0}")]
     Incompatible(String),
+    /// The peer's handshake could not be negotiated. Carries the version it reported,
+    /// so the shell can still show it and offer the coordinated upgrade (D-119).
+    #[error("incompatible remote: {reason}")]
+    IncompatiblePeer { version: String, reason: String },
     #[error("remote host identity does not match: {0}")]
     Identity(String),
     /// The host answered with a different id than the one paired. Carries both, so the
@@ -90,6 +94,7 @@ impl RemoteError {
             Self::Authentication(_)
                 | Self::HostKey(_)
                 | Self::Incompatible(_)
+                | Self::IncompatiblePeer { .. }
                 | Self::Identity(_)
                 | Self::IdentityMismatch { .. }
                 | Self::Protocol(_)

@@ -44,6 +44,8 @@ export interface SidebarEntry {
   value?: string | undefined;
   /** The user switched the module off: listed dimmed, without a value. */
   disabled?: boolean;
+  /** Something here needs the user ("2 hosts need updates"); shown as a count. */
+  attention?: { count: number; label: string } | undefined;
 }
 
 export interface SidebarStatus {
@@ -92,7 +94,11 @@ function SidebarItem({
   return (
     <a
       href={entry.href}
-      title={entry.label}
+      title={
+        entry.attention
+          ? `${entry.label} · ${entry.attention.label}`
+          : entry.label
+      }
       aria-current={current ? "page" : undefined}
       data-sidebar-item
       onClick={onClick}
@@ -119,6 +125,12 @@ function SidebarItem({
       <span className="flex-1 truncate text-[13px] max-sm:sr-only">
         {entry.label}
       </span>
+      {entry.attention && (
+        <span className="figures rounded-full border border-border px-1.5 font-normal text-[10px] text-fg-subtle leading-4 max-sm:hidden">
+          <span aria-hidden>{entry.attention.count}</span>
+          <span className="sr-only">{entry.attention.label}</span>
+        </span>
+      )}
       {!entry.disabled && entry.value && (
         <span className="figures min-w-9 text-right font-normal text-[11px] text-muted-foreground max-sm:hidden">
           {entry.value}

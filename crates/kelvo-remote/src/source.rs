@@ -7,7 +7,6 @@ use kelvo_engine::{
 };
 use kelvo_proto::{Message, RemoteInterest, SyncRequest};
 use kelvo_schema::{Capabilities, Cursor, HostId, HostRecord, SyncKinds, Tier, lock::LockExt};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     sync::{
@@ -20,25 +19,10 @@ use tokio::{sync::watch, time::Instant};
 
 mod control;
 mod queries;
+mod status;
 use control::Control;
+pub use status::ConnectionStatus;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ConnectionStatus {
-    pub connected: bool,
-    pub route: Option<Route>,
-    pub retrying: bool,
-    pub error: Option<String>,
-    pub history_error: Option<String>,
-    pub last_seen_ms: Option<i64>,
-    pub catching_up: bool,
-    pub clock_offset_ms: i64,
-    /// The connected peer's `Hello.app_version`, kept after it disconnects so the
-    /// shell can offer an agent update while the host is offline.
-    pub remote_version: Option<String>,
-    /// The id a host answered with when it is not the paired one
-    /// ([`RemoteError::IdentityMismatch`]), so the shell can offer re-pairing.
-    pub identity_changed: Option<HostId>,
-}
 pub type StatusCallback = Arc<dyn Fn(ConnectionStatus) + Send + Sync>;
 #[derive(Clone, Default)]
 struct ControlState {
@@ -191,6 +175,7 @@ async fn run(source: Arc<RemoteSource>, sink: SourceSink) {
                 status.retrying = false;
                 status.error = None;
                 status.identity_changed = None;
+                status.incompatible = false;
                 status.remote_version = Some(session.hello.app_version.clone());
                 *source.caps.lock_ok() = session.hello.capabilities.clone();
                 sink.live
@@ -216,14 +201,7 @@ async fn run(source: Arc<RemoteSource>, sink: SourceSink) {
                 continue;
             }
             Err(e) => {
-                status.connected = false;
-                status.error = Some(e.to_string());
-                status.identity_changed = match &e {
-                    RemoteError::IdentityMismatch { actual, .. } => Some(*actual),
-                    _ => None,
-                };
-                status.catching_up = false;
-                status.retrying = e.retryable();
+                status.record_failure(&e);
                 (source.on_status)(status.clone());
                 if !e.retryable() {
                     let retry = control.borrow().retry;
@@ -997,6 +975,7 @@ fn adapt_page_bytes(current: u32, elapsed: Duration) -> u32 {
 }
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::MirrorError;
     use kelvo_proto::{SyncPage, WireLayout};

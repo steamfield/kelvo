@@ -310,6 +310,7 @@ fn saved_host(id: HostId, name: &str, command: RemoteCommand) -> SavedHost {
         },
         record,
         command,
+        last_agent_version: None,
     }
 }
 

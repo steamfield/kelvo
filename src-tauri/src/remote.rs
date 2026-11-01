@@ -47,6 +47,10 @@ struct SavedHost {
     /// helper's path as `helper_path`, which reads as [`RemoteCommand::MacHelper`].
     #[serde(default, alias = "helper_path")]
     command: RemoteCommand,
+    /// The version the host last reported, so an offline host still shows one after
+    /// this app restarts (D-123).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_agent_version: Option<String>,
 }
 impl SavedHost {
     fn endpoint(&self) -> EndpointConfig {
@@ -151,7 +155,9 @@ impl From<kelvo_remote::RemoteError> for CommandError {
         match error {
             RemoteError::Authentication(_) => Self::RemoteAuth { message },
             RemoteError::HostKey(_) => Self::HostKeyUnknown { message },
-            RemoteError::Incompatible(_) => Self::RemoteIncompatible { message },
+            RemoteError::Incompatible(_) | RemoteError::IncompatiblePeer { .. } => {
+                Self::RemoteIncompatible { message }
+            }
             RemoteError::Identity(_) | RemoteError::IdentityMismatch { .. } => {
                 Self::RemoteIdentity { message }
             }

@@ -14,7 +14,12 @@ import {
   scenarioFlags,
 } from "./fixtures";
 import { err, ok } from "./protocol";
-import { isLinuxAlias, mockLinuxPreparation } from "./remote-linux";
+import {
+  APP_VERSION,
+  isLinuxAlias,
+  mockLinuxPreparation,
+} from "./remote-linux";
+import { seedUpdateScenarios } from "./remote-updates";
 import { remoteUsage, type UsageQueries } from "./remote-usage";
 import type { MockRing } from "./ring";
 export class MockRemotes {
@@ -81,8 +86,8 @@ export class MockRemotes {
         clock_offset_ms: 120000,
         cpu_pct: linux ? 3 : 18,
         memory_pct: linux ? 43 : 42,
-        agent_version: "0.1.0",
-        update_available: false,
+        agent_version: APP_VERSION,
+        agent_update: { kind: "up_to_date", installed: APP_VERSION },
         identity_changed: null,
       },
     };
@@ -237,8 +242,10 @@ export class MockRemotes {
     remote.automaticUpdates = true;
     remote.record.status = {
       ...remote.record.status,
-      agent_version: "0.1.0",
-      update_available: false,
+      state: "connected",
+      error: null,
+      agent_version: APP_VERSION,
+      agent_update: { kind: "up_to_date", installed: APP_VERSION },
     };
     this.emitHostsChanged();
     return ok(null);
@@ -397,6 +404,7 @@ export class MockRemotes {
     return remoteUsage(this.remotes, this.commands, this.options, local);
   }
   seedScenario() {
+    seedUpdateScenarios(this, this.options.scenarios ?? []);
     if (this.options.scenarios?.includes("multi-host"))
       this.addRemote({
         id: "remote-studio",
@@ -424,7 +432,12 @@ export class MockRemotes {
         linux.status = {
           ...linux.status,
           agent_version: "0.0.9",
-          update_available: true,
+          agent_update: {
+            kind: "available",
+            installed: "0.0.9",
+            target: APP_VERSION,
+            via: "push",
+          },
         };
       }
       if (this.options.scenarios.includes("linux-identity-changed"))
@@ -439,6 +452,15 @@ export class MockRemotes {
         };
     }
   }
+  private dismissedNotice: string | null = null;
+  readonly hostUpdateNoticeDismissed: MockTransport["hostUpdateNoticeDismissed"] =
+    async () => ok(this.dismissedNotice);
+  readonly dismissHostUpdateNotice: MockTransport["dismissHostUpdateNotice"] =
+    async (key) => {
+      this.commands.record("dismiss_host_update_notice", key);
+      this.dismissedNotice = key;
+      return ok(null);
+    };
   dispose() {
     for (const remote of this.remotes.values()) remote.peer.dispose();
     for (const cancel of this.setups.values()) cancel();
@@ -460,6 +482,8 @@ export class MockRemotes {
       retryRemoteHost: this.retryRemoteHost,
       resetRemoteHostIdentity: this.resetRemoteHostIdentity,
       updateRemoteAgent: this.updateRemoteAgent,
+      hostUpdateNoticeDismissed: this.hostUpdateNoticeDismissed,
+      dismissHostUpdateNotice: this.dismissHostUpdateNotice,
       repairRemoteHost: this.repairRemoteHost,
       listHosts: this.listHosts,
       getHost: this.getHost,

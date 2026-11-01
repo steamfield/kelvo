@@ -1,7 +1,8 @@
 import { ratio } from "@core/chart-math";
 import { formatPercent, formatWatts } from "@core/format";
 import type { UiModule } from "@core/module-state";
-import { useCallback } from "react";
+import { hostsNeedingUpdate } from "@core/remote-hosts";
+import { useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { HostSwitcher } from "~/components/host-switcher";
 import { PerformanceExplainer } from "~/components/performance-explainer";
@@ -9,6 +10,7 @@ import { Sidebar, type SidebarEntry } from "~/components/sidebar";
 import { useHostRecord } from "~/hooks/use-host-record";
 import { useIsLocalHost } from "~/hooks/use-is-local-host";
 import { useModuleStates } from "~/hooks/use-module-states";
+import { useRemoteHosts } from "~/hooks/use-remote-hosts";
 import {
   useBattery,
   useCgroups,
@@ -65,6 +67,22 @@ const LOCAL_TOOLS: readonly SidebarEntry[] = [
   },
 ];
 const REMOTE_TOOLS = LOCAL_TOOLS.filter((entry) => entry.id !== "containers");
+const countBehind = (hosts: Parameters<typeof hostsNeedingUpdate>[0]) =>
+  hostsNeedingUpdate(hosts).length;
+
+/** Hosts carries a count while any host is behind this Mac (D-123). */
+function withHostAttention(
+  entries: readonly SidebarEntry[],
+  behind: number
+): readonly SidebarEntry[] {
+  if (behind === 0) return entries;
+  const label = `${behind === 1 ? "1 host needs" : `${behind} hosts need`} an update`;
+  return entries.map((entry) =>
+    entry.id === "hosts"
+      ? { ...entry, attention: { count: behind, label } }
+      : entry
+  );
+}
 
 /** MB/s, no space ("38.4M", "220M"). */
 export function compactRate(bps: number | null): string | undefined {
@@ -93,6 +111,12 @@ export function LiveSidebar() {
   const onNavigate = useCallback((href: string) => navigate(href), [navigate]);
   const { pathname } = useLocation();
   const states = useModuleStates();
+  const behind = useRemoteHosts(countBehind).data ?? 0;
+  const tools = useMemo(
+    () =>
+      withHostAttention(local || cgroups ? LOCAL_TOOLS : REMOTE_TOOLS, behind),
+    [local, cgroups, behind]
+  );
   const configuredMs = useSettings((s) => s.sampling.interval_ms);
   const sampling = useSampling();
   const cpu = useCpu();
@@ -172,7 +196,7 @@ export function LiveSidebar() {
     },
     {
       id: "tools",
-      entries: local || cgroups ? LOCAL_TOOLS : REMOTE_TOOLS,
+      entries: tools,
     },
   ];
 

@@ -278,7 +278,10 @@ async fn dial(
         &Offer::local(kelvo_proto::local_features()),
         &Offer::from(&hello),
     )
-    .map_err(|e| RemoteError::Incompatible(e.to_string()))?;
+    .map_err(|e| RemoteError::IncompatiblePeer {
+        version: hello.app_version.clone(),
+        reason: e.to_string(),
+    })?;
     codec::write(&mut writer, &Message::HelloAck(negotiated.ack())).await?;
     Ok(SshSession {
         hello,

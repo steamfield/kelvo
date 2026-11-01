@@ -39,7 +39,7 @@ const ERRORS: Record<string, CommandError> = {
 type Variant = "fresh" | "user" | "update" | "newer" | "nodocker" | "dup";
 
 /** The app's version in the mock; `linux-newer`'s agent is past it. */
-const APP_VERSION = "0.1.0";
+export const APP_VERSION = "0.1.0";
 
 export function isLinuxAlias(alias: string): boolean {
   return /linux|server/.test(alias);

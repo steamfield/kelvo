@@ -13,6 +13,9 @@
         },
         {
           "url": "https://github.com/steamfield/kelvo/blob/main/.github/releasing.md#coordinated-protocol-upgrades"
+        },
+        {
+          "url": "https://github.com/steamfield/kelvo/releases/tag/v*"
         }
       ]
     },

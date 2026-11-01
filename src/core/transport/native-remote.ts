@@ -17,6 +17,8 @@ export function nativeRemote(): Pick<
   | "retryRemoteHost"
   | "resetRemoteHostIdentity"
   | "updateRemoteAgent"
+  | "hostUpdateNoticeDismissed"
+  | "dismissHostUpdateNotice"
   | "repairRemoteHost"
 > {
   return {
@@ -51,6 +53,8 @@ export function nativeRemote(): Pick<
     resetRemoteHostIdentity: (lan, tailscale) =>
       commands.resetRemoteHostIdentity(lan, tailscale),
     updateRemoteAgent: (id) => commands.updateRemoteAgent(id),
+    hostUpdateNoticeDismissed: () => commands.hostUpdateNoticeDismissed(),
+    dismissHostUpdateNotice: (key) => commands.dismissHostUpdateNotice(key),
     repairRemoteHost: (id) => commands.repairRemoteHost(id),
   };
 }

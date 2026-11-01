@@ -11,6 +11,7 @@ import { useTransport } from "~/lib/transport-context";
 import { cn } from "~/lib/utils";
 import { HostStoreProvider, useHostId } from "~/stores/host-store";
 import { useSampling } from "~/stores/live-selectors";
+import { HostUpdateNotice } from "./_components/host-update-notice";
 import { LiveSidebar } from "./_components/live-sidebar";
 
 /**
@@ -95,6 +96,7 @@ export default function DashboardLayout() {
             stale && "opacity-50"
           )}
         >
+          {metricPage && <HostUpdateNotice />}
           {remote && metricPage && (
             <div
               role="status"

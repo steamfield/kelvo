@@ -57,3 +57,94 @@ async fn cancellation_drops_inflight_setup_before_it_can_register_a_host() {
     );
     assert!(dropped.load(Ordering::SeqCst));
 }
+
+#[test]
+fn agent_update_states_compare_with_this_build() {
+    use commands::agent_update_against as state;
+    let this = "0.3.1";
+    assert_eq!(state(this, true, None, false), AgentUpdate::Unknown);
+    assert_eq!(
+        state(this, true, Some("0.3.0"), false),
+        AgentUpdate::Available {
+            installed: "0.3.0".into(),
+            target: "0.3.1".into(),
+            via: AgentUpdateVia::Push
+        }
+    );
+    assert_eq!(
+        state(this, false, Some("0.3.0"), false),
+        AgentUpdate::Available {
+            installed: "0.3.0".into(),
+            target: "0.3.1".into(),
+            via: AgentUpdateVia::AddHost
+        }
+    );
+    assert_eq!(
+        state(this, true, Some("0.2.0"), true),
+        AgentUpdate::Required {
+            installed: "0.2.0".into(),
+            target: "0.3.1".into(),
+            via: AgentUpdateVia::Push
+        }
+    );
+    assert_eq!(
+        state(this, true, Some("0.3.1"), false),
+        AgentUpdate::UpToDate {
+            installed: "0.3.1".into()
+        }
+    );
+    // A newer host is never offered this build, even when it can't connect.
+    for incompatible in [false, true] {
+        assert_eq!(
+            state(this, true, Some("0.4.0"), incompatible),
+            AgentUpdate::NewerThanThis {
+                installed: "0.4.0".into()
+            }
+        );
+    }
+    // Fail-open like "Update agent" always was: a malformed version is offered it.
+    assert!(matches!(
+        state(this, true, Some("garbage"), false),
+        AgentUpdate::Available { .. }
+    ));
+}
+
+#[test]
+fn offline_hosts_keep_their_last_reported_version() {
+    let offline = kelvo_remote::ConnectionStatus::default();
+    let status = registration::connection_status(offline, true, Some("0.0.1".into()));
+    assert_eq!(status.agent_version.as_deref(), Some("0.0.1"));
+    assert!(matches!(status.agent_update, AgentUpdate::Available { .. }));
+
+    let incompatible = kelvo_remote::ConnectionStatus {
+        remote_version: Some("0.0.2".into()),
+        incompatible: true,
+        error: Some("incompatible remote".into()),
+        ..Default::default()
+    };
+    let status = registration::connection_status(incompatible, false, Some("0.0.1".into()));
+    assert_eq!(status.agent_version.as_deref(), Some("0.0.2"));
+    assert!(matches!(
+        status.agent_update,
+        AgentUpdate::Required {
+            via: AgentUpdateVia::AddHost,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn saved_hosts_without_a_reported_version_still_load() {
+    let id = HostId(Uuid::new_v4());
+    let mut record = kelvo_engine::host_record(id);
+    record.is_local = false;
+    let host = serde_json::json!({
+        "config": {"id": id.to_string(), "name": "Box", "lan": "box", "tailscale": null,
+                   "enabled": true, "mirror_budget_mb": 100},
+        "record": record,
+    });
+    let bytes = serde_json::to_vec(&serde_json::json!({ id.to_string(): host })).unwrap();
+    let (saved, errors) = parse_saved(&bytes);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(saved[&id].last_agent_version, None);
+}
