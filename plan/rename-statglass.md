@@ -55,7 +55,8 @@ checkout before local integration; never stash or reset other changes.
 - [x] Complete independent Terra code review and fix findings.
 - [x] Copy the user's local release/dev data and adapt namespace bindings on request.
 - [x] Rename GitHub and verify current media and historical release links.
-- [ ] Commit and merge locally, then archive the worktree.
+- [x] Commit and merge locally (`98e80ed`).
+- [ ] Archive the worktree: Codex retained it as this chat's protected primary checkout.
 
 ## Verification
 
