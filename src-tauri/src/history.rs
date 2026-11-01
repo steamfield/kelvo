@@ -1,4 +1,4 @@
-//! Shell history adapter. Store lifecycle/read pooling lives in kelvo-engine;
+//! Shell history adapter. Store lifecycle/read pooling lives in statglass-engine;
 //! query adapters and IPC conversion remain beside their command-facing owner.
 use crate::error::{CommandError, HistoryUnavailableReason};
 use crate::ipc::{
@@ -6,9 +6,9 @@ use crate::ipc::{
     HistoryPage, HistoryPoint, HistoryRequest, HistorySeries, NetworkByApp, NetworkSpan,
     ProcessResolution, ProcessesAt, StoredProcess, TierRequest,
 };
-use kelvo_engine::{HistoryStore, HousekeepingHandle};
-use kelvo_schema::{HostRecord, Labels, MetricId, SeriesKey, Tier};
-use kelvo_store::{
+use statglass_engine::{HistoryStore, HousekeepingHandle};
+use statglass_schema::{HostRecord, Labels, MetricId, SeriesKey, Tier};
+use statglass_store::{
     BATTERY_CHARGE, BATTERY_CHARGING, BatteryCell, BucketRow, ExportQuery, HistoryQuery,
     HistoryResult, ProcResolution, RangeStats, Reader, Retention, TierChoice, Writer,
     fill_battery_hours,
@@ -23,12 +23,12 @@ use ipc::MAX_HEATMAP_DAYS;
 use ipc::history_page;
 #[cfg(test)]
 mod tests;
-pub use kelvo_engine::HISTORY_DB_FILE as DB_FILE;
+pub use statglass_engine::HISTORY_DB_FILE as DB_FILE;
 #[cfg(test)]
-use kelvo_store::{Store, StoreConfig};
+use statglass_store::{Store, StoreConfig};
 
 pub(crate) const MAX_NET_SPAN_MS: i64 = {
-    let days = kelvo_schema::settings::HistorySettings::RETENTION_DAYS;
+    let days = statglass_schema::settings::HistorySettings::RETENTION_DAYS;
     days[days.len() - 1] as i64 * Retention::DAY_MS
 };
 
@@ -75,7 +75,7 @@ impl History {
     }
     pub fn read<T>(
         &self,
-        f: impl FnOnce(&mut Reader) -> kelvo_store::Result<T>,
+        f: impl FnOnce(&mut Reader) -> statglass_store::Result<T>,
     ) -> Result<T, CommandError> {
         Ok(self.storage.read(f)?)
     }

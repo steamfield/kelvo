@@ -1,10 +1,10 @@
 //! Resolve the temperature override using public Foundation formatting, not the region.
-use kelvo_schema::settings::TemperatureUnit;
 use objc2::{AllocAnyThread, rc::Retained};
 use objc2_foundation::{
     NSLocale, NSMeasurement, NSMeasurementFormatter, NSMeasurementFormatterUnitOptions,
     NSUnitTemperature,
 };
+use statglass_schema::settings::TemperatureUnit;
 
 fn resolve(locale: &NSLocale) -> Option<TemperatureUnit> {
     let formatter = NSMeasurementFormatter::new();

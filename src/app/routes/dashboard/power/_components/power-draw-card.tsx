@@ -233,7 +233,7 @@ function AppsNote({ lines }: { lines: AppLines }) {
     long_range: "App power lines are available for ranges up to 1 hour.",
     ok: "App lines are CPU energy as macOS estimates it, for your own processes, so they add up to less than system draw.",
     empty:
-      "Per-app power appears after Kelvo has sampled processes for a while.",
+      "Per-app power appears after StatGlass has sampled processes for a while.",
     remote: "Per-app power isn't available for remote hosts.",
     error: "Couldn't load per-app power.",
   };

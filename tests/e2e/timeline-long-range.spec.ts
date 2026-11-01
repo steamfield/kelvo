@@ -49,7 +49,7 @@ for (const theme of THEMES) {
       const errors = trackConsoleErrors(page);
       await openRange(page, theme, "7d");
       // Six nights before last night's, plus last night and the afternoon
-      // Kelvo was not running: whole-host bands, one per gap.
+      // StatGlass was not running: whole-host bands, one per gap.
       await expect.poll(() => bandCount(page)).toBeGreaterThanOrEqual(7);
       // Day ticks along the axis ("Tue 29"): 7 midnights, less the newest
       // when it falls in the last tenth of the range, by the "now" label.

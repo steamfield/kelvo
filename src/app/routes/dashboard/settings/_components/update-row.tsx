@@ -9,7 +9,7 @@ import { version } from "../../../../../../package.json";
 function updateMessage(status: UpdateStatus): string {
   switch (status.kind) {
     case "idle":
-      return "Kelvo checks for releases according to your update settings.";
+      return "StatGlass checks for releases according to your update settings.";
     case "not_configured":
       return "Use a release build to check for updates.";
     case "checking":
@@ -17,23 +17,23 @@ function updateMessage(status: UpdateStatus): string {
     case "up_to_date":
       return "You’re running the latest version.";
     case "available":
-      return `Kelvo ${status.version} is available. Installing restarts Kelvo; your history and settings are kept.`;
+      return `StatGlass ${status.version} is available. Installing restarts StatGlass; your history and settings are kept.`;
     case "downloading":
       return status.percent === null
         ? "Downloading update…"
         : `Downloading update… ${status.percent}%`;
     case "downloaded":
-      return `Kelvo ${status.version} is downloaded and ready to install.`;
+      return `StatGlass ${status.version} is downloaded and ready to install.`;
     case "waiting":
-      return `Kelvo ${status.version} is ready. ${status.reason}`;
+      return `StatGlass ${status.version} is ready. ${status.reason}`;
     case "compatibility_blocked":
-      return `Kelvo ${status.version} is waiting: ${status.message}`;
+      return `StatGlass ${status.version} is waiting: ${status.message}`;
     case "needs_authorization":
-      return `Kelvo ${status.version} needs your permission to install. Choose Install and restart.`;
+      return `StatGlass ${status.version} needs your permission to install. Choose Install and restart.`;
     case "installing":
       return "Installing update…";
     case "ready":
-      return "Update installed. Restarting Kelvo…";
+      return "Update installed. Restarting StatGlass…";
     case "failed":
       return `Couldn’t update: ${status.message}`;
   }

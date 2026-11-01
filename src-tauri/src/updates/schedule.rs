@@ -1,7 +1,7 @@
 //! Wall-clock deadlines catch sleep/wake without replaying missed checks.
 use super::Updates;
 use crate::AppState;
-use kelvo_schema::lock::LockExt;
+use statglass_schema::lock::LockExt;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Manager};
 

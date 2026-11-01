@@ -29,7 +29,7 @@ fn candidate() -> Candidate {
     })).unwrap().unwrap();
     Candidate {
         update,
-        artifact: kelvo_update::Artifact {
+        artifact: statglass_update::Artifact {
             url: "https://example.invalid/package".into(),
             size: PAYLOAD.len() as u64,
             sha256: format!("{:x}", Sha256::digest(PAYLOAD)),
@@ -107,12 +107,12 @@ struct NativeEffects;
 impl crate::settings::SettingsEffects for NativeEffects {
     fn prepare(
         &self,
-        _: &kelvo_schema::Settings,
-        _: &kelvo_schema::Settings,
+        _: &statglass_schema::Settings,
+        _: &statglass_schema::Settings,
     ) -> Result<(), crate::CommandError> {
         Ok(())
     }
-    fn committed(&self, _: &kelvo_schema::Settings, _: &crate::ipc::SettingsSnapshot) {}
+    fn committed(&self, _: &statglass_schema::Settings, _: &crate::ipc::SettingsSnapshot) {}
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn changes_after_package_verification_prevent_automatic_installation() {
     write_private(&package, PAYLOAD).unwrap();
     let candidate = candidate();
     let settings_path = temp.path().join("settings.json");
-    let mut initial = kelvo_schema::Settings::default();
+    let mut initial = statglass_schema::Settings::default();
     initial.onboarding.completed = true;
     std::fs::write(&settings_path, serde_json::to_vec(&initial).unwrap()).unwrap();
     let settings = SettingsOwner::load(Box::new(FileSettings(settings_path)));

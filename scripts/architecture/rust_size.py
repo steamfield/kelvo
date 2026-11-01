@@ -15,7 +15,7 @@ import sys
 
 LIMIT = 500
 TEST_MODULE = re.compile(r"(?:pub(?:\([^)]*\))? )?mod\s+(\w+)\s*([;{])\s*$")
-VENDOR = "crates/kelvo-collect/src/macos/vendor/"
+VENDOR = "crates/statglass-collect/src/macos/vendor/"
 
 
 def production_lines(source: str) -> int:

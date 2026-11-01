@@ -24,13 +24,13 @@
 > See [setup behavior](remote-macs-execution.md#setup-behavior) and the
 > [follow-up checklist](remote-macs-execution.md#ssh-setup-and-review-follow-up-2026-10-12).
 
-This doc covers v4.0 through v4.2. v4.0 ships `kelvo-agent`, the SSH transport, the sync protocol in real use and the Add-host flow. v4.1 adds a native Linux collector set with cgroups and containers. v4.2 adds the fleet view, the host switcher, remote metrics in the menu bar, and alerts evaluated on the agent.
+This doc covers v4.0 through v4.2. v4.0 ships `statglass-agent`, the SSH transport, the sync protocol in real use and the Add-host flow. v4.1 adds a native Linux collector set with cgroups and containers. v4.2 adds the fleet view, the host switcher, remote metrics in the menu bar, and alerts evaluated on the agent.
 
 This is the version the v1 one-way doors were built for. Read [architecture.md](architecture.md) items 1 to 5 (series model, host identity, wire format, sync cursors, sources) and its Sync protocol section first; this doc refines them and does not repeat the type sketches. NVIDIA GPUs are out of scope (D-008).
 
 ## Goal and user value
 
-People who use Kelvo on their Mac usually have a few other machines: a Linux box under the desk, a home server, a Mac mini doing CI, a couple of VPSes. Today they watch those with `htop` over SSH, which shows the present and forgets the past. v4 gives them the same thing Kelvo gives them locally: what is happening now, and what happened while they weren't looking, with attribution. "Why was the build box at 100% at 3am" gets the same answer as "why did my fans spin up at 3pm".
+People who use StatGlass on their Mac usually have a few other machines: a Linux box under the desk, a home server, a Mac mini doing CI, a couple of VPSes. Today they watch those with `htop` over SSH, which shows the present and forgets the past. v4 gives them the same thing StatGlass gives them locally: what is happening now, and what happened while they weren't looking, with attribution. "Why was the build box at 100% at 3am" gets the same answer as "why did my fans spin up at 3pm".
 
 The agent keeps its own history, so a laptop that was closed all weekend comes back and backfills the weekend from every host. Nothing new runs on the network: the controller talks to agents over the user's existing SSH setup, with their keys, jump hosts and config.
 
@@ -49,9 +49,9 @@ The agent keeps its own history, so a laptop that was closed all weekend comes b
 
 ### Must
 
-- v4.0: `kelvo-agent` for macOS (arm64) and Linux (x86_64, aarch64), with its own tiered history and a user-level service.
+- v4.0: `statglass-agent` for macOS (arm64) and Linux (x86_64, aarch64), with its own tiered history and a user-level service.
 - v4.0: Add-host flow over `~/.ssh/config` with SSH agent auth; install and update the agent over SSH with no root.
-- v4.0: transport `ssh host kelvo-agent serve --stdio`, speaking `kelvo-proto`: framing, handshake, capability negotiation, version skew handling.
+- v4.0: transport `ssh host statglass-agent serve --stdio`, speaking `statglass-proto`: framing, handshake, capability negotiation, version skew handling.
 - v4.0: ephemeral live stream; per-(host, tier) cursor sync of closed buckets with `(db_instance_uuid, seq)` epochs; `Truncated` handled as gap rows; idempotent upserts; clock-offset estimate.
 - v4.0: bounded per-host mirror with a disk budget.
 - v4.0: `HostSummary` frames in use, so the controller can hold many hosts cheaply.
@@ -70,7 +70,7 @@ The agent keeps its own history, so a laptop that was closed all weekend comes b
 
 - NVIDIA or other discrete GPU metrics (D-008).
 - Root-level installs, system-wide units or LaunchDaemons. Everything runs as the SSH user.
-- Password or keyboard-interactive SSH auth. Kelvo runs `ssh` with `BatchMode=yes`; keys must be in an agent.
+- Password or keyboard-interactive SSH auth. StatGlass runs `ssh` with `BatchMode=yes`; keys must be in an agent.
 - A listening network port on the agent. The only way in is SSH.
 - Windows hosts.
 - Agent-to-agent or agent-to-cloud communication. The controller is the only consumer.
@@ -85,7 +85,7 @@ No mock. Compose from `11-first-run`: the centred window shell with the step cou
 Opened from "Add host" in Settings, Hosts (and in v4.2 from the fleet view). Three steps:
 
 1. Pick a host. A list of `Host` aliases from `~/.ssh/config` (following `Include`, skipping wildcard patterns), each row showing the alias and the resolved `user@hostname:port` from `ssh -G`. A text field accepts `user@host` for hosts not in the config. Hosts already added are marked "Added".
-2. Check and install. A checklist that fills in as each step runs: Connect, Detect system ("Linux 6.8 · x86_64 · systemd"), Install agent ("kelvo-agent 4.0.2"), Start service, Handshake. Each line shows its result in mono on the right, like the chip status line in the onboarding footer.
+2. Check and install. A checklist that fills in as each step runs: Connect, Detect system ("Linux 6.8 · x86_64 · systemd"), Install agent ("statglass-agent 4.0.2"), Start service, Handshake. Each line shows its result in mono on the right, like the chip status line in the onboarding footer.
 3. First sync. A progress line ("Copying history · 6 of 30 days") with a Done button that is enabled immediately; the sync continues in the background.
 
 The flow, including every branch:
@@ -105,13 +105,13 @@ flowchart TD
   detect -->|unsupported OS or arch| unsupported([Stop: say what was found])
   detect -->|agent present and current| start_svc
   detect -->|agent missing or older| upload["Upload binary over ssh stdin, verify SHA-256, atomic rename"]
-  upload --> unit["kelvo-agent install-unit: systemd user unit or LaunchAgent"]
+  upload --> unit["statglass-agent install-unit: systemd user unit or LaunchAgent"]
   unit --> linger{"Linux: linger enabled?"}
   linger -->|no| lingerwarn["Warn: agent stops at logout; show loginctl enable-linger command"]
   linger -->|yes| start_svc
-  lingerwarn --> start_svc["Enable and start service; kelvo-agent status --json"]
+  lingerwarn --> start_svc["Enable and start service; statglass-agent status --json"]
   start_svc -->|not running| svcfail(["Show service log tail and the command to retry"])
-  start_svc -->|running| hello["ssh host kelvo-agent serve --stdio: Hello, HelloAck, Ping x3"]
+  start_svc -->|running| hello["ssh host statglass-agent serve --stdio: Hello, HelloAck, Ping x3"]
   hello -->|same HostId as this Mac| self([Stop: this is the local Mac])
   hello -->|no common proto version| upd["Offer agent update"]
   upd --> upload
@@ -125,7 +125,7 @@ Error states always name the failing step, show the last lines of `ssh` stderr i
 
 No mock. Compose from `13-settings` Modules table (rows with a coloured dot, a name, a select and a trailing switch) and the Sampling group rows ("History on disk 148 MB" with Clear).
 
-A Hosts section lists every host: status dot (Live, Connecting, Offline, Error), alias, OS, agent version, mirror size against its budget ("41 / 100 MB"), and an enabled switch. Row actions: Open dashboard, Update agent (shown when the bundled agent is newer), Mirror settings (budget, 10 s tier on/off, connect only while viewing), Remove. Remove asks whether to also uninstall the agent from the host (runs `kelvo-agent uninstall` over SSH) and whether to delete the mirrored history.
+A Hosts section lists every host: status dot (Live, Connecting, Offline, Error), alias, OS, agent version, mirror size against its budget ("41 / 100 MB"), and an enabled switch. Row actions: Open dashboard, Update agent (shown when the bundled agent is newer), Mirror settings (budget, 10 s tier on/off, connect only while viewing), Remove. Remove asks whether to also uninstall the agent from the host (runs `statglass-agent uninstall` over SSH) and whether to delete the mirrored history.
 
 Error rows say what is wrong in words: "Host key changed", "SSH agent has no key for this host", "Agent not running (systemd user service failed)", "Agent 4.0.0 is too old for this version; update".
 
@@ -209,8 +209,8 @@ flowchart LR
 
   subgraph Linux["Linux host: build-box"]
     sshd1[sshd]
-    serve1["kelvo-agent serve --stdio"]
-    run1["kelvo-agent run: systemd user unit"]
+    serve1["statglass-agent serve --stdio"]
+    run1["statglass-agent run: systemd user unit"]
     db1[("Agent SQLite")]
     sshd1 --> serve1
     serve1 <-->|unix socket| run1
@@ -219,8 +219,8 @@ flowchart LR
 
   subgraph Mini["Remote Mac: mac-mini"]
     sshd2[sshd]
-    serve2["kelvo-agent serve --stdio"]
-    run2["kelvo-agent run: LaunchAgent"]
+    serve2["statglass-agent serve --stdio"]
+    run2["statglass-agent run: LaunchAgent"]
     db2[("Agent SQLite")]
     sshd2 --> serve2
     serve2 <-->|unix socket| run2
@@ -235,38 +235,38 @@ flowchart LR
 
 | Crate | New or changed | Contents |
 |---|---|---|
-| `kelvo-agent` | New binary | `run` (daemon: engine, store writer, socket server), `serve --stdio` (proxy between stdio and the daemon's socket), `install-unit`, `uninstall`, `status --json`, `version --json` |
-| `kelvo-remote` | New library, controller side | SSH process management, the probe and install scripts, `RemoteSource`, sync client, ingest remapping, mirror budget. Depends on proto, store and engine; never on Tauri, so its integration tests run on the Linux CI runner |
-| `kelvo-proto` | Changed | `LiveTier::Summary`, `SyncRequest.not_before_ts_ms`, alert messages (v4.2), all as negotiated additions |
-| `kelvo-collect` | Changed | `linux/` collectors (v4.1); headless `PowerSignals` for the macOS agent |
-| `kelvo-store` | Changed | Remote-origin keys on gaps and events, per-host usage accounting, provisional gaps |
+| `statglass-agent` | New binary | `run` (daemon: engine, store writer, socket server), `serve --stdio` (proxy between stdio and the daemon's socket), `install-unit`, `uninstall`, `status --json`, `version --json` |
+| `statglass-remote` | New library, controller side | SSH process management, the probe and install scripts, `RemoteSource`, sync client, ingest remapping, mirror budget. Depends on proto, store and engine; never on Tauri, so its integration tests run on the Linux CI runner |
+| `statglass-proto` | Changed | `LiveTier::Summary`, `SyncRequest.not_before_ts_ms`, alert messages (v4.2), all as negotiated additions |
+| `statglass-collect` | Changed | `linux/` collectors (v4.1); headless `PowerSignals` for the macOS agent |
+| `statglass-store` | Changed | Remote-origin keys on gaps and events, per-host usage accounting, provisional gaps |
 | `src-tauri` | Changed | Hosts commands, Add-host flow driver, per-host windows (v4.0) then the switcher (v4.2) |
 
 The agent daemon is the single writer of its database. `serve --stdio` holds no state: it connects to the daemon's socket and copies bytes both ways, so every protocol path is implemented once, in the daemon. If the daemon isn't running, `serve` answers the handshake itself with `Error { code: AgentNotRunning }` so the controller can say exactly that.
 
 | Platform | Binary | Data | Socket | Service |
 |---|---|---|---|---|
-| Linux | `~/.local/bin/kelvo-agent` | `${XDG_STATE_HOME:-~/.local/state}/kelvo-agent/` | `${XDG_RUNTIME_DIR}/kelvo-agent.sock`, else the data dir | `~/.config/systemd/user/kelvo-agent.service`, `systemctl --user enable --now` |
-| macOS | `~/.local/bin/kelvo-agent` | `~/Library/Application Support/kelvo-agent/` | data dir | `~/Library/LaunchAgents/com.tryopendata.kelvo.agent.plist`, `launchctl bootstrap gui/<uid>` |
+| Linux | `~/.local/bin/statglass-agent` | `${XDG_STATE_HOME:-~/.local/state}/statglass-agent/` | `${XDG_RUNTIME_DIR}/statglass-agent.sock`, else the data dir | `~/.config/systemd/user/statglass-agent.service`, `systemctl --user enable --now` |
+| macOS | `~/.local/bin/statglass-agent` | `~/Library/Application Support/statglass-agent/` | data dir | `~/Library/LaunchAgents/com.tryopendata.statglass.agent.plist`, `launchctl bootstrap gui/<uid>` |
 
-The controller always invokes the agent by absolute path (`~/.local/bin/kelvo-agent`), because a non-interactive SSH session's `PATH` often lacks `~/.local/bin`.
+The controller always invokes the agent by absolute path (`~/.local/bin/statglass-agent`), because a non-interactive SSH session's `PATH` often lacks `~/.local/bin`.
 
 On macOS the agent is a headless process with no AppKit run loop, so its `PowerSignals` uses `IORegisterForSystemPower` for sleep and wake; display sleep and lock don't matter for an agent. A LaunchAgent in the `gui` domain only runs while that user is logged in. Bootstrapping it from an SSH session when nobody is logged in at the console may fail (unverified); the flow detects this and says the Mac needs a logged-in session or auto-login. A LaunchDaemon is a Won't.
 
-On Linux, a systemd user service stops at logout unless lingering is enabled, and enabling it usually needs root or polkit. The flow checks `loginctl show-user $USER -p Linger`, warns if it is off, and shows the one command an admin would run. Hosts without systemd (Alpine with OpenRC, containers) get a documented fallback: `kelvo-agent run --daemonize` started from the user's crontab `@reboot` (Should).
+On Linux, a systemd user service stops at logout unless lingering is enabled, and enabling it usually needs root or polkit. The flow checks `loginctl show-user $USER -p Linger`, warns if it is off, and shows the one command an admin would run. Hosts without systemd (Alpine with OpenRC, containers) get a documented fallback: `statglass-agent run --daemonize` started from the user's crontab `@reboot` (Should).
 
 ### Agent binaries and install
 
-The controller bundles agent binaries in its app resources: `kelvo-agent-x86_64-unknown-linux-musl`, `kelvo-agent-aarch64-unknown-linux-musl` (static, built with `cargo zigbuild` on the Linux runner), and `kelvo-agent-aarch64-apple-darwin` (signed and notarized by the v3.0 release workflow). Bundling keeps installs offline-capable and version-locked to the controller, at roughly 15 MB of app size (estimate). Each binary's SHA-256 is compiled into the controller.
+The controller bundles agent binaries in its app resources: `statglass-agent-x86_64-unknown-linux-musl`, `statglass-agent-aarch64-unknown-linux-musl` (static, built with `cargo zigbuild` on the Linux runner), and `statglass-agent-aarch64-apple-darwin` (signed and notarized by the v3.0 release workflow). Bundling keeps installs offline-capable and version-locked to the controller, at roughly 15 MB of app size (estimate). Each binary's SHA-256 is compiled into the controller.
 
 Install and update run POSIX `sh` scripts piped over `ssh host sh -s`, so there is nothing to scp and no dependence on the remote shell being bash:
 
 | Step | Command shape | Checks |
 |---|---|---|
-| Probe | `uname -s -m`, `command -v systemctl`, `systemctl --user is-system-running`, `loginctl show-user`, `df -Pk` on the data dir, `~/.local/bin/kelvo-agent version --json` | Supported OS and arch; enough disk for the agent's budget |
-| Upload | Binary streamed on stdin into `~/.local/bin/.kelvo-agent.tmp` | `sha256sum` or `shasum -a 256` matches; then `chmod +x` and `mv` over the old binary |
-| Unit | `kelvo-agent install-unit` writes the unit or plist | Idempotent; rewrites only if the content changed |
-| Start | `systemctl --user enable --now kelvo-agent` or `launchctl bootstrap` / `kickstart -k` | `kelvo-agent status --json` reports running within 5 s |
+| Probe | `uname -s -m`, `command -v systemctl`, `systemctl --user is-system-running`, `loginctl show-user`, `df -Pk` on the data dir, `~/.local/bin/statglass-agent version --json` | Supported OS and arch; enough disk for the agent's budget |
+| Upload | Binary streamed on stdin into `~/.local/bin/.statglass-agent.tmp` | `sha256sum` or `shasum -a 256` matches; then `chmod +x` and `mv` over the old binary |
+| Unit | `statglass-agent install-unit` writes the unit or plist | Idempotent; rewrites only if the content changed |
+| Start | `systemctl --user enable --now statglass-agent` or `launchctl bootstrap` / `kickstart -k` | `statglass-agent status --json` reports running within 5 s |
 
 An update replaces the binary and restarts the service. The agent writes an `app_not_running` gap for its own restart, which is a few seconds. Updates are offered, not forced: version skew handling means an older agent keeps working until the protocol says otherwise.
 
@@ -276,7 +276,7 @@ An update replaces the binary and restarts the service. The agent writes an `app
 
 ```
 ssh -T -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 \
-    -o ServerAliveCountMax=3 -o RemoteCommand=none <alias> -- ~/.local/bin/kelvo-agent serve --stdio
+    -o ServerAliveCountMax=3 -o RemoteCommand=none <alias> -- ~/.local/bin/statglass-agent serve --stdio
 ```
 
 `BatchMode=yes` means ssh never prompts; any prompt becomes a failure the UI explains. Stderr is captured into a per-host ring of the last 50 lines for error display. Reconnects use exponential backoff from 1 s to 60 s with jitter, reset on a successful handshake. On the controller's `WillSleep` all SSH children are closed; on `DidWake` they reconnect, staggered.
@@ -291,7 +291,7 @@ The handshake is as in architecture item 3: the agent sends `Hello { proto_versi
 |---|---|
 | Ranges `[min_compatible, proto_version]` overlap | Both use the highest common version |
 | No overlap, agent older | Controller shows "Update agent" and offers the update flow |
-| No overlap, agent newer | Controller shows "Update Kelvo on this Mac"; the agent is left alone |
+| No overlap, agent newer | Controller shows "Update StatGlass on this Mac"; the agent is left alone |
 | A feature in one side's set only | That behaviour is off for this connection (for example `alerts` with a v4.0 agent) |
 | Unknown message type | Logged once per type and skipped (`Message::Unknown`) |
 | Unknown `metric_id` in a layout | Series ignored by the controller's UI but still stored, so a later controller version can show it |
@@ -369,7 +369,7 @@ Controller rows get controller-local `seq` values like any other row. Rollups ar
 
 Provisional offline gaps refine the architecture's sync sequence, which writes a `source_offline` gap when a connection drops. If that gap stayed, it would cover hours the agent actually recorded and later synced. In v4.0 a `source_offline` gap is written with `provisional = 1`. After a sync catches up, the writer deletes or trims provisional gaps to the parts that no synced bucket covers. A host that never comes back keeps its provisional gap, which is the honest answer. Architecture.md's sync protocol section describes the same rule.
 
-The sync loop runs once per persisted tier after each handshake, then every 60 s for M1 (just after the minute bucket closes) and, if the 10 s tier is mirrored, every 30 s. On battery, every 5 minutes. Pages stop at 2,000 rows or 3 MB of encoded rows, whichever comes first: 2,000 rows at 150 series is already about 3.6 MB, and wider hosts would otherwise exceed the frame size limit (proposed: 4 MiB, enforced by `kelvo-proto` on decode).
+The sync loop runs once per persisted tier after each handshake, then every 60 s for M1 (just after the minute bucket closes) and, if the 10 s tier is mirrored, every 30 s. On battery, every 5 minutes. Pages stop at 2,000 rows or 3 MB of encoded rows, whichever comes first: 2,000 rows at 150 series is already about 3.6 MB, and wider hosts would otherwise exceed the frame size limit (proposed: 4 MiB, enforced by `statglass-proto` on decode).
 
 Clock offset comes from the minimum-RTT `Ping`/`Pong` sample: `offset = t_remote - (t0 + rtt / 2)`. It is re-estimated every 10 minutes and stored on the host record. It is used only when overlaying two hosts on one chart and for the "Clock differs" note, never to rewrite timestamps.
 
@@ -388,7 +388,7 @@ The local host's 150 MB budget is unchanged and separate.
 
 ### Linux collectors (v4.1)
 
-All `cfg(target_os = "linux")` in `kelvo-collect/linux/`, reporting through the same `Collector` trait and `Probe`. The engine's `Ticker` on Linux is a `timerfd`; `PowerSignals` listens for logind's `PrepareForSleep` over D-Bus (`zbus`), and is a no-op where logind is absent.
+All `cfg(target_os = "linux")` in `statglass-collect/linux/`, reporting through the same `Collector` trait and `Probe`. The engine's `Ticker` on Linux is a `timerfd`; `PowerSignals` listens for logind's `PrepareForSleep` over D-Bus (`zbus`), and is a no-op where logind is absent.
 
 | Module | Source | Cadence (1 s base) | Series examples |
 |---|---|---|---|
@@ -442,9 +442,9 @@ The host-offline alert runs on the controller. It counts a host as unreachable a
 | `provisional` on `gaps` | Controller store | 4.0 | Nullable column, default 0 |
 | `host_usage(host_id, bytes)` | Controller store | 4.0 | New table, computed once on migration |
 | Grouping label on process snapshots (`unit` or `ctr`) | Store blob format version bump | 4.1 | Readers accept both versions |
-| `RuleScope::Host(HostId)`, `RuleScope::AllRemote` | `kelvo-schema` alert rules | 4.2 | Existing rules stay `Local` |
+| `RuleScope::Host(HostId)`, `RuleScope::AllRemote` | `statglass-schema` alert rules | 4.2 | Existing rules stay `Local` |
 | `delivered_alerts(host_id, epoch, seq)` | Controller store | 4.2 | New table, pruned with events |
-| Agent database | Same schema as the local store via `kelvo-store` | 4.0 | Created by `kelvo-agent run` |
+| Agent database | Same schema as the local store via `statglass-store` | 4.0 | Created by `statglass-agent run` |
 
 ## Performance budget deltas
 
@@ -467,7 +467,7 @@ The host-offline alert runs on the controller. It counts a host as unreachable a
 #### Phase 4.0a: Agent skeleton and protocol
 
 Agent:
-- [ ] `crates/kelvo-agent` with `run`, `serve --stdio`, `status --json`, `version --json`
+- [ ] `crates/statglass-agent` with `run`, `serve --stdio`, `status --json`, `version --json`
 - [ ] Daemon owns the engine and store; unix socket server; `serve` is a byte proxy; `AgentNotRunning` error from `serve`
 - [ ] Headless `PowerSignals` on macOS via `IORegisterForSystemPower`
 - [ ] Linux build via `cargo zigbuild` for x86_64 and aarch64 musl, using the v1 sysinfo-backed baseline collectors until v4.1
@@ -479,12 +479,12 @@ Proto:
 - [ ] Fuzz targets (`cargo fuzz`) for frame decoding, `Message` decode and sync-page ingest: a compromised or buggy agent must not be able to crash or wedge the controller. Run in CI for a bounded time per PR and longer nightly
 - [ ] Handshake rejects a peer whose host id equals the controller's local host id (D-071), and ingest caps series, layouts and label cardinality per host
 
-Acceptance: on the Linux CI runner, a test harness pipes a controller-side client into `kelvo-agent serve --stdio`, completes the handshake, receives `Live` and `HostSummary` frames, and an older-version fixture agent negotiates down without errors.
+Acceptance: on the Linux CI runner, a test harness pipes a controller-side client into `statglass-agent serve --stdio`, completes the handshake, receives `Live` and `HostSummary` frames, and an older-version fixture agent negotiates down without errors.
 
 #### Phase 4.0b: Sync and mirror
 
 Store and remote:
-- [ ] `crates/kelvo-remote` with the sync client and ingest remapping
+- [ ] `crates/statglass-remote` with the sync client and ingest remapping
 - [ ] `sync_cursors`, `src_epoch`/`src_seq` columns and unique index, `provisional` gaps, `host_usage`
 - [ ] Ingest transaction per page with cursor advance; page caps by rows and bytes
 - [ ] Epoch mismatch full resync with `not_before_ts_ms`; `Truncated` writes a `truncated` gap
@@ -612,7 +612,7 @@ Acceptance: the test above passes, and stopping an agent's host produces one off
 
 ## Infra this version lays for later versions
 
-- `kelvo-remote` and `RemoteSource` are transport-agnostic above the byte stream, so a later transport (a unix socket for a local helper, or a direct TLS connection) is a new spawner, not a new protocol.
+- `statglass-remote` and `RemoteSource` are transport-agnostic above the byte stream, so a later transport (a unix socket for a local helper, or a direct TLS connection) is a new spawner, not a new protocol.
 - The agent is the same engine as the app; if D-014 moves the local engine into a helper, it is this binary in local mode.
 - Remote-origin keys and provisional gaps make the store safe for any future producer that replays data.
 - `RuleScope` and agent-evaluated rules let later versions push other engine configuration (sampling cadence, collector toggles) to agents the same way.
@@ -624,7 +624,7 @@ Acceptance: the test above passes, and stopping an agent's host produces one off
 |---|---|---|
 | Series model, `SeriesKey`, catalog with `max_cardinality` | v1.0 (architecture item 1) | Wire layouts, ingest remapping, container caps |
 | `HostId`, `HostRecord`, `HostInfo`, `is_local` | v1.0 (item 2) | Host registration, self-detection |
-| `kelvo-proto` framing, CBOR, `Message` enum including reserved `HostSummary`, skew fixtures | v1.0 (item 3) | Transport and all messages |
+| `statglass-proto` framing, CBOR, `Message` enum including reserved `HostSummary`, skew fixtures | v1.0 (item 3) | Transport and all messages |
 | `seq` on every row, `db_instance_uuid`, `Cursor`, `SyncRequest`, `SyncPage`, `Truncated` | v1.0 (item 4) | Sync |
 | `Source` trait, `SourceSink`, `HostRegistry`, bus per host | v1.0 (item 5) | `RemoteSource` |
 | `Ticker` and `PowerSignals` traits, `cfg(target_os)` collectors, Linux cross-check CI | v1.0 (item 6) | Linux agent, headless macOS agent |

@@ -2189,7 +2189,7 @@ mod offline_tests {
         use std::os::unix::fs::PermissionsExt;
         let directory = tempfile::tempdir().unwrap();
         let parent = directory.path().join("Applications");
-        let target = parent.join("Kelvo.app");
+        let target = parent.join("StatGlass.app");
         std::fs::create_dir_all(&target).unwrap();
         std::fs::write(target.join("version"), b"old").unwrap();
         let mut update = updater().restore_update(manifest()).unwrap().unwrap();
@@ -2208,7 +2208,7 @@ mod offline_tests {
         header.set_mode(0o644);
         header.set_cksum();
         archive
-            .append_data(&mut header, "Kelvo.app/version", &b"new"[..])
+            .append_data(&mut header, "StatGlass.app/version", &b"new"[..])
             .unwrap();
         let mut encoder = archive.into_inner().unwrap();
         encoder.flush().unwrap();

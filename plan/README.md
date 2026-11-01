@@ -1,6 +1,6 @@
-# Kelvo plan
+# StatGlass plan
 
-This folder is the plan for Kelvo, from the first installable build through remote host monitoring. Start here, then read the doc for the version you are working on. Kelvo releases are available through GitHub Releases; [CHANGELOG.md](../CHANGELOG.md) records the public versions; use [PROGRESS.md](PROGRESS.md) to distinguish implemented work, QA follow-ups and future plans.
+This folder is the plan for StatGlass, from the first installable build through remote host monitoring. Start here, then read the doc for the version you are working on. StatGlass releases are available through GitHub Releases; [CHANGELOG.md](../CHANGELOG.md) records the public versions; use [PROGRESS.md](PROGRESS.md) to distinguish implemented work, QA follow-ups and future plans.
 
 | Doc | What it covers |
 |---|---|
@@ -22,9 +22,9 @@ This folder is the plan for Kelvo, from the first installable build through remo
 | [decisions.md](decisions.md) | ADR log: every decision with its reasoning and when to revisit it |
 | [PROGRESS.md](PROGRESS.md) | Implementation progress tracker |
 
-## 1. What Kelvo is
+## 1. What StatGlass is
 
-Kelvo is an open-source macOS system monitor for Apple Silicon. It lives in the menu bar, opens a popover with live CPU, GPU, memory, power, network and battery cards, and has a dashboard window with per-module pages and a Timeline that retains up to 30 days of history within the configured disk cap. The thing that sets it apart is that it remembers: when the fans spun up at 3pm, Kelvo can show what the machine was doing and which processes were responsible. It is built on Tauri 2 with a Rust engine and a React 19 and Tailwind v4 frontend, and it is meant to cost less CPU than the tools it replaces. It supports the current macOS release and the one before it (macOS 27 and 26 today, D-028).
+StatGlass is an open-source macOS system monitor for Apple Silicon. It lives in the menu bar, opens a popover with live CPU, GPU, memory, power, network and battery cards, and has a dashboard window with per-module pages and a Timeline that retains up to 30 days of history within the configured disk cap. The thing that sets it apart is that it remembers: when the fans spun up at 3pm, StatGlass can show what the machine was doing and which processes were responsible. It is built on Tauri 2 with a Rust engine and a React 19 and Tailwind v4 frontend, and it is meant to cost less CPU than the tools it replaces. It supports the current macOS release and the one before it (macOS 27 and 26 today, D-028).
 
 ## 2. Problem and first users
 
@@ -44,13 +44,13 @@ Watch my machines: "Show me my other Macs and Linux boxes the same way, includin
 
 ## 4. Differentiators
 
-History with attribution comes first. Kelvo keeps tiered history for up to 30 days, stores app and process usage alongside it, and marks events automatically (fans ramped, thermal state changed, a process ran hot for minutes, a power spike) with the process responsible.
+History with attribution comes first. StatGlass keeps tiered history for up to 30 days, stores app and process usage alongside it, and marks events automatically (fans ramped, thermal state changed, a process ran hot for minutes, a power spike) with the process responsible.
 
 Apple Silicon metrics are first-class: P and E cluster frequency and residency, CPU, GPU, ANE and DRAM power in watts, and the SoC thermal state, drawn from IOReport and SMC the way macmon does it.
 
-Overhead is measured, not claimed. Kelvo benchmarks itself against Stats with the same modules enabled, publishes the method, and shows its own CPU use in the popover footer.
+Overhead is measured, not claimed. StatGlass benchmarks itself against Stats with the same modules enabled, publishes the method, and shows its own CPU use in the popover footer.
 
-Sensor labels are honest. If Kelvo does not recognise a chip, it says so, shows an unknown-chip state, and offers a "Share sensor dump" flow so the mapping can be added, rather than guessing labels.
+Sensor labels are honest. If StatGlass does not recognise a chip, it says so, shows an unknown-chip state, and offers a "Share sensor dump" flow so the mapping can be added, rather than guessing labels.
 
 ## 5. Competitive landscape
 
@@ -62,7 +62,7 @@ Prices and some feature details below are from memory and should be checked befo
 | iStat Menus 7 | Broad, plus weather and time | Some history graphs (range unverified) | Menu bar items; WidgetKit widgets (unverified) | Fewer complaints; redesign criticised | Paid, one-time (amount unverified) |
 | Sensei | CPU, GPU, sensors, battery, disk, plus cleanup tools | Some (unverified) | Dashboard and menu bar | Not widely reported (unverified) | Paid or subscription (unverified) |
 | macmon | Apple Silicon power, frequency, residency, temperatures | None | None, terminal UI | Low | Free, open source |
-| Kelvo | CPU, GPU, memory, power and sensors, network, disk, battery, processes | 30 days tiered, with attribution and annotations | Popover, floating desktop widgets (v2.1), WidgetKit (v2.2 dev build, v3 public) | Budget: at or below Stats, under 0.5% idle | Free, open source |
+| StatGlass | CPU, GPU, memory, power and sensors, network, disk, battery, processes | 30 days tiered, with attribution and annotations | Popover, floating desktop widgets (v2.1), WidgetKit (v2.2 dev build, v3 public) | Budget: at or below Stats, under 0.5% idle | Free, open source |
 
 ## 6. Product principles
 
@@ -74,9 +74,9 @@ Label what we don't know. An unrecognised chip, an unavailable module or an unve
 
 Local-first. History stays on the machine unless the user enables remote monitoring;
 authorized SSH controllers can then read metrics/history and keep local mirrors.
-There is no Kelvo backend for this sharing or telemetry beyond an opt-out update check.
+There is no StatGlass backend for this sharing or telemetry beyond an opt-out update check.
 
-Nothing to install. Kelvo runs on macOS APIs and what is compiled or bundled into the app; a user never installs a library or tool for it to work. Anything a future feature truly needs is bundled in the .app or installed by Kelvo itself on first run, with consent (D-058).
+Nothing to install. StatGlass runs on macOS APIs and what is compiled or bundled into the app; a user never installs a library or tool for it to work. Anything a future feature truly needs is bundled in the .app or installed by StatGlass itself on first run, with consent (D-058).
 
 ## 7. Roadmap
 
@@ -87,7 +87,7 @@ Each row is a major version. Minor versions inside each are listed in the versio
 | v1.x | Local monitor | Tray (combined and values styles), popover, dashboard with Overview and module pages, Timeline 1h/24h (7d/30d and heatmap in v1.1), Settings, onboarding, per-process network and GPU and auto-annotations (v1.2) | Series data model, host UUID, CBOR proto with handshake and skew test, `seq` and DB epoch on every row, `Source` trait, `Ticker`/`PowerSignals` seams, collector entitlement declarations, single-writer settings, dynamic capabilities, Linux cross-check CI | Idle CPU at or below Stats and under 0.5%; accuracy within ±5% and ±2 °C of macmon; 750 MB default history cap (D-120); ad-hoc-signed GitHub DMG (Homebrew deferred) |
 | v2.x | Customization and widgets | v2.0 widget manifest and popover composer; v2.1 floating desktop widgets; v2.2 WidgetKit dev build (personal use); v2.3 alert editor, configurable Overview, per-widget history | Widget manifest with generated TS and Swift types, `WidgetFeedSink` trait with a file implementation, board window lifecycle | Popover renders from saved layouts; board windows within the per-display budget; WidgetKit widgets survive rebuilds on the dev's own Mac |
 | v3.x | Native distribution | Developer ID signing and notarization in CI, hardened runtime, official Homebrew cask, signed updates, public WidgetKit via Team-ID-prefixed App Group, App Store evaluation | `AppGroupWidgetFeed`, signing pipeline, `appstore` edition build | Notarized builds from CI; WidgetKit installs for users with no prompts; go/no-go on the App Store recorded in D-015 |
-| v4.x | Remote hosts | `kelvo-agent` for macOS and Linux, Add-host flow over SSH, live stream and cursor sync, Linux collectors (cgroups, containers), fleet view and host switcher, remote alerts | `RemoteSource`, per-host mirrors with disk budgets, `HostSummary` in use | Agent under 0.3% CPU and 30 MB; sync survives drops, reinstalls and pruning without interpolating; fleet view works for offline hosts |
+| v4.x | Remote hosts | `statglass-agent` for macOS and Linux, Add-host flow over SSH, live stream and cursor sync, Linux collectors (cgroups, containers), fleet view and host switcher, remote alerts | `RemoteSource`, per-host mirrors with disk budgets, `HostSummary` in use | Agent under 0.3% CPU and 30 MB; sync survives drops, reinstalls and pruning without interpolating; fleet view works for offline hosts |
 
 The [Docker container monitoring plan](docker-container-monitoring.md) is an independently staged local feature. It adds one selected local engine, a Containers tab and historical investigation; release placement is not assigned. The v4 remote Linux container work remains separate.
 
@@ -106,14 +106,14 @@ flowchart LR
     direction TB
     REG[HostRegistry]
     LS[LocalSource]
-    subgraph ENG[kelvo-engine]
+    subgraph ENG[statglass-engine]
       TK[Ticker + PowerSignals]
       COL[Collectors]
       ACC[Accumulators + detectors]
       RING[1h ring buffer]
     end
     BUS[(Bus per host)]
-    STORE[(kelvo-store SQLite, single writer)]
+    STORE[(statglass-store SQLite, single writer)]
     TRAY[Tray renderer tiny-skia]
     WIN[Window + channel lifecycle]
     SET[Settings owner]
@@ -146,9 +146,9 @@ flowchart LR
 
   WF[WidgetFeedSink v2.2]
   WK[WidgetKit extension v2.2]
-  AG[kelvo-agent v4]
+  AG[statglass-agent v4]
   RS[RemoteSource Macs]
-  MAC[Remote Kelvo app + bundled helper]
+  MAC[Remote StatGlass app + bundled helper]
   BUS -.-> WF -.-> WK
   AG -.->|ssh stdio, CBOR| RS
   MAC -->|ssh stdio, CBOR| RS
@@ -170,9 +170,9 @@ checked by `make architecture-check`; the diagram above describes data flow.
 
 A first reading through the implementation:
 
-1. `kelvo-collect` reads OS counters into schema series; `kelvo-engine` schedules samples,
+1. `statglass-collect` reads OS counters into schema series; `statglass-engine` schedules samples,
    publishes the live view and accumulates rollups. Metric meaning stays in Rust.
-2. `kelvo-store` persists series/gaps under one SQLite writer. Engine `HistoryStore`
+2. `statglass-store` persists series/gaps under one SQLite writer. Engine `HistoryStore`
    owns store lifecycle and merges persisted/recent queries; remote `Mirror` owns each
    host's separate synchronized history and cursor acknowledgements.
 3. `src-tauri` adapts these services to commands, channels, settings, windows and the tray.
@@ -203,7 +203,7 @@ The original design mocks are retired (D-095). design-system.md and the app as b
 
 ## 11. Repo layout, tech stack, and how to read the plan
 
-The repo is a Cargo workspace plus a Bun app. Rust crates under `crates/` hold everything that a headless agent would also need (schema, proto, collectors, store, engine and remote services). The bundled `kelvo-remote-helper` bridges SSH stdio to the running Mac app; a headless collector agent is still future scope. `src-tauri/` is the app shell: tray, windows, commands. `src/` is the React frontend split into `core/` (plain TypeScript) and `app/` (React). `native/KelvoWidgets/` arrives in v2.2. The full tree is in [architecture.md](architecture.md#repository-layout).
+The repo is a Cargo workspace plus a Bun app. Rust crates under `crates/` hold everything that a headless agent would also need (schema, proto, collectors, store, engine and remote services). The bundled `statglass-remote-helper` bridges SSH stdio to the running Mac app; a headless collector agent is still future scope. `src-tauri/` is the app shell: tray, windows, commands. `src/` is the React frontend split into `core/` (plain TypeScript) and `app/` (React). `native/StatGlassWidgets/` arrives in v2.2. The full tree is in [architecture.md](architecture.md#repository-layout).
 
 | Layer | Choice |
 |---|---|

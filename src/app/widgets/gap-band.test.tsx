@@ -48,7 +48,7 @@ describe("GapBands", () => {
       <GapBands
         {...range}
         gaps={[
-          { fromMs: -3_000, toMs: -1_000, label: "Kelvo not running" },
+          { fromMs: -3_000, toMs: -1_000, label: "StatGlass not running" },
           { fromMs: 1_000, toMs: 2_000, label: "Asleep" },
           { fromMs: 4_000, toMs: 5_000, label: "Paused" },
         ]}

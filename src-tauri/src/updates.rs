@@ -6,8 +6,8 @@ mod workflow;
 
 use std::sync::{Arc, Mutex};
 
-use kelvo_schema::lock::LockExt;
 use serde::Serialize;
+use statglass_schema::lock::LockExt;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::Update;
 use tauri_specta::Event;
@@ -74,7 +74,7 @@ pub struct UpdateStatusChanged {
 #[derive(Clone)]
 struct Candidate {
     update: Update,
-    artifact: kelvo_update::Artifact,
+    artifact: statglass_update::Artifact,
     manifest: Vec<u8>,
     signature: String,
 }

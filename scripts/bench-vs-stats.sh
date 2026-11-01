@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Kelvo vs Stats (architecture.md, Performance budget: "at or below Stats"). Measures
-# Kelvo's tray-only coalition with scripts/bench-coalition.sh, then Stats
+# StatGlass vs Stats (architecture.md, Performance budget: "at or below Stats"). Measures
+# StatGlass's tray-only coalition with scripts/bench-coalition.sh, then Stats
 # (/Applications/Stats.app) with the same coalition tool over the same span, one after
 # the other. Stats is not installed by this script: without it the comparison is
-# skipped and only Kelvo is measured.
+# skipped and only StatGlass is measured.
 #
 # Stats runs with whatever modules its own settings enable; the comparison is only fair
-# when they match Kelvo's menu bar (CPU, GPU, memory, temperature by default). If Stats
+# when they match StatGlass's menu bar (CPU, GPU, memory, temperature by default). If Stats
 # was not running it is launched in the background for the measurement and quit after.
 #
 # Usage: scripts/bench-vs-stats.sh [SECONDS]   (default 600, the plan's 10 minutes)
@@ -46,11 +46,11 @@ if [ -n "$launched" ]; then
 fi
 
 field() { plutil -extract "$2" raw -o - "$1"; }
-kelvo="$(field "$OUT/tray.json" cpu_pct)"
+statglass="$(field "$OUT/tray.json" cpu_pct)"
 stats="$(field "$OUT/stats.json" cpu_pct)"
-printf 'bench-vs-stats: Kelvo %.3f%% CPU %.1f MB, Stats %.3f%% CPU %.1f MB (%s s each)\n' \
-  "$kelvo" "$(field "$OUT/tray.json" footprint_mb)" "$stats" "$(field "$OUT/stats.json" footprint_mb)" "$SECS"
-if awk -v k="$kelvo" -v s="$stats" 'BEGIN { exit !(k > s) }'; then
-  echo "bench-vs-stats: Kelvo uses more CPU than Stats"
+printf 'bench-vs-stats: StatGlass %.3f%% CPU %.1f MB, Stats %.3f%% CPU %.1f MB (%s s each)\n' \
+  "$statglass" "$(field "$OUT/tray.json" footprint_mb)" "$stats" "$(field "$OUT/stats.json" footprint_mb)" "$SECS"
+if awk -v k="$statglass" -v s="$stats" 'BEGIN { exit !(k > s) }'; then
+  echo "bench-vs-stats: StatGlass uses more CPU than Stats"
 fi
 exit "$status"

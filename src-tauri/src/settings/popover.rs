@@ -1,25 +1,25 @@
 //! Partial presentation settings, independent of collector configuration.
 use super::set;
-use kelvo_schema::settings::PopoverSettings;
 use serde::Deserialize;
+use statglass_schema::settings::PopoverSettings;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, specta::Type)]
 #[serde(default)]
 pub struct PopoverPatch {
     #[specta(optional)]
-    pub cpu: Option<kelvo_schema::settings::CardDensity>,
+    pub cpu: Option<statglass_schema::settings::CardDensity>,
     #[specta(optional)]
-    pub memory: Option<kelvo_schema::settings::CardDensity>,
+    pub memory: Option<statglass_schema::settings::CardDensity>,
     #[specta(optional)]
-    pub gpu: Option<kelvo_schema::settings::CardDensity>,
+    pub gpu: Option<statglass_schema::settings::CardDensity>,
     #[specta(optional)]
-    pub power: Option<kelvo_schema::settings::CardDensity>,
+    pub power: Option<statglass_schema::settings::CardDensity>,
     #[specta(optional)]
-    pub network: Option<kelvo_schema::settings::CardDensity>,
+    pub network: Option<statglass_schema::settings::CardDensity>,
     #[specta(optional)]
-    pub battery: Option<kelvo_schema::settings::CardDensity>,
+    pub battery: Option<statglass_schema::settings::CardDensity>,
     #[specta(optional)]
-    pub containers: Option<kelvo_schema::settings::CardDensity>,
+    pub containers: Option<statglass_schema::settings::CardDensity>,
 }
 
 impl PopoverPatch {

@@ -1,6 +1,6 @@
 //! Source-owned durable attribution. Remote answers never come from the metric mirror.
 use crate::{commands::blocking, error::CommandError, state::AppState};
-use kelvo_schema::durable_usage::{
+use statglass_schema::durable_usage::{
     HistoricalUsageReply, HistoricalUsageRequest, UsageProcessReply, UsageProcessRequest,
 };
 use tauri::{AppHandle, Manager};

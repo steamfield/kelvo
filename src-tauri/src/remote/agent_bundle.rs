@@ -1,4 +1,4 @@
-//! The Linux agent binaries bundled as app resources (`agent/kelvo-agent-<triple>`,
+//! The Linux agent binaries bundled as app resources (`agent/statglass-agent-<triple>`,
 //! from `make agent-linux`). Before one is uploaded to a host it is read and re-hashed
 //! against the digest `build.rs` compiled in, so a resource that was swapped or damaged
 //! after the build never reaches a host.
@@ -15,7 +15,7 @@ mod digests {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentBundleError {
-    #[error("Kelvo has no agent for {machine} hosts (supported: aarch64, x86_64)")]
+    #[error("StatGlass has no agent for {machine} hosts (supported: aarch64, x86_64)")]
     UnsupportedArch { machine: String },
     #[error(
         "This build has no Linux agent for {triple}. Run `make agent-linux`, then rebuild the app"
@@ -28,7 +28,7 @@ pub enum AgentBundleError {
         source: std::io::Error,
     },
     #[error(
-        "The bundled agent at {} does not match this build (expected sha256 {expected}, found {actual}). Reinstall Kelvo",
+        "The bundled agent at {} does not match this build (expected sha256 {expected}, found {actual}). Reinstall StatGlass",
         path.display()
     )]
     DigestMismatch {
@@ -77,7 +77,7 @@ pub fn bundled_agent(
     load(&dirs, triple, digests::AGENT_SHA256)
 }
 
-/// Reads `kelvo-agent-<triple>` from the first directory that has it and checks it
+/// Reads `statglass-agent-<triple>` from the first directory that has it and checks it
 /// against `table`.
 fn load(
     dirs: &[PathBuf],
@@ -91,7 +91,7 @@ fn load(
         .ok_or_else(|| AgentBundleError::NotBuilt {
             triple: triple.to_owned(),
         })?;
-    let name = format!("kelvo-agent-{triple}");
+    let name = format!("statglass-agent-{triple}");
     let path = dirs
         .iter()
         .map(|d| d.join(&name))
@@ -152,13 +152,13 @@ mod tests {
         let empty = tempfile::tempdir().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let bytes = b"\x7fELF agent".to_vec();
-        std::fs::write(dir.path().join(format!("kelvo-agent-{TRIPLE}")), &bytes).unwrap();
+        std::fs::write(dir.path().join(format!("statglass-agent-{TRIPLE}")), &bytes).unwrap();
         let digest = sha256_hex(&bytes);
         let table = [(TRIPLE, digest.as_str())];
 
         let dirs = [empty.path().to_path_buf(), dir.path().to_path_buf()];
         let (path, loaded) = load(&dirs, TRIPLE, &table).unwrap();
-        assert_eq!(path, dir.path().join(format!("kelvo-agent-{TRIPLE}")));
+        assert_eq!(path, dir.path().join(format!("statglass-agent-{TRIPLE}")));
         assert_eq!(loaded, bytes);
     }
 
@@ -166,7 +166,7 @@ mod tests {
     fn changed_agent_fails_the_digest_check() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
-            dir.path().join(format!("kelvo-agent-{TRIPLE}")),
+            dir.path().join(format!("statglass-agent-{TRIPLE}")),
             b"tampered",
         )
         .unwrap();

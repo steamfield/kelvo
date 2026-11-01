@@ -53,7 +53,7 @@ export interface SeriesSpec extends WalkSpec {
   periodMs?: number;
   /**
    * Part of `base` that is work done per tick at 1 s, so it scales with the
-   * tick rate (Kelvo's own CPU); the rest does not.
+   * tick rate (StatGlass's own CPU); the rest does not.
    */
   perTick?: number;
   /**

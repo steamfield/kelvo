@@ -79,7 +79,7 @@ def accounting(db):
 
 def run(processes, apps, churn, compressed, minutes, batch=False, busy=False, columnar=False):
     rng = random.Random(41023)
-    with tempfile.TemporaryDirectory(prefix="kelvo-usage-feasibility-") as folder:
+    with tempfile.TemporaryDirectory(prefix="statglass-usage-feasibility-") as folder:
         path = Path(folder)/"usage.sqlite"
         db = sqlite3.connect(path)
         schema(db)
@@ -258,7 +258,7 @@ def rolled_hour_cost(processes, apps, width_s, keep_rows=False):
 
 def retained_identity_cost(processes, apps, days, full=False):
     """Actual SQLite cost of full-horizon identities alone, before usage tier data."""
-    with tempfile.TemporaryDirectory(prefix="kelvo-usage-retained-") as folder:
+    with tempfile.TemporaryDirectory(prefix="statglass-usage-retained-") as folder:
         path = Path(folder)/"usage.sqlite"
         db = sqlite3.connect(path)
         schema(db)

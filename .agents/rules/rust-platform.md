@@ -24,8 +24,8 @@ macOS API are isolated:
 
 - Platform code is `#[cfg(target_os = "macos")]` / `#[cfg(target_os = "linux")]`, at module
   level, not sprinkled through function bodies.
-- `kelvo-schema`, `kelvo-proto`, `kelvo-store`, `kelvo-engine`, `kelvo-collect` and
-  `kelvo-remote` must
+- `statglass-schema`, `statglass-proto`, `statglass-store`, `statglass-engine`, `statglass-collect` and
+  `statglass-remote` must
   `cargo check` and `cargo test` on Linux (a native ubuntu CI job enforces this; `make rust-linux-check` cross-checks locally). Linux collectors are
   stubs until v4, but they compile. `LINUX_CRATES` in Makefile selects all workspace
   members except the macOS shell and separately compile-checked remote helper, so new

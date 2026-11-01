@@ -16,7 +16,7 @@ import { expect, type Page, test } from "@playwright/test";
  */
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
-const ORIGIN = "http://kelvo.csp";
+const ORIGIN = "http://statglass.csp";
 
 const MIME: Record<string, string> = {
   ".html": "text/html",

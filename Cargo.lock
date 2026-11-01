@@ -2232,219 +2232,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kelvo"
-version = "0.3.2"
-dependencies = [
- "ab_glyph",
- "anyhow",
- "block2",
- "core-foundation 0.10.1",
- "kelvo-engine",
- "kelvo-proto",
- "kelvo-remote",
- "kelvo-schema",
- "kelvo-store",
- "kelvo-update",
- "libc",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "png 0.17.16",
- "serde",
- "serde_json",
- "sha2",
- "smappservice-rs",
- "specta",
- "specta-typescript",
- "tauri",
- "tauri-build",
- "tauri-nspanel",
- "tauri-plugin-dialog",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-single-instance",
- "tauri-plugin-store",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
- "tauri-specta",
- "tempfile",
- "thiserror 2.0.21",
- "tiny-skia",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
- "window-vibrancy",
-]
-
-[[package]]
-name = "kelvo-agent"
-version = "0.3.2"
-dependencies = [
- "anyhow",
- "kelvo-engine",
- "kelvo-proto",
- "kelvo-remote",
- "kelvo-schema",
- "kelvo-store",
- "kelvo-update",
- "rustix",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-collect"
-version = "0.3.2"
-dependencies = [
- "block2",
- "bollard",
- "ciborium",
- "core-foundation 0.10.1",
- "core-foundation-sys",
- "futures-util",
- "hyper",
- "hyper-util",
- "kelvo-schema",
- "libc",
- "mach2",
- "objc2-app-kit",
- "objc2-foundation",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-engine"
-version = "0.3.2"
-dependencies = [
- "anyhow",
- "core-foundation 0.10.1",
- "core-foundation-sys",
- "crossbeam-channel",
- "futures-util",
- "kelvo-collect",
- "kelvo-schema",
- "kelvo-store",
- "libc",
- "objc2-foundation",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-proto"
-version = "0.3.2"
-dependencies = [
- "ciborium",
- "kelvo-schema",
- "serde",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-remote"
-version = "0.3.2"
-dependencies = [
- "kelvo-engine",
- "kelvo-proto",
- "kelvo-schema",
- "kelvo-store",
- "libc",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-remote-helper"
-version = "0.3.2"
-dependencies = [
- "kelvo-remote",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "kelvo-schema"
-version = "0.3.2"
-dependencies = [
- "ciborium",
- "compact_str",
- "serde",
- "serde_json",
- "smallvec",
- "specta",
- "specta-serde",
- "specta-typescript",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-store"
-version = "0.3.2"
-dependencies = [
- "anyhow",
- "ciborium",
- "flate2",
- "kelvo-proto",
- "kelvo-schema",
- "rusqlite",
- "rustix",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.21",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "kelvo-update"
-version = "0.3.2"
-dependencies = [
- "base64 0.23.1",
- "minisign-verify",
- "reqwest",
- "rustls",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
 name = "keyboard-types"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4256,6 +4043,219 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+
+[[package]]
+name = "statglass"
+version = "0.3.2"
+dependencies = [
+ "ab_glyph",
+ "anyhow",
+ "block2",
+ "core-foundation 0.10.1",
+ "libc",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "png 0.17.16",
+ "serde",
+ "serde_json",
+ "sha2",
+ "smappservice-rs",
+ "specta",
+ "specta-typescript",
+ "statglass-engine",
+ "statglass-proto",
+ "statglass-remote",
+ "statglass-schema",
+ "statglass-store",
+ "statglass-update",
+ "tauri",
+ "tauri-build",
+ "tauri-nspanel",
+ "tauri-plugin-dialog",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-store",
+ "tauri-plugin-updater",
+ "tauri-plugin-window-state",
+ "tauri-specta",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tiny-skia",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "window-vibrancy",
+]
+
+[[package]]
+name = "statglass-agent"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "rustix",
+ "serde",
+ "serde_json",
+ "statglass-engine",
+ "statglass-proto",
+ "statglass-remote",
+ "statglass-schema",
+ "statglass-store",
+ "statglass-update",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-collect"
+version = "0.3.2"
+dependencies = [
+ "block2",
+ "bollard",
+ "ciborium",
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
+ "futures-util",
+ "hyper",
+ "hyper-util",
+ "libc",
+ "mach2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "serde_json",
+ "sha2",
+ "statglass-schema",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-engine"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
+ "crossbeam-channel",
+ "futures-util",
+ "libc",
+ "objc2-foundation",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "statglass-collect",
+ "statglass-schema",
+ "statglass-store",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-proto"
+version = "0.3.2"
+dependencies = [
+ "ciborium",
+ "serde",
+ "statglass-schema",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-remote"
+version = "0.3.2"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "statglass-engine",
+ "statglass-proto",
+ "statglass-schema",
+ "statglass-store",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-remote-helper"
+version = "0.3.2"
+dependencies = [
+ "serde_json",
+ "statglass-remote",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "statglass-schema"
+version = "0.3.2"
+dependencies = [
+ "ciborium",
+ "compact_str",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "specta",
+ "specta-serde",
+ "specta-typescript",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-store"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "ciborium",
+ "flate2",
+ "rusqlite",
+ "rustix",
+ "serde",
+ "serde_json",
+ "sha2",
+ "statglass-proto",
+ "statglass-schema",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "statglass-update"
+version = "0.3.2"
+dependencies = [
+ "base64 0.23.1",
+ "minisign-verify",
+ "reqwest",
+ "rustls",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
 
 [[package]]
 name = "static_assertions"

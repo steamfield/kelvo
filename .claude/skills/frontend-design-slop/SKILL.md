@@ -1,6 +1,6 @@
 ---
 name: frontend-design-slop
-description: Recognize and avoid AI design slop in the Kelvo UI. Use when adding or restyling a dashboard section, popover layout, metric card, widget, heading, card grid, eyebrow/kicker label, stat tile, badge, or onboarding screen in src/app/, and when auditing existing routes for generic "made by an LLM" patterns. This is about visual and structural patterns, not prose.
+description: Recognize and avoid AI design slop in the StatGlass UI. Use when adding or restyling a dashboard section, popover layout, metric card, widget, heading, card grid, eyebrow/kicker label, stat tile, badge, or onboarding screen in src/app/, and when auditing existing routes for generic "made by an LLM" patterns. This is about visual and structural patterns, not prose.
 ---
 
 # Frontend design slop
@@ -9,7 +9,7 @@ AI design slop is the visual fingerprint of an LLM that averaged instead of chos
 
 The root cause is page-level, not component-level. A model re-derives each section independently, so every section gets the same anatomy and the same visual weight. There is no budget for emphasis. The fix is the same: decide once, per page, what matters most, and let only that section carry the weight.
 
-Kelvo is a dense monitoring UI, so the specific failure here is less "marketing hero" and more "every module card gets the same icon-title-big-number-sparkline anatomy and the same weight", plus decoration that costs CPU at 1 Hz.
+StatGlass is a dense monitoring UI, so the specific failure here is less "marketing hero" and more "every module card gets the same icon-title-big-number-sparkline anatomy and the same weight", plus decoration that costs CPU at 1 Hz.
 
 Read `plan/design-system.md` first and look at the screens already built next to the one you are changing. The design system is the spec: when it and this skill disagree, the design system wins. This skill covers what the design system is silent on: the structural and copy-in-UI patterns that stay generic even when every token is correct.
 
@@ -53,7 +53,7 @@ Default for a section header in app UI: heading, optional one-line sub with real
 
 ## Monospace and uppercase labels
 
-Kelvo has no monospace and no uppercase in its UI (D-101). Monospace figures plus `text-[10px] uppercase tracking-wider` mono labels are the default "developer dashboard" kit a model reaches for, and next to an Inter UI they read as generated rather than designed. Kelvo's figures are SF Pro with tabular numbers (`.figures`), headline numbers are SF Pro Rounded (`.figures-display`), and field labels are 11 px sentence case (`FIELD_LABEL`).
+StatGlass has no monospace and no uppercase in its UI (D-101). Monospace figures plus `text-[10px] uppercase tracking-wider` mono labels are the default "developer dashboard" kit a model reaches for, and next to an Inter UI they read as generated rather than designed. StatGlass's figures are SF Pro with tabular numbers (`.figures`), headline numbers are SF Pro Rounded (`.figures-display`), and field labels are 11 px sentence case (`FIELD_LABEL`).
 
 | Pattern | Grep | Instead |
 |---|---|---|

@@ -681,7 +681,7 @@ export function AppComponentsSection() {
           <div className={panel}>
             <SettingsRow
               label="Sample interval"
-              sub="Kelvo uses about 0.4% CPU at 1s"
+              sub="StatGlass uses about 0.4% CPU at 1s"
             >
               <SegmentedControl
                 ariaLabel="Sample interval (row)"

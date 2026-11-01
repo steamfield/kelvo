@@ -48,7 +48,7 @@ export function SpaceProgress({
           Reading {middleTruncate(`/${status.current ?? ""}`, 72)}
         </span>
         <span>
-          Kelvo shows as a top disk reader in Activity while it scans.
+          StatGlass shows as a top disk reader in Activity while it scans.
         </span>
       </p>
     </div>

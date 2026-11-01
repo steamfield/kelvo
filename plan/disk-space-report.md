@@ -4,12 +4,12 @@ Status: v1 implemented on `main`, 2026-10-19 (D-114). Phase 0 ran first; its res
 the deviations from this plan and the checks still owed on real hardware are in
 "Implementation record" below.
 
-Add a **Space** view to Disk. The user starts a scan of a volume, and Kelvo shows which
+Add a **Space** view to Disk. The user starts a scan of a volume, and StatGlass shows which
 folders and files use the space as a drillable treemap with a ranked table beside it.
 The first results are the volume's top-level folders, filled in as each finishes; clicking a
 folder replaces the treemap with that folder's largest files and folders. Scans are on
 demand, local, read-only and kept in memory while the dashboard is open. Nothing is
-deleted from Kelvo in this version.
+deleted from StatGlass in this version.
 
 ## Problem
 
@@ -23,21 +23,21 @@ internal drives, which is why D-102 added a "Disk used" menu bar readout.
 ### What
 
 A developer whose Mac warns that the disk is almost full struggles to find what is using
-the space. Kelvo's Disk page shows that the boot volume is 91% used and how fast it is being
+the space. StatGlass's Disk page shows that the boot volume is 91% used and how fast it is being
 written to, and stops there. macOS Settings › Storage groups usage into opaque categories,
-the largest of which is often "System Data" with no breakdown. The user leaves Kelvo for
+the largest of which is often "System Data" with no breakdown. The user leaves StatGlass for
 DaisyDisk, GrandPerspective, `du -sh * | sort -h` or `ncdu`, or deletes things by guesswork.
 
 ### Evidence
 
-The request comes from the project owner, who uses Kelvo daily. Its users already track used
+The request comes from the project owner, who uses StatGlass daily. Its users already track used
 space (D-102 readout, Volumes card, low-disk guard D-057). Paid and free single-purpose tools
 exist for exactly this job, which says the job is real and recurring. There is no usage data,
-since Kelvo has no telemetry.
+since StatGlass has no telemetry.
 
 ### Why now
 
-Disk is the only module where Kelvo shows a number (space used) without a way to explain it.
+Disk is the only module where StatGlass shows a number (space used) without a way to explain it.
 The Docker storage work (D-107) established the pattern this needs: an on-demand scan with
 bounded session data, Rust-owned accounting, explicit unknowns and no new history series.
 
@@ -66,7 +66,7 @@ of leaving a silent difference, and says when deleting may not free space.
 
 Users expect a ranked, drillable list with sizes, a proportional picture, Reveal in Finder,
 and a scan that shows progress and can be cancelled. The tree-table-plus-treemap pairing from
-WinDirStat is the familiar shape. Kelvo should break from GrandPerspective's one-tile-per-file
+WinDirStat is the familiar shape. StatGlass should break from GrandPerspective's one-tile-per-file
 noise and from per-type rainbow coloring, and should be more honest than any of them about the
 space no file accounts for.
 
@@ -105,7 +105,7 @@ row to `?view=space&vol=`. The Disk tray readout and Overview disk card keep ope
 Space's empty state is the existing `VolumeTable` with a Scan action per row (one optional
 prop on the shared component), not a second capacity display. Rows show Finder volume names
 ("Macintosh HD"), which Rust must start publishing (see Volume identity). Above the table, one
-sentence: "Kelvo reads file sizes only and changes nothing. Folders macOS protects are skipped
+sentence: "StatGlass reads file sizes only and changes nothing. Folders macOS protects are skipped
 unless you include them." A disclosure lists the skipped locations with an include checkbox
 each (see Permissions). Time Machine backup volumes and network volumes are not listed.
 
@@ -132,7 +132,7 @@ while it runs instead of appearing at the end.
 4. A progress line above the treemap shows bytes measured against the volume's used bytes
    (labelled "about", since unattributed space means it can stop short of 100%), items
    scanned, elapsed time, the folder being read (truncated in the middle), and Cancel.
-   A muted note says Kelvo will appear as a top disk reader in Activity while it scans.
+   A muted note says StatGlass will appear as a top disk reader in Activity while it scans.
 5. A finished folder can be opened while others are still scanning, because its subtree is
    complete. A pending one cannot; its row says so.
 6. When the scan completes, the "Not yet measured" region is replaced by the unattributed
@@ -191,7 +191,7 @@ Rust merges children smaller than 0.5% of the current folder, or beyond its 120 
 one "Smaller items (N)" tile: a flat `--ramp-4` tile with its label. It is measured data, so
 it gets no hatch.
 
-The gap hatch (`--color-grid` stripes) is reserved for space Kelvo did not measure, matching
+The gap hatch (`--color-grid` stripes) is reserved for space StatGlass did not measure, matching
 its meaning elsewhere: "Not yet measured" during a scan, and after it, "Other: snapshots, APFS
 metadata, unmounted and unreadable areas". Measured unattributed space is a flat
 `--color-track` tile with a label: other volumes in the same APFS container ("macOS system",
@@ -248,7 +248,7 @@ never on the 1 Hz tick.
 
 ### Won't have (this version)
 
-- Delete or Move to Trash. Kelvo is a monitor; a destructive action needs its own design
+- Delete or Move to Trash. StatGlass is a monitor; a destructive action needs its own design
   and a decision record like D-107. Reveal in Finder hands the decision to Finder.
 - Full Disk Access guidance. Under ad-hoc signing (D-113) a grant is very likely lost on every
   update, leaving a stale "on" entry that no longer works. Revisit with Developer ID signing.
@@ -340,9 +340,9 @@ No new crate and no change to `crate-edges.json`. This follows the Docker storag
 
 | Layer | Owns | Location |
 |---|---|---|
-| `kelvo-schema` | DTOs: `SpaceVolume`, `SpaceScanStatus`, `SpaceReportSummary`, `SpaceNode`, `SpaceSubtree`, `SpaceFile` | `src/disk_space.rs` |
-| `kelvo-collect` | The walker (root and options in, retained tree and counters out, cancellation flag) and volume identity. macOS enumeration and APFS lookups behind `cfg(target_os = "macos")`, a portable `std::fs` walker for Linux CI | `src/disk_space.rs`, `src/macos/space_walk.rs` |
-| `kelvo-engine` | Report lifecycle: single flight, cancel, retained report, subtree, largest-files and subtree-rescan queries, root accounting | `src/disk_space.rs` |
+| `statglass-schema` | DTOs: `SpaceVolume`, `SpaceScanStatus`, `SpaceReportSummary`, `SpaceNode`, `SpaceSubtree`, `SpaceFile` | `src/disk_space.rs` |
+| `statglass-collect` | The walker (root and options in, retained tree and counters out, cancellation flag) and volume identity. macOS enumeration and APFS lookups behind `cfg(target_os = "macos")`, a portable `std::fs` walker for Linux CI | `src/disk_space.rs`, `src/macos/space_walk.rs` |
+| `statglass-engine` | Report lifecycle: single flight, cancel, retained report, subtree, largest-files and subtree-rescan queries, root accounting | `src/disk_space.rs` |
 | `src-tauri` | Commands, local-host guard, cancel on dashboard hide, Reveal in Finder | `src/disk_space.rs`, `windows.rs` |
 | `src/core` | Transport methods, query keys, treemap layout math (pure, no React) | `transport`, `space-treemap.ts` |
 | `src/app` | Route split, Space view under `routes/dashboard/disk/_components/space-*`, `VolumeTable` action prop | |
@@ -397,7 +397,7 @@ name, a folder of many mid-sized files) in the same change.
 
 ### Permissions
 
-Kelvo is unsandboxed and ad-hoc signed (D-113). Without Full Disk Access, macOS privacy
+StatGlass is unsandboxed and ad-hoc signed (D-113). Without Full Disk Access, macOS privacy
 controls (TCC) deny some locations (Mail, Messages, Safari, other users' homes) and prompt for
 others (Desktop, Documents, Downloads, other apps' containers under app-data protection,
 removable volumes). TCC binds grants to the code signature; an ad-hoc signature's requirement

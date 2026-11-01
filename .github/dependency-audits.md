@@ -6,7 +6,7 @@ vulnerability can affect an otherwise unrelated change. License, source and bann
 dependency checks remain blocking.
 
 For a new finding, the maintainer records the advisory ID, affected dependency,
-reachability in Kelvo, remediation owner and target date in a tracking issue before
+reachability in StatGlass, remediation owner and target date in a tracking issue before
 merging. The PR author owns findings introduced by that PR; an existing dependency
 finding is assigned to the release maintainer. An already tracked finding links to
 its issue rather than creating a duplicate. Credential exposure or a reachable

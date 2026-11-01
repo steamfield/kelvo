@@ -10,8 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 AGENTS = {
-    "linux-aarch64": "kelvo-agent-aarch64-unknown-linux-musl",
-    "linux-x86_64": "kelvo-agent-x86_64-unknown-linux-musl",
+    "linux-aarch64": "statglass-agent-aarch64-unknown-linux-musl",
+    "linux-x86_64": "statglass-agent-x86_64-unknown-linux-musl",
 }
 
 
@@ -25,7 +25,7 @@ def release_version(tag):
     metadata = json.loads(subprocess.check_output(
         ["cargo", "metadata", "--no-deps", "--format-version=1"], cwd=ROOT
     ))
-    if next(p for p in metadata["packages"] if p["name"] == "kelvo")["version"] != version:
+    if next(p for p in metadata["packages"] if p["name"] == "statglass")["version"] != version:
         raise ValueError(f"Cargo workspace version does not match {tag}")
     return version
 
@@ -38,13 +38,13 @@ def manifest(version, signature, notes):
         "notes": notes,
         "platforms": {"darwin-aarch64": {
             "signature": signature.strip(),
-            "url": f"{RELEASE_DOWNLOADS}/v{version}/Kelvo.app.tar.gz",
+            "url": f"{RELEASE_DOWNLOADS}/v{version}/StatGlass.app.tar.gz",
         }},
     }
 
 
 def protocol_range():
-    source = (ROOT / "crates/kelvo-proto/src/lib.rs").read_text()
+    source = (ROOT / "crates/statglass-proto/src/lib.rs").read_text()
     def constant(name):
         match = re.search(rf"pub const {name}: u16 = (\d+);", source)
         if not match:
@@ -53,14 +53,12 @@ def protocol_range():
     return {"min": constant("MIN_COMPATIBLE"), "max": constant("PROTO_VERSION")}
 
 
-# Installed 0.3.x agents accept artifact URLs only under tryopendata/kelvo, which GitHub
-# redirects to steamfield/kelvo. Switch once no supported updater requires it.
-RELEASE_DOWNLOADS = "https://github.com/tryopendata/kelvo/releases/download"
+RELEASE_DOWNLOADS = "https://github.com/steamfield/statglass/releases/download"
 
 
 def catalog(version, output, notes, protocol):
     artifacts = {}
-    for target, name in {"darwin-aarch64": "Kelvo.app.tar.gz", **AGENTS}.items():
+    for target, name in {"darwin-aarch64": "StatGlass.app.tar.gz", **AGENTS}.items():
         path = output / name
         entry = {
             "url": f"{RELEASE_DOWNLOADS}/v{version}/{name}",
@@ -68,7 +66,7 @@ def catalog(version, output, notes, protocol):
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         }
         if target == "darwin-aarch64":
-            entry["signature"] = (output / "Kelvo.app.tar.gz.sig").read_text().strip()
+            entry["signature"] = (output / "StatGlass.app.tar.gz.sig").read_text().strip()
         artifacts[target] = entry
     return {"schema_version": 1, "version": version, "notes": notes,
             "protocol": protocol, "artifacts": artifacts}
@@ -76,8 +74,8 @@ def catalog(version, output, notes, protocol):
 
 def checksums(output):
     # Run after signing, so the checksum list covers the detached signature too.
-    required = ["release.json", "release.json.sig", "latest.json", "Kelvo.app.tar.gz",
-                "Kelvo.app.tar.gz.sig", "Kelvo_aarch64.dmg", *AGENTS.values()]
+    required = ["statglass-release.json", "statglass-release.json.sig", "statglass-latest.json", "StatGlass.app.tar.gz",
+                "StatGlass.app.tar.gz.sig", "StatGlass_aarch64.dmg", *AGENTS.values()]
     for name in required:
         if not (output / name).is_file() or (output / name).stat().st_size == 0:
             raise ValueError(f"Missing or empty release asset: {name}")
@@ -95,9 +93,9 @@ def stage(version, bundle, output, agents=None):
     if len(dmgs) != 1:
         raise ValueError("Expected exactly one DMG")
     assets = {
-        "Kelvo_aarch64.dmg": dmgs[0],
-        "Kelvo.app.tar.gz": bundle / "macos/Kelvo.app.tar.gz",
-        "Kelvo.app.tar.gz.sig": bundle / "macos/Kelvo.app.tar.gz.sig",
+        "StatGlass_aarch64.dmg": dmgs[0],
+        "StatGlass.app.tar.gz": bundle / "macos/StatGlass.app.tar.gz",
+        "StatGlass.app.tar.gz.sig": bundle / "macos/StatGlass.app.tar.gz.sig",
     }
     agents = agents or ROOT / "src-tauri/binaries/agent"
     assets.update({name: agents / name for name in AGENTS.values()})
@@ -106,10 +104,10 @@ def stage(version, bundle, output, agents=None):
             raise ValueError(f"Missing or empty release asset: {source}")
         shutil.copy2(source, output / name)
     notes = (ROOT / "RELEASE_NOTES.md").read_text()
-    data = manifest(version, (output / "Kelvo.app.tar.gz.sig").read_text(), notes)
-    (output / "latest.json").write_text(json.dumps(data, indent=2) + "\n")
+    data = manifest(version, (output / "StatGlass.app.tar.gz.sig").read_text(), notes)
+    (output / "statglass-latest.json").write_text(json.dumps(data, indent=2) + "\n")
     data = catalog(version, output, notes, protocol_range())
-    (output / "release.json").write_text(json.dumps(data, indent=2) + "\n")
+    (output / "statglass-release.json").write_text(json.dumps(data, indent=2) + "\n")
 
 
 if __name__ == "__main__":

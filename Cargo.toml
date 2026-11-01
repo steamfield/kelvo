@@ -12,13 +12,13 @@ publish = false
 [workspace.dependencies]
 # Workspace crates. Edges between them follow the direction table in
 # plan/architecture.md; adding one not listed there is a design change.
-kelvo-schema = { path = "crates/kelvo-schema" }
-kelvo-proto = { path = "crates/kelvo-proto" }
-kelvo-collect = { path = "crates/kelvo-collect" }
-kelvo-store = { path = "crates/kelvo-store" }
-kelvo-engine = { path = "crates/kelvo-engine" }
-kelvo-remote = { path = "crates/kelvo-remote" }
-kelvo-update = { path = "crates/kelvo-update" }
+statglass-schema = { path = "crates/statglass-schema" }
+statglass-proto = { path = "crates/statglass-proto" }
+statglass-collect = { path = "crates/statglass-collect" }
+statglass-store = { path = "crates/statglass-store" }
+statglass-engine = { path = "crates/statglass-engine" }
+statglass-remote = { path = "crates/statglass-remote" }
+statglass-update = { path = "crates/statglass-update" }
 
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0"

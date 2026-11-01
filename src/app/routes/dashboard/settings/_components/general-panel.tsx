@@ -32,7 +32,7 @@ export function GeneralPanel({ general }: { general: Settings["general"] }) {
       </SettingsRow>
       <SettingsRow
         label="Show menu-bar icon"
-        sub="Open Kelvo from Finder to show its dashboard when hidden."
+        sub="Open StatGlass from Finder to show its dashboard when hidden."
       >
         <Switch
           checked={general.show_menu_bar ?? true}
@@ -79,7 +79,7 @@ export function GeneralPanel({ general }: { general: Settings["general"] }) {
       </SettingsRow>
       <SettingsRow
         label="Install updates automatically"
-        sub="Kelvo restarts when the dashboard and popover are closed and no changes are in progress."
+        sub="StatGlass restarts when the dashboard and popover are closed and no changes are in progress."
       >
         <Switch
           checked={general.auto_install_updates ?? true}

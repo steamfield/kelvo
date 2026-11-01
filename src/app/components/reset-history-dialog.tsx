@@ -28,9 +28,9 @@ export function ResetHistoryDialog({
       title="Reset history?"
       description={
         <>
-          Kelvo starts a new, empty history file. The current one is kept aside
-          next to it as history-reset-&lt;time&gt;.sqlite, not deleted. Live
-          values keep updating, and the Timeline starts again from now.
+          StatGlass starts a new, empty history file. The current one is kept
+          aside next to it as history-reset-&lt;time&gt;.sqlite, not deleted.
+          Live values keep updating, and the Timeline starts again from now.
         </>
       }
       confirmLabel="Reset history"

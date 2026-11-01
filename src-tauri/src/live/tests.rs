@@ -6,8 +6,8 @@ use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
-use kelvo_engine::{Bus, FrameLayout, LiveFrame, ProcessBatch, ProcessSort};
-use kelvo_schema::{Labels, MetricId, SeriesKey};
+use statglass_engine::{Bus, FrameLayout, LiveFrame, ProcessBatch, ProcessSort};
+use statglass_schema::{Labels, MetricId, SeriesKey};
 use uuid::Uuid;
 
 use super::*;
@@ -298,14 +298,14 @@ async fn an_open_window_receives_the_history_a_refilled_ring_brings() {
         .unwrap();
     drain(&rx).await;
 
-    let history = kelvo_store::HistoryResult {
-        tier: kelvo_schema::Tier::S10,
+    let history = statglass_store::HistoryResult {
+        tier: statglass_schema::Tier::S10,
         bucket_ms: 10_000,
-        series: vec![kelvo_store::SeriesPoints {
+        series: vec![statglass_store::SeriesPoints {
             key: SeriesKey::bare(MetricId::from_static("cpu.total")),
             points: [(0, 20.0), (10_000, 25.0)]
                 .into_iter()
-                .map(|(t, avg)| kelvo_store::Point {
+                .map(|(t, avg)| statglass_store::Point {
                     t,
                     min: avg,
                     max: avg,
@@ -354,14 +354,14 @@ async fn an_open_window_receives_the_history_a_refilled_ring_brings() {
 #[tokio::test(start_paused = true)]
 async fn startup_backfills_warm_history_before_the_first_frame() {
     let feed = FakeFeed::new();
-    let history = kelvo_store::HistoryResult {
-        tier: kelvo_schema::Tier::S10,
+    let history = statglass_store::HistoryResult {
+        tier: statglass_schema::Tier::S10,
         bucket_ms: 10_000,
-        series: vec![kelvo_store::SeriesPoints {
+        series: vec![statglass_store::SeriesPoints {
             key: SeriesKey::bare(MetricId::from_static("cpu.total")),
             points: [0, 10_000, 30_000]
                 .into_iter()
-                .map(|t| kelvo_store::Point {
+                .map(|t| statglass_store::Point {
                     t,
                     min: 20.0,
                     max: 20.0,

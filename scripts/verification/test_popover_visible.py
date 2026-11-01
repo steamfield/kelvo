@@ -20,20 +20,20 @@ class PopoverVisibleTests(unittest.TestCase):
         self.logs = Path(self.temp.name)
         self.launch, self.start, self.end = 100.0, 110.0, 120.0
 
-    def write(self, events, filename="kelvo.2026-01-01.log"):
+    def write(self, events, filename="statglass.2026-01-01.log"):
         from datetime import datetime, timezone
         lines = []
         for stamp, message in events:
             date = datetime.fromtimestamp(stamp, timezone.utc).isoformat().replace("+00:00", "Z")
-            lines.append(f"{date} DEBUG kelvo_lib::popover::panel: {message}\n")
+            lines.append(f"{date} DEBUG statglass_lib::popover::panel: {message}\n")
         (self.logs / filename).write_text("".join(lines))
 
     def state(self, events):
         from datetime import datetime, timezone
-        with (self.logs / "kelvo.2026-01-01.log").open("a") as log:
+        with (self.logs / "statglass.2026-01-01.log").open("a") as log:
             for stamp, message in events:
                 date = datetime.fromtimestamp(stamp, timezone.utc).isoformat().replace("+00:00", "Z")
-                log.write(f"{date} INFO kelvo_lib::state: {message}\n")
+                log.write(f"{date} INFO statglass_lib::state: {message}\n")
 
     def ready(self):
         return [(101, "popover panel created"), (103, "popover occlusion visible=true"),
@@ -59,8 +59,8 @@ class PopoverVisibleTests(unittest.TestCase):
     def test_missing_or_malformed_evidence_fails_closed(self):
         for events in [[], self.ready()[:1], self.ready()[:2]]:
             self.write(events)
-            with (self.logs / "kelvo.2026-01-01.log").open("a") as log:
-                log.write("not-a-dateZ DEBUG kelvo_lib::popover: popover opened open_ms=1\n")
+            with (self.logs / "statglass.2026-01-01.log").open("a") as log:
+                log.write("not-a-dateZ DEBUG statglass_lib::popover: popover opened open_ms=1\n")
                 log.write("1970-01-01T00:01:45Z DEBUG unrelated: popover opened open_ms=1\n")
             with self.assertRaises(ValueError):
                 self.validate()
@@ -92,7 +92,7 @@ class PopoverVisibleTests(unittest.TestCase):
 
     def test_rotation_and_fractional_launch_boundaries(self):
         self.launch = 100.5
-        self.write([(100.4, "popover panel created")], "kelvo.2025-12-31.log")
+        self.write([(100.4, "popover panel created")], "statglass.2025-12-31.log")
         self.write(self.ready())
         self.validate()
 

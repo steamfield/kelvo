@@ -91,7 +91,7 @@ export default function SettingsRoute() {
             <SettingsPanel title="Remote monitoring">
               <SettingsRow
                 label="Allow remote monitoring"
-                sub="Other Macs signed in over SSH as your user can view this Mac while Kelvo is running."
+                sub="Other Macs signed in over SSH as your user can view this Mac while StatGlass is running."
               >
                 <Switch
                   aria-label="Allow remote monitoring"

@@ -6,9 +6,9 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
-use kelvo_lib::{AppState, startup};
-use kelvo_schema::{Event, EventDetail};
 use serde::{Deserialize, Serialize};
+use statglass_lib::{AppState, startup};
+use statglass_schema::{Event, EventDetail};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -29,12 +29,13 @@ struct Acceptance {
 }
 
 fn main() -> anyhow::Result<()> {
-    let root =
-        PathBuf::from(std::env::var("KELVO_ACCEPTANCE_ROOT").context("use the acceptance runner")?);
-    let identifier =
-        std::env::var("KELVO_ACCEPTANCE_IDENTIFIER").context("missing acceptance identifier")?;
+    let root = PathBuf::from(
+        std::env::var("STATGLASS_ACCEPTANCE_ROOT").context("use the acceptance runner")?,
+    );
+    let identifier = std::env::var("STATGLASS_ACCEPTANCE_IDENTIFIER")
+        .context("missing acceptance identifier")?;
     ensure!(
-        identifier.starts_with("com.tryopendata.kelvo.acceptance."),
+        identifier.starts_with("com.tryopendata.statglass.acceptance."),
         "refusing a production identifier"
     );
     ensure!(root.is_dir(), "missing acceptance output directory");
@@ -56,7 +57,7 @@ fn main() -> anyhow::Result<()> {
     let mut context = tauri::test::mock_context::<tauri::Wry, _>(tauri::test::noop_assets());
     *context.config_mut() = serde_json::from_str(include_str!("../tauri.conf.json"))?;
     context.config_mut().identifier = acceptance.identifier.clone();
-    context.config_mut().product_name = Some("Kelvo update acceptance".into());
+    context.config_mut().product_name = Some("StatGlass update acceptance".into());
     context.config_mut().app.windows.clear();
     context.config_mut().app.app_directories_override =
         Some(tauri::utils::config::AppDirectoriesOverride::Root(
@@ -66,7 +67,7 @@ fn main() -> anyhow::Result<()> {
     let app = tauri::Builder::<tauri::Wry>::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(move |app| {
-            kelvo_lib::specta_builder().mount_events(app);
+            statglass_lib::specta_builder().mount_events(app);
             if let Err(error) = prepare(app.handle(), &setup) {
                 record(
                     &setup.root.join("failure.json"),
@@ -95,7 +96,7 @@ fn main() -> anyhow::Result<()> {
         }
         RunEvent::Exit => {
             // These are the same shutdown owners used by the shipped app's Exit arm.
-            kelvo_lib::remote::shutdown(app);
+            statglass_lib::remote::shutdown(app);
             app.state::<AppState>().shutdown();
             let filename = if acceptance.resumed {
                 "done.json"
@@ -146,7 +147,7 @@ fn prepare(app: &tauri::AppHandle, acceptance: &Acceptance) -> anyhow::Result<()
             "onboarding",
             WebviewUrl::External("about:blank".parse()?),
         )
-        .title("Kelvo update acceptance")
+        .title("StatGlass update acceptance")
         .inner_size(320.0, 160.0)
         .focused(false)
         .build()?;
@@ -165,7 +166,7 @@ fn prepare(app: &tauri::AppHandle, acceptance: &Acceptance) -> anyhow::Result<()
             "a fresh acceptance identity had a restart marker"
         );
         ensure!(show != deferred, "initial launch policy mismatch");
-        let event_ms = kelvo_engine::wall_ms();
+        let event_ms = statglass_engine::wall_ms();
         let expected = Expected {
             pid: std::process::id(),
             host: state.local.to_string(),

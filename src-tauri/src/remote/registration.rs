@@ -29,7 +29,7 @@ pub(super) fn register(app: &AppHandle, saved: SavedHost) -> Result<(), CommandE
     // The version this callback last saw; callbacks run on every live frame, so
     // only a change reaches the saved hosts and the disk.
     let known = Mutex::new(saved.last_agent_version.clone());
-    let cb = Arc::new(move |s: kelvo_remote::ConnectionStatus| {
+    let cb = Arc::new(move |s: statglass_remote::ConnectionStatus| {
         let state = handle.state::<AppState>();
         if state.remotes.generations.lock_ok().get(&id) != Some(&generation) {
             return;
@@ -140,7 +140,7 @@ fn remember_version(app: &AppHandle, id: HostId, version: &str) {
 }
 
 pub(super) fn connection_status(
-    s: kelvo_remote::ConnectionStatus,
+    s: statglass_remote::ConnectionStatus,
     linux: bool,
     last_version: Option<String>,
 ) -> RemoteHostStatus {
@@ -161,8 +161,8 @@ pub(super) fn connection_status(
             RemoteState::Offline
         },
         route: s.route.map(|r| match r {
-            kelvo_remote::Route::Lan => RemoteRoute::Lan,
-            kelvo_remote::Route::Tailscale => RemoteRoute::Tailscale,
+            statglass_remote::Route::Lan => RemoteRoute::Lan,
+            statglass_remote::Route::Tailscale => RemoteRoute::Tailscale,
         }),
         last_seen_ms: s.last_seen_ms.map(|m| m as f64),
         error: s.error.or(s.history_error.clone()),

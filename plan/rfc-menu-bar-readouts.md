@@ -20,7 +20,7 @@ its own) and nothing on the page shows what the menu bar will look like.
 
 ## Who and what job
 
-The Kelvo user glances at the menu bar dozens of times a day. The job is "tell me the one or two
+The StatGlass user glances at the menu bar dozens of times a day. The job is "tell me the one or two
 numbers I care about on this Mac without opening anything". Which numbers differs by person and
 machine: a MacBook user on battery watches watts, someone running local models watches memory,
 someone with a 256 GB disk watches disk usage, and the default (temperature) suits people who
@@ -34,7 +34,7 @@ menu bar says what it is without a legend.
 
 Stats (exelban) and iStat Menus both configure the menu bar per module, each module choosing a
 widget (label + value, mini chart, bar) and an order. Stats labels values with tiny stacked
-three-letter labels, which Kelvo already copied for its Values style. iStat Menus uses small
+three-letter labels, which StatGlass already copied for its Values style. iStat Menus uses small
 SF Symbol-style glyphs (bolt, thermometer, drive) next to values. Both give a live preview in
 the settings window. The common pattern: the menu bar is a row of small "readouts", each a
 marker plus a value, and the user ticks which ones appear.
@@ -89,7 +89,7 @@ throughput onto the background tick). The separate Disk item keeps showing read 
 throughput, and Settings labels that option "Read + write rate" so the two are not confused
 (review finding 2).
 
-### Settings schema (`kelvo-schema`)
+### Settings schema (`statglass-schema`)
 
 ```rust
 pub struct Settings {
@@ -225,7 +225,7 @@ Default settings draw what they draw today plus one glyph, so the tray scenario'
 does not change. `EngineSettings::menu_bar` comes from the new `menu_bar_shows`. Network and
 Power readouts pull their modules onto the background tick exactly as "Value + label" did. The
 Disk readout pulls nothing (60 s capacity cadence). `make bench` is not rerun for this change;
-`cargo test -p kelvo-engine --test perf_gates` covers calls per tick with the defaults.
+`cargo test -p statglass-engine --test perf_gates` covers calls per tick with the defaults.
 
 `src/core/performance.ts` (Performance mode copy that counts own items) and
 `scripts/bench-coalition.sh` / `src-tauri/src/bench.rs` (bench presets set

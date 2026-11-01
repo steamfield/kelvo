@@ -286,7 +286,7 @@ function AppsTable({
               colSpan={6}
               className="whitespace-normal px-3 pt-0 pb-2.5 pl-9 font-normal text-[11px] text-muted-foreground leading-[1.45]"
             >
-              macOS services (updates, backups, DNS). Kelvo can't see these
+              macOS services (updates, backups, DNS). StatGlass can't see these
               without a helper.
             </TableCell>
           </TableRow>

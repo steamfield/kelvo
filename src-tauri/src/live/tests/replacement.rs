@@ -159,12 +159,12 @@ async fn hidden_replacement_stays_idle_until_shown_and_releases_on_removal() {
 
 #[derive(Clone)]
 struct RecordingSource {
-    record: kelvo_schema::HostRecord,
+    record: statglass_schema::HostRecord,
     detail: Arc<Mutex<Vec<bool>>>,
 }
 
-impl kelvo_engine::Source for RecordingSource {
-    fn host(&self) -> kelvo_schema::HostRecord {
+impl statglass_engine::Source for RecordingSource {
+    fn host(&self) -> statglass_schema::HostRecord {
         self.record.clone()
     }
     fn capabilities(&self) -> Capabilities {
@@ -172,13 +172,15 @@ impl kelvo_engine::Source for RecordingSource {
     }
     fn start(
         self: Arc<Self>,
-        _: kelvo_engine::SourceSink,
-    ) -> Result<kelvo_engine::SourceHandle, kelvo_engine::SourceError> {
-        Ok(kelvo_engine::SourceHandle::new(Box::new((*self).clone())))
+        _: statglass_engine::SourceSink,
+    ) -> Result<statglass_engine::SourceHandle, statglass_engine::SourceError> {
+        Ok(statglass_engine::SourceHandle::new(Box::new(
+            (*self).clone(),
+        )))
     }
 }
 
-impl kelvo_engine::SourceControl for RecordingSource {
+impl statglass_engine::SourceControl for RecordingSource {
     fn set_paused(&self, _: bool) {}
     fn set_process_interest(&self, _: Option<u32>) {}
     fn set_network_process_interest(&self, _: bool) {}
@@ -188,8 +190,8 @@ impl kelvo_engine::SourceControl for RecordingSource {
     fn set_detail_interest(&self, interested: bool) {
         self.detail.lock().unwrap().push(interested);
     }
-    fn apply_settings(&self, _: &kelvo_schema::Settings) {}
-    fn set_store(&self, _: Option<kelvo_store::Writer>) {}
+    fn apply_settings(&self, _: &statglass_schema::Settings) {}
+    fn set_store(&self, _: Option<statglass_store::Writer>) {}
     fn status(&self) -> EngineStatus {
         EngineStatus::default()
     }
@@ -198,7 +200,7 @@ impl kelvo_engine::SourceControl for RecordingSource {
 
 #[tokio::test(start_paused = true)]
 async fn real_host_entry_balances_engine_detail_across_windows_and_process_updates() {
-    let record: kelvo_schema::HostRecord = serde_json::from_value(serde_json::json!({
+    let record: statglass_schema::HostRecord = serde_json::from_value(serde_json::json!({
         "id": Uuid::new_v4(), "is_local": false, "display_name": "test",
         "info": {"os": "linux", "os_version": "test", "model": null, "chip": null,
         "chip_known": false, "cpu_topology": [], "mem_total_bytes": 1024, "boot_time_ms": 0}

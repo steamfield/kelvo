@@ -1,0 +1,488 @@
+//! Where the headless agent lives on a Linux host (D-116), shared by the agent and the
+//! controller that installs it. A root SSH login gets the system layout and a systemd
+//! system unit; any other user gets the per-user layout and a user unit.
+//!
+//! Every path is a pure function of [`AgentEnv`], so both sides compute the same paths
+//! from the same environment and tests never read the process environment.
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+
+use crate::{RemoteError, Result};
+
+/// What `statglass-agent serve --stdio` prints to stderr when its daemon is not running,
+/// before exiting with status 3. The controller recognises it in the SSH stderr and
+/// reports [`RemoteError::AgentNotRunning`], with no wire change.
+pub const AGENT_NOT_RUNNING: &str = "statglass-agent: not running";
+
+/// The unit name in both layouts.
+pub const UNIT_NAME: &str = "statglass-agent.service";
+pub const UPDATE_UNIT: &str = "statglass-agent-update.service";
+pub const UPDATE_TIMER: &str = "statglass-agent-update.timer";
+pub const RECOVERY_UNIT: &str = "statglass-agent-recovery.service";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AgentLayout {
+    /// Installed by root: `/usr/local/bin`, `/var/lib`, `/run`, a system unit.
+    System,
+    /// Installed by any other user under their home, with a user unit.
+    User,
+}
+
+/// The environment the paths depend on. Unset, empty or relative XDG variables are
+/// ignored, as the XDG base directory spec says.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AgentEnv {
+    pub home: Option<PathBuf>,
+    pub xdg_state_home: Option<PathBuf>,
+    pub xdg_runtime_dir: Option<PathBuf>,
+    pub xdg_config_home: Option<PathBuf>,
+}
+
+impl AgentEnv {
+    /// This process's environment.
+    pub fn from_process() -> Self {
+        let var = |name| std::env::var_os(name);
+        Self::from_vars(
+            var("HOME"),
+            var("XDG_STATE_HOME"),
+            var("XDG_RUNTIME_DIR"),
+            var("XDG_CONFIG_HOME"),
+        )
+    }
+
+    pub(crate) fn from_vars(
+        home: Option<OsString>,
+        state: Option<OsString>,
+        runtime: Option<OsString>,
+        config: Option<OsString>,
+    ) -> Self {
+        let absolute = |v: Option<OsString>| v.map(PathBuf::from).filter(|p| p.is_absolute());
+        Self {
+            home: absolute(home),
+            xdg_state_home: absolute(state),
+            xdg_runtime_dir: absolute(runtime),
+            xdg_config_home: absolute(config),
+        }
+    }
+
+    fn home(&self) -> Result<&Path> {
+        self.home
+            .as_deref()
+            .ok_or_else(|| RemoteError::Protocol("HOME unavailable".into()))
+    }
+}
+
+/// Every path of one layout.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AgentPaths {
+    pub binary: PathBuf,
+    pub data_dir: PathBuf,
+    pub socket: PathBuf,
+    pub unit: PathBuf,
+}
+
+impl AgentLayout {
+    /// The layout for an effective uid: root installs the system layout.
+    pub fn for_uid(uid: u32) -> Self {
+        if uid == 0 { Self::System } else { Self::User }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::User => "user",
+        }
+    }
+
+    /// The paths of this layout. The user layout needs `HOME`.
+    ///
+    /// | | System | User |
+    /// |---|---|---|
+    /// | binary | `/usr/local/bin/statglass-agent` | `~/.local/bin/statglass-agent` |
+    /// | data | `/var/lib/statglass-agent` | `${XDG_STATE_HOME:-~/.local/state}/statglass-agent` |
+    /// | socket | `/run/statglass-agent/metrics.sock` | `$XDG_RUNTIME_DIR/statglass-agent/metrics.sock`, else in the data dir |
+    /// | unit | `/etc/systemd/system/statglass-agent.service` | `${XDG_CONFIG_HOME:-~/.config}/systemd/user/statglass-agent.service` |
+    pub fn paths(self, env: &AgentEnv) -> Result<AgentPaths> {
+        match self {
+            Self::System => Ok(AgentPaths {
+                binary: PathBuf::from("/usr/local/bin/statglass-agent"),
+                data_dir: PathBuf::from("/var/lib/statglass-agent"),
+                socket: PathBuf::from("/run/statglass-agent/metrics.sock"),
+                unit: Path::new("/etc/systemd/system").join(UNIT_NAME),
+            }),
+            Self::User => {
+                let home = env.home()?;
+                let data_dir = env
+                    .xdg_state_home
+                    .clone()
+                    .unwrap_or_else(|| home.join(".local/state"))
+                    .join("statglass-agent");
+                let socket = env.xdg_runtime_dir.as_ref().map_or_else(
+                    || data_dir.join("metrics.sock"),
+                    |run| run.join("statglass-agent/metrics.sock"),
+                );
+                let config = env
+                    .xdg_config_home
+                    .clone()
+                    .unwrap_or_else(|| home.join(".config"));
+                Ok(AgentPaths {
+                    binary: home.join(".local/bin/statglass-agent"),
+                    socket,
+                    unit: config.join("systemd/user").join(UNIT_NAME),
+                    data_dir,
+                })
+            }
+        }
+    }
+
+    /// The unit file text for `paths`.
+    ///
+    /// The system unit runs as root with systemd-managed state and runtime directories
+    /// and a read-only view of the rest of the system. The user unit leaves out
+    /// `ProtectSystem`, `ProtectHome`, `PrivateTmp` and the directory settings: in a
+    /// user manager they need unprivileged user namespaces, and where those are missing
+    /// the unit fails to start; the agent creates its own private directories there.
+    ///
+    /// The user unit names its data directory and socket explicitly. The user manager's
+    /// environment is not the SSH session's (`XDG_*` set in a shell profile never reach
+    /// it), so the paths the controller computed from the session are baked in rather
+    /// than left for the daemon to derive again.
+    ///
+    /// Both restart a crashed agent every 5 s with no start limit: the controller keeps
+    /// retrying a host whose agent is not running, so systemd must not give up first.
+    ///
+    /// The cgroup is charged for the page cache and dentries the agent's reads pull in,
+    /// and a space scan of `/` pulls in close to 1 GB of them. `MemoryHigh` reclaims that
+    /// cache while leaving headroom for the warmed history rings and scan report: 96M
+    /// caused sustained reclaim stalls once anonymous memory reached that threshold.
+    /// `MemorySwapMax=0` keeps reclaim from swapping out the agent's own pages instead.
+    /// `MemoryMax` is the backstop for a leak. See D-116 for measured working sets.
+    pub fn unit_text(self, paths: &AgentPaths) -> String {
+        let exec = unit_quote(&paths.binary.to_string_lossy());
+        let data = unit_quote(&paths.data_dir.to_string_lossy());
+        let socket = unit_quote(&paths.socket.to_string_lossy());
+        let text = match self {
+            Self::System => format!(
+                "[Unit]\n\
+                 Description=StatGlass agent\n\
+                 StartLimitIntervalSec=0\n\
+                 \n\
+                 [Service]\n\
+                 ExecStart={exec} run --system\n\
+                 StateDirectory=statglass-agent\n\
+                 RuntimeDirectory=statglass-agent\n\
+                 RuntimeDirectoryMode=0700\n\
+                 Restart=on-failure\n\
+                 RestartSec=5s\n\
+                 \n\
+                 [Install]\n\
+                 WantedBy=multi-user.target\n"
+            ),
+            Self::User => format!(
+                "[Unit]\n\
+                 Description=StatGlass agent\n\
+                 StartLimitIntervalSec=0\n\
+                 \n\
+                 [Service]\n\
+                 ExecStart={exec} run --data-dir {data} --socket {socket}\n\
+                 Restart=on-failure\n\
+                 RestartSec=5s\n\
+                 \n\
+                 [Install]\n\
+                 WantedBy=default.target\n"
+            ),
+        };
+        let text = text.replacen(
+            "[Service]\n",
+            &format!("[Service]\n{}\n", self.collector_properties().join("\n")),
+            1,
+        );
+        text.replacen(
+            "StartLimitIntervalSec=0\n",
+            &format!("StartLimitIntervalSec=0\nRequires={RECOVERY_UNIT}\nAfter={RECOVERY_UNIT}\n"),
+            1,
+        )
+    }
+
+    /// Apply the collector's resource limits and supported sandbox to private trials too.
+    pub fn collector_properties(self) -> Vec<&'static str> {
+        let mut properties = vec![
+            "NoNewPrivileges=yes",
+            "Nice=10",
+            "IOSchedulingClass=best-effort",
+            "IOSchedulingPriority=7",
+            "MemoryHigh=128M",
+            "MemoryMax=256M",
+            "MemorySwapMax=0",
+        ];
+        if self == Self::System {
+            properties.extend([
+                "ProtectSystem=strict",
+                "ProtectHome=read-only",
+                "PrivateTmp=yes",
+            ]);
+        }
+        properties
+    }
+
+    /// Separate from the collector sandbox; recovery stops the private trial unit
+    /// before restoring history, including when the updater is killed.
+    pub fn update_units(self, paths: &AgentPaths) -> [(PathBuf, String); 3] {
+        let binary = unit_quote(&paths.binary.to_string_lossy());
+        let recovery = unit_quote(
+            &paths
+                .binary
+                .with_file_name(".statglass-agent-recovery")
+                .to_string_lossy(),
+        );
+        let data = unit_quote(&paths.data_dir.to_string_lossy());
+        let socket = unit_quote(&paths.socket.to_string_lossy());
+        let system = if self == Self::System {
+            " --system"
+        } else {
+            ""
+        };
+        let args = format!("{system} --data-dir {data} --socket {socket}");
+        let dir = paths.unit.parent().unwrap_or(Path::new("."));
+        let environment = if self == Self::User {
+            let config = dir
+                .parent()
+                .and_then(Path::parent)
+                .unwrap_or(Path::new("."));
+            format!(
+                "Environment={}\n",
+                unit_quote(&format!("XDG_CONFIG_HOME={}", config.display()))
+            )
+        } else {
+            String::new()
+        };
+        [
+            (
+                dir.join(UPDATE_UNIT),
+                format!(
+                    "[Unit]\nDescription=StatGlass agent automatic update\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=oneshot\n{environment}ExecStart={binary} update --scheduled{args}\nExecStopPost={recovery} recover-update --restart{args}\nKillMode=control-group\nTimeoutStartSec=15min\nTimeoutStopSec=90s\nNice=10\nIOSchedulingClass=idle\nUMask=0077\n"
+                ),
+            ),
+            (
+                dir.join(UPDATE_TIMER),
+                format!(
+                    "[Unit]\nDescription=Check for StatGlass agent releases daily\n\n[Timer]\nOnBootSec=30s\nOnCalendar=daily\nPersistent=true\nRandomizedDelaySec=30min\nUnit={UPDATE_UNIT}\n\n[Install]\nWantedBy=timers.target\n"
+                ),
+            ),
+            (
+                dir.join(RECOVERY_UNIT),
+                format!(
+                    "[Unit]\nDescription=Recover interrupted StatGlass agent updates\nBefore={UNIT_NAME}\n\n[Service]\nType=oneshot\n{environment}ExecStart={recovery} recover-update{args}\nTimeoutStartSec=5min\nUMask=0077\n"
+                ),
+            ),
+        ]
+    }
+}
+
+/// A path as one systemd command-line word: `%` and `\` escaped, quoted when it holds
+/// whitespace or a quote.
+fn unit_quote(path: &str) -> String {
+    let escaped = path
+        .replace('\\', "\\\\")
+        .replace('%', "%%")
+        .replace('"', "\\\"");
+    if escaped
+        .chars()
+        .any(|c| c.is_whitespace() || c == '"' || c == '\'')
+    {
+        format!("\"{escaped}\"")
+    } else {
+        escaped
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn env(home: &str, state: &str, runtime: &str, config: &str) -> AgentEnv {
+        let v = |s: &str| (!s.is_empty()).then(|| OsString::from(s));
+        AgentEnv::from_vars(v(home), v(state), v(runtime), v(config))
+    }
+
+    #[test]
+    fn system_paths_ignore_the_environment() {
+        let paths = AgentLayout::System.paths(&AgentEnv::default()).unwrap();
+        assert_eq!(paths.binary, Path::new("/usr/local/bin/statglass-agent"));
+        assert_eq!(paths.data_dir, Path::new("/var/lib/statglass-agent"));
+        assert_eq!(paths.socket, Path::new("/run/statglass-agent/metrics.sock"));
+        assert_eq!(
+            paths.unit,
+            Path::new("/etc/systemd/system/statglass-agent.service")
+        );
+        assert_eq!(
+            AgentLayout::System
+                .paths(&env("/home/a", "/s", "/r", "/c"))
+                .unwrap(),
+            paths
+        );
+    }
+
+    #[test]
+    fn user_paths_default_under_home() {
+        let paths = AgentLayout::User
+            .paths(&env("/home/a", "", "", ""))
+            .unwrap();
+        assert_eq!(
+            paths.binary,
+            Path::new("/home/a/.local/bin/statglass-agent")
+        );
+        assert_eq!(
+            paths.data_dir,
+            Path::new("/home/a/.local/state/statglass-agent")
+        );
+        // No runtime dir: the socket lives in the data dir.
+        assert_eq!(
+            paths.socket,
+            Path::new("/home/a/.local/state/statglass-agent/metrics.sock")
+        );
+        assert_eq!(
+            paths.unit,
+            Path::new("/home/a/.config/systemd/user/statglass-agent.service")
+        );
+    }
+
+    #[test]
+    fn user_paths_follow_xdg_variables() {
+        let paths = AgentLayout::User
+            .paths(&env("/home/a", "/st", "/run/user/1000", "/cfg"))
+            .unwrap();
+        assert_eq!(
+            paths.binary,
+            Path::new("/home/a/.local/bin/statglass-agent")
+        );
+        assert_eq!(paths.data_dir, Path::new("/st/statglass-agent"));
+        assert_eq!(
+            paths.socket,
+            Path::new("/run/user/1000/statglass-agent/metrics.sock")
+        );
+        assert_eq!(
+            paths.unit,
+            Path::new("/cfg/systemd/user/statglass-agent.service")
+        );
+    }
+
+    #[test]
+    fn relative_xdg_variables_are_ignored_and_home_is_required() {
+        let paths = AgentLayout::User
+            .paths(&env("/home/a", "rel/state", "run", "cfg"))
+            .unwrap();
+        assert_eq!(
+            paths,
+            AgentLayout::User
+                .paths(&env("/home/a", "", "", ""))
+                .unwrap()
+        );
+        assert!(
+            AgentLayout::User
+                .paths(&env("", "/st", "/r", "/c"))
+                .is_err()
+        );
+        assert!(
+            AgentLayout::User
+                .paths(&env("relative", "", "", ""))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn root_gets_the_system_layout() {
+        assert_eq!(AgentLayout::for_uid(0), AgentLayout::System);
+        assert_eq!(AgentLayout::for_uid(1000), AgentLayout::User);
+    }
+
+    #[test]
+    fn system_unit_matches_the_plan() {
+        let paths = AgentLayout::System.paths(&AgentEnv::default()).unwrap();
+        let text = AgentLayout::System.unit_text(&paths);
+        assert_eq!(
+            text,
+            "[Unit]\nDescription=StatGlass agent\nStartLimitIntervalSec=0\n\
+             Requires=statglass-agent-recovery.service\nAfter=statglass-agent-recovery.service\n\n[Service]\n\
+             NoNewPrivileges=yes\nNice=10\nIOSchedulingClass=best-effort\nIOSchedulingPriority=7\n\
+             MemoryHigh=128M\nMemoryMax=256M\nMemorySwapMax=0\n\
+             ProtectSystem=strict\nProtectHome=read-only\nPrivateTmp=yes\n\
+             ExecStart=/usr/local/bin/statglass-agent run --system\n\
+             StateDirectory=statglass-agent\nRuntimeDirectory=statglass-agent\nRuntimeDirectoryMode=0700\n\
+             Restart=on-failure\nRestartSec=5s\n\n[Install]\nWantedBy=multi-user.target\n"
+        );
+    }
+
+    #[test]
+    fn user_unit_drops_root_only_hardening() {
+        let paths = AgentLayout::User
+            .paths(&env("/home/a", "", "/run/user/1000", ""))
+            .unwrap();
+        let text = AgentLayout::User.unit_text(&paths);
+        assert!(text.contains("[Unit]\nDescription=StatGlass agent\nStartLimitIntervalSec=0\n"));
+        assert!(text.contains("Restart=on-failure\nRestartSec=5s\n"));
+        // The session's paths are baked in: the user manager may not share its XDG_*.
+        assert!(text.contains(
+            "ExecStart=/home/a/.local/bin/statglass-agent run \
+             --data-dir /home/a/.local/state/statglass-agent \
+             --socket /run/user/1000/statglass-agent/metrics.sock\n"
+        ));
+        let spaced = AgentLayout::User
+            .paths(&env("/home/my user", "", "", ""))
+            .unwrap();
+        assert!(AgentLayout::User.unit_text(&spaced).contains(
+            "ExecStart=\"/home/my user/.local/bin/statglass-agent\" run \
+             --data-dir \"/home/my user/.local/state/statglass-agent\" \
+             --socket \"/home/my user/.local/state/statglass-agent/metrics.sock\"\n"
+        ));
+        assert!(text.contains("WantedBy=default.target"));
+        assert!(
+            text.contains("NoNewPrivileges=yes")
+                && text.contains("MemoryHigh=128M\nMemoryMax=256M\nMemorySwapMax=0\n")
+        );
+        for root_only in [
+            "ProtectSystem",
+            "ProtectHome",
+            "PrivateTmp",
+            "StateDirectory",
+            "RuntimeDirectory",
+            "--system",
+        ] {
+            assert!(!text.contains(root_only), "{root_only} in the user unit");
+        }
+    }
+
+    #[test]
+    fn update_timer_is_daily_persistent_and_recovery_runs_before_public_serving() {
+        for layout in [AgentLayout::System, AgentLayout::User] {
+            let paths = layout.paths(&env("/home/a", "", "", "")).unwrap();
+            let units = layout.update_units(&paths);
+            let service = &units[0].1;
+            let timer = &units[1].1;
+            let recovery = &units[2].1;
+            assert!(
+                timer.contains("OnCalendar=daily\nPersistent=true\nRandomizedDelaySec=30min\n")
+            );
+            assert!(timer.contains("OnBootSec=30s"));
+            assert!(service.contains("KillMode=control-group"));
+            assert!(
+                service.contains("ExecStopPost=") && service.contains(".statglass-agent-recovery")
+            );
+            assert!(recovery.contains("Before=statglass-agent.service"));
+            assert!(
+                layout
+                    .unit_text(&paths)
+                    .contains("Requires=statglass-agent-recovery.service")
+            );
+            assert!(!service.contains("ProtectSystem=strict"));
+        }
+    }
+
+    #[test]
+    fn unit_paths_are_escaped_for_systemd() {
+        assert_eq!(unit_quote("/a/b"), "/a/b");
+        assert_eq!(unit_quote("/home/my user/x"), "\"/home/my user/x\"");
+        assert_eq!(unit_quote("/a%b\\c"), "/a%%b\\\\c");
+        assert_eq!(unit_quote("/a\"b"), "\"/a\\\"b\"");
+    }
+}

@@ -44,7 +44,7 @@ describe("gapLabel", () => {
 
   it("labels each reason", () => {
     expect(gapLabel(gap({ reason: "app_not_running" }))).toBe(
-      "Kelvo not running"
+      "StatGlass not running"
     );
     expect(gapLabel(gap({ reason: "paused" }))).toBe("Recording paused here");
     expect(gapLabel(gap({ reason: "module_disabled", module: "gpu" }))).toBe(
@@ -182,7 +182,7 @@ describe("historyUnavailable", () => {
       reason: { kind: "locked" },
     });
     expect(locked?.canReset).toBe(false);
-    expect(locked?.message).toMatch(/another copy of Kelvo/);
+    expect(locked?.message).toMatch(/another copy of StatGlass/);
 
     const tooNew = historyUnavailable({
       kind: "history_unavailable",
@@ -190,7 +190,7 @@ describe("historyUnavailable", () => {
     });
     expect(tooNew).toEqual({
       message:
-        "History was written by a newer version of Kelvo (format 4; this version reads up to 2). Live values still work.",
+        "History was written by a newer version of StatGlass (format 4; this version reads up to 2). Live values still work.",
       canReset: true,
     });
 
@@ -252,9 +252,9 @@ describe("historyUnavailable", () => {
 });
 
 describe("resetHistoryFailure", () => {
-  it("tells the user to quit the other Kelvo when the file is held", () => {
+  it("tells the user to quit the other StatGlass when the file is held", () => {
     expect(resetHistoryFailure({ kind: "store_busy", message: "busy" })).toBe(
-      "Another copy of Kelvo has the history file open. Quit it and try again."
+      "Another copy of StatGlass has the history file open. Quit it and try again."
     );
     expect(
       resetHistoryFailure({

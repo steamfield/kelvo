@@ -1,7 +1,7 @@
 //! The Linux setup path: saved-host compatibility, preparation, error mapping, and a
 //! by-hand run against a real server.
 use super::*;
-use kelvo_remote::agent_install::AgentInstallError;
+use statglass_remote::agent_install::AgentInstallError;
 
 /// The linux-tailscale probe as `LinuxProbe` serializes it (root, Fedora Asahi).
 fn asahi_probe() -> LinuxProbe {
@@ -38,7 +38,7 @@ fn asahi_probe() -> LinuxProbe {
 fn with_agent(mut probe: LinuxProbe, version: &str, id: HostId) -> LinuxProbe {
     probe.system_agent = Some(
         serde_json::from_value(serde_json::json!({
-            "binary": "/usr/local/bin/kelvo-agent",
+            "binary": "/usr/local/bin/statglass-agent",
             "version": { "version": version, "proto": 1, "min_compatible": 1 },
             "status": {
                 "running": true,
@@ -61,8 +61,8 @@ fn a_root_login_prepares_a_system_service_with_the_disclosure_facts() {
     let linux = prep.linux.unwrap();
     assert_eq!(linux.layout, RemoteAgentLayout::System);
     assert!(linux.linger_ok, "a system service does not need lingering");
-    assert_eq!(linux.binary_path, "/usr/local/bin/kelvo-agent");
-    assert_eq!(linux.data_dir, "/var/lib/kelvo-agent");
+    assert_eq!(linux.binary_path, "/usr/local/bin/statglass-agent");
+    assert_eq!(linux.data_dir, "/var/lib/statglass-agent");
     assert_eq!(linux.selinux.as_deref(), Some("Enforcing"));
     assert_eq!(
         linux.distro.as_deref(),
@@ -91,7 +91,7 @@ fn a_user_login_without_linger_carries_the_enable_linger_command() {
         .unwrap();
     assert_eq!(linux.layout, RemoteAgentLayout::User);
     assert!(!linux.linger_ok);
-    assert_eq!(linux.binary_path, "/home/riley/.local/bin/kelvo-agent");
+    assert_eq!(linux.binary_path, "/home/riley/.local/bin/statglass-agent");
     assert!(
         linux
             .warnings
@@ -150,7 +150,7 @@ async fn a_newer_agent_is_never_replaced_with_this_builds() {
     let id = HostId(Uuid::new_v4());
     let newer = with_agent(asahi_probe(), "999.0.0", id);
     let binary = AgentBinary::new(b"older agent".to_vec());
-    let installed = install_agent("kelvo-test-unreachable.invalid", &newer, Some(&binary))
+    let installed = install_agent("statglass-test-unreachable.invalid", &newer, Some(&binary))
         .await
         .unwrap();
     assert_eq!(installed, Installed::Existing);
@@ -207,7 +207,7 @@ fn removal_from_another_login_names_the_layout_instead_of_reporting_clean() {
     let user_command = |bin: &str| RemoteCommand::Agent {
         bin: bin.into(),
         system: false,
-        socket: Some("/run/user/1000/kelvo-agent/metrics.sock".into()),
+        socket: Some("/run/user/1000/statglass-agent/metrics.sock".into()),
     };
 
     assert_eq!(layout_mismatch(&agent_command(), &root), None);
@@ -216,13 +216,13 @@ fn removal_from_another_login_names_the_layout_instead_of_reporting_clean() {
         system_from_user.contains("system service; connect as root"),
         "{system_from_user}"
     );
-    let riley_bin = "/home/riley/.local/bin/kelvo-agent";
+    let riley_bin = "/home/riley/.local/bin/statglass-agent";
     assert_eq!(layout_mismatch(&user_command(riley_bin), &riley), None);
     for here in [&root, &riley] {
         let message =
-            layout_mismatch(&user_command("/home/ann/.local/bin/kelvo-agent"), here).unwrap();
+            layout_mismatch(&user_command("/home/ann/.local/bin/statglass-agent"), here).unwrap();
         assert!(
-            message.contains("user service at /home/ann/.local/bin/kelvo-agent"),
+            message.contains("user service at /home/ann/.local/bin/statglass-agent"),
             "{message}"
         );
     }
@@ -289,14 +289,14 @@ fn a_failed_re_registration_puts_the_previous_host_back() {
 
 fn agent_command() -> RemoteCommand {
     RemoteCommand::Agent {
-        bin: "/usr/local/bin/kelvo-agent".into(),
+        bin: "/usr/local/bin/statglass-agent".into(),
         system: true,
         socket: None,
     }
 }
 
 fn saved_host(id: HostId, name: &str, command: RemoteCommand) -> SavedHost {
-    let mut record = kelvo_engine::host_record(id);
+    let mut record = statglass_engine::host_record(id);
     record.is_local = false;
     record.display_name = name.into();
     SavedHost {
@@ -323,7 +323,7 @@ fn hosts_saved_before_linux_support_load_as_mac_helpers() {
         id.to_string(): {
             "config": host.config,
             "record": host.record,
-            "helper_path": "/Applications/Kelvo.app/Contents/MacOS/kelvo-remote-helper",
+            "helper_path": "/Applications/StatGlass.app/Contents/MacOS/statglass-remote-helper",
         }
     });
     let (saved, errors) = parse_saved(&serde_json::to_vec_pretty(&old).unwrap());
@@ -332,7 +332,7 @@ fn hosts_saved_before_linux_support_load_as_mac_helpers() {
     assert_eq!(
         loaded.command,
         RemoteCommand::MacHelper(
-            "/Applications/Kelvo.app/Contents/MacOS/kelvo-remote-helper".into()
+            "/Applications/StatGlass.app/Contents/MacOS/statglass-remote-helper".into()
         )
     );
     assert!(!loaded.is_linux());
@@ -363,7 +363,7 @@ fn one_unreadable_saved_host_does_not_drop_the_others() {
 
 #[test]
 fn agent_install_errors_map_to_kinds_the_ui_explains() {
-    use kelvo_remote::AgentLayout;
+    use statglass_remote::AgentLayout;
     let kind = |e: AgentInstallError| {
         serde_json::to_value(CommandError::from(e)).unwrap()["kind"]
             .as_str()
@@ -393,7 +393,7 @@ fn agent_install_errors_map_to_kinds_the_ui_explains() {
         (
             AgentInstallError::OtherLayout {
                 existing: AgentLayout::User,
-                binary: "/home/r/.local/bin/kelvo-agent".into(),
+                binary: "/home/r/.local/bin/statglass-agent".into(),
                 user: Some("r".into()),
             },
             "remote_agent_conflict",
@@ -412,11 +412,11 @@ fn agent_install_errors_map_to_kinds_the_ui_explains() {
             "remote_unreachable",
         ),
         (
-            AgentInstallError::Remote(kelvo_remote::RemoteError::Authentication("key".into())),
+            AgentInstallError::Remote(statglass_remote::RemoteError::Authentication("key".into())),
             "remote_auth",
         ),
         (
-            AgentInstallError::Remote(kelvo_remote::RemoteError::AgentNotRunning("s".into())),
+            AgentInstallError::Remote(statglass_remote::RemoteError::AgentNotRunning("s".into())),
             "remote_agent_not_running",
         ),
     ] {
@@ -449,12 +449,12 @@ fn only_an_older_agent_offers_an_update() {
 /// The Linux path end to end against a real server, with the binaries from
 /// `make agent-linux`: the probe, install, a session and live frames through
 /// `RemoteSource`, an update, an identity reset (the re-pair state), and an uninstall
-/// with purge that leaves the server as it was. Needs `ssh $KELVO_QA_ALIAS` (default
-/// `linux-tailscale`) to reach a Linux host with no Kelvo agent installed.
+/// with purge that leaves the server as it was. Needs `ssh $STATGLASS_QA_ALIAS` (default
+/// `linux-tailscale`) to reach a Linux host with no StatGlass agent installed.
 #[tokio::test]
 #[ignore = "needs a real Linux server over SSH and `make agent-linux`; run by hand"]
 async fn linux_host_lifecycle_against_a_real_server() {
-    let alias = std::env::var("KELVO_QA_ALIAS").unwrap_or_else(|_| "linux-tailscale".into());
+    let alias = std::env::var("STATGLASS_QA_ALIAS").unwrap_or_else(|_| "linux-tailscale".into());
     let config = RemoteHostConfig {
         id: String::new(),
         name: alias.clone(),
@@ -627,7 +627,7 @@ fn newer_release_with_incompatible_protocol_cannot_connect() {
         .version
         .as_mut()
         .unwrap();
-    version.proto = kelvo_proto::PROTO_VERSION + 1;
+    version.proto = statglass_proto::PROTO_VERSION + 1;
     version.min_compatible = version.proto;
     let prep = preparation("box", &probe, &BTreeMap::new()).unwrap();
     assert!(!prep.compatible);

@@ -44,7 +44,7 @@ export function SpaceVolumes({
     >
       <p className="max-w-2xl text-[12px] text-muted-foreground">
         A space report measures every file on a volume and shows what uses the
-        space. Kelvo reads file sizes only and changes nothing.
+        space. StatGlass reads file sizes only and changes nothing.
         {protectedOnes.length > 0 &&
           " Folders macOS protects are skipped unless you include them."}
       </p>
@@ -133,8 +133,8 @@ function ProtectedLocations({
       </summary>
       <div className="mt-2 flex flex-col gap-2 pl-4.5">
         <p className="max-w-2xl text-muted-foreground">
-          Including one may show a macOS privacy prompt for Kelvo, and its size
-          is otherwise part of Other.
+          Including one may show a macOS privacy prompt for StatGlass, and its
+          size is otherwise part of Other.
         </p>
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-4 gap-y-1.5">
           {locations.map((l) => (

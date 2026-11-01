@@ -9,18 +9,18 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         {
-          "url": "https://github.com/steamfield/kelvo/issues/new?labels=sensors&title=*"
+          "url": "https://github.com/steamfield/statglass/issues/new?labels=sensors&title=*"
         },
         {
-          "url": "https://github.com/steamfield/kelvo/blob/main/.github/releasing.md#coordinated-protocol-upgrades"
+          "url": "https://github.com/steamfield/statglass/blob/main/.github/releasing.md#coordinated-protocol-upgrades"
         },
         {
-          "url": "https://github.com/steamfield/kelvo/releases/tag/v*"
+          "url": "https://github.com/steamfield/statglass/releases/tag/v*"
         }
       ],
       "deny": [
         {
-          "url": "https://github.com/steamfield/kelvo/releases/tag/v*/*"
+          "url": "https://github.com/steamfield/statglass/releases/tag/v*/*"
         }
       ]
     },

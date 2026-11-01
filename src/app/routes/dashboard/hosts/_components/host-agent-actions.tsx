@@ -58,8 +58,8 @@ function RepairDialog({
         <DialogTitle>Re-pair {remote.config.name}?</DialogTitle>
         <DialogDescription>
           The host at this address now has a different identity, as after a
-          reinstall or a replaced machine. Kelvo adds it as a new host and keeps{" "}
-          {remote.config.name}’s mirrored history here as an offline host.
+          reinstall or a replaced machine. StatGlass adds it as a new host and
+          keeps {remote.config.name}’s mirrored history here as an offline host.
         </DialogDescription>
         {error && <RemoteSetupError error={error} />}
         <DialogFooter>

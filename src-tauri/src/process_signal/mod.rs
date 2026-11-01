@@ -2,16 +2,16 @@
 //!
 //! [`signal_process`] holds the guardrails and is OS-agnostic: it reads the target through
 //! a [`ProcessOs`], so tests drive it with a fake. The real one, [`SystemProcessOs`],
-//! lives in `kelvo-collect` beside the processes collector, so the start time it reads is
+//! lives in `statglass-collect` beside the processes collector, so the start time it reads is
 //! the collector's own formula (D-065).
 //!
 //! The sandboxed `appstore` edition cannot signal other processes:
 //! [`signals_available`] is false there, the command answers `unavailable`, and
 //! `get_edition` tells the UI to hide the actions. In order, it refuses PIDs at or below 1
-//! and Kelvo's own PID, re-reads the process and fails with `PidReused` when its start
+//! and StatGlass's own PID, re-reads the process and fails with `PidReused` when its start
 //! time differs from the one the user picked, refuses `kernel_task`, `launchd`,
-//! `WindowServer`, `loginwindow` and Kelvo's own processes (its WebKit helpers), and only
-//! then signals. `EPERM` becomes `PermissionDenied`; Kelvo never escalates.
+//! `WindowServer`, `loginwindow` and StatGlass's own processes (its WebKit helpers), and only
+//! then signals. `EPERM` becomes `PermissionDenied`; StatGlass never escalates.
 //!
 //! The refuse list is [`SignalRefusal::of`]. Live process rows carry its answer
 //! (`LiveProcess::refusal`, D-092), so the UI disables the actions with the same rule.
@@ -20,11 +20,11 @@
 //! reused between them. That window is microseconds against PID reuse that takes a full
 //! wrap of the PID space; the check exists for the seconds between a click and a confirm.
 
-pub use kelvo_engine::process_control::{
+use serde::{Deserialize, Serialize};
+pub use statglass_engine::process_control::{
     OsError, ProcessInfo, ProcessOs, StopKind, SystemProcessOs, signals_available,
 };
-use kelvo_schema::{HostId, JsSafeInt};
-use serde::{Deserialize, Serialize};
+use statglass_schema::{HostId, JsSafeInt};
 
 /// What to ask of the process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -65,7 +65,7 @@ pub enum ProcessSignalError {
     /// The PID now belongs to a process with a different start time. Nothing was sent.
     #[error("the pid belongs to a different process now")]
     PidReused,
-    /// `EPERM`: another user's process. Kelvo never escalates.
+    /// `EPERM`: another user's process. StatGlass never escalates.
     #[error("permission denied")]
     PermissionDenied,
     /// No host with this id is registered.
@@ -83,7 +83,7 @@ pub enum ProcessSignalError {
     Failed { message: String },
 }
 
-/// Why Kelvo will not signal a process. The UI words it (`process-signal.ts`).
+/// Why StatGlass will not signal a process. The UI words it (`process-signal.ts`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SignalRefusal {
@@ -92,46 +92,47 @@ pub enum SignalRefusal {
     Launchd,
     WindowServer,
     LoginWindow,
-    /// Kelvo itself or one of its helpers.
-    Kelvo,
+    /// StatGlass itself or one of its helpers.
+    #[serde(rename = "statglass")]
+    StatGlass,
 }
 
 impl SignalRefusal {
     /// Refused by pid alone, before the process is read: kill(2) treats 0 and negative
-    /// pids as process groups, 1 is launchd, and `me` is Kelvo.
+    /// pids as process groups, 1 is launchd, and `me` is StatGlass.
     fn by_pid(pid: i32, me: i32) -> Option<Self> {
         match pid {
             ..=0 => Some(Self::KernelTask),
             1 => Some(Self::Launchd),
-            _ if pid == me => Some(Self::Kelvo),
+            _ if pid == me => Some(Self::StatGlass),
             _ => None,
         }
     }
 
-    /// Refused once the process is read: by name, or because it is one of Kelvo's own.
+    /// Refused once the process is read: by name, or because it is one of StatGlass's own.
     fn by_process(name: &str, own: bool) -> Option<Self> {
         match name {
             "kernel_task" => Some(Self::KernelTask),
             "launchd" => Some(Self::Launchd),
             "WindowServer" => Some(Self::WindowServer),
             "loginwindow" => Some(Self::LoginWindow),
-            _ if own => Some(Self::Kelvo),
+            _ if own => Some(Self::StatGlass),
             _ => None,
         }
     }
 
     /// Whether, and why, [`signal_process`] refuses `pid` named `name`, with `me` the
-    /// calling process and `own` whether `pid` is one of Kelvo's own processes.
+    /// calling process and `own` whether `pid` is one of StatGlass's own processes.
     pub fn of(pid: i32, name: &str, me: i32, own: bool) -> Option<Self> {
         Self::by_pid(pid, me).or_else(|| Self::by_process(name, own))
     }
 }
 
 /// [`SignalRefusal::of`] for rows of one batch, taking `(pid, start_time_us, name)`: this
-/// process's pid and Kelvo's own processes are read once, here.
+/// process's pid and StatGlass's own processes are read once, here.
 pub fn refusals() -> impl Fn(i32, i64, &str) -> Option<SignalRefusal> {
     let me = SystemProcessOs.self_pid();
-    let own = kelvo_engine::process_control::own_processes();
+    let own = statglass_engine::process_control::own_processes();
     move |pid, start_time_us, name| {
         SignalRefusal::of(pid, name, me, own.contains(pid, start_time_us))
     }
@@ -180,6 +181,14 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn self_refusal_uses_statglass_wire_name() {
+        assert_eq!(
+            serde_json::to_string(&SignalRefusal::StatGlass).unwrap(),
+            "\"statglass\""
+        );
+    }
+
     const ME: i32 = 500;
 
     #[derive(Default)]
@@ -187,7 +196,7 @@ mod tests {
         procs: HashMap<i32, Result<ProcessInfo, OsError>>,
         send_result: Option<OsError>,
         sent: RefCell<Vec<(i32, StopKind)>>,
-        /// Kelvo's own processes, as the self-CPU coalition lists them.
+        /// StatGlass's own processes, as the self-CPU coalition lists them.
         own: Vec<i32>,
     }
 
@@ -254,12 +263,12 @@ mod tests {
         let os = FakeOs::default()
             .with(0, "kernel_task", 1, None)
             .with(1, "launchd", 1, None)
-            .with(ME, "kelvo", 1, None)
+            .with(ME, "statglass", 1, None)
             .with(300, "WindowServer", 1, None)
             .with(301, "loginwindow", 1, None)
             .with(302, "kernel_task", 1, None)
             .with(303, "launchd", 1, None)
-            // A WebKit helper: Kelvo is responsible for it.
+            // A WebKit helper: StatGlass is responsible for it.
             .with(400, "com.apple.WebKit.WebContent", 1, Some(ME));
         for pid in [-1, 0, 1, ME, 300, 301, 302, 303, 400] {
             for kind in [SignalKind::Quit, SignalKind::ForceQuit] {
@@ -290,17 +299,17 @@ mod tests {
         let mut os = FakeOs::default()
             .with(0, "kernel_task", 1, None)
             .with(1, "launchd", 1, None)
-            .with(ME, "kelvo", 1, None)
+            .with(ME, "statglass", 1, None)
             .with(300, "WindowServer", 1, None)
             .with(301, "loginwindow", 1, None)
             .with(302, "kernel_task", 1, None)
             .with(303, "launchd", 1, Some(1))
-            // A WebKit helper macOS holds Kelvo responsible for.
+            // A WebKit helper macOS holds StatGlass responsible for.
             .with(400, "com.apple.WebKit.WebContent", 1, Some(ME))
             // `tauri dev`: the terminal is responsible; the coalition still lists it.
             .with(401, "com.apple.WebKit.Networking", 1, Some(77))
             .with(4242, "Safari", 1, Some(4242))
-            .with(4243, "Kelvo Helper", 1, Some(4243));
+            .with(4243, "StatGlass Helper", 1, Some(4243));
         os.own = vec![ME, 400, 401];
         for pid in [-1, 0, 1, ME, 300, 301, 302, 303, 400, 401, 4242, 4243] {
             let name = os.info(pid).map(|i| i.name).unwrap_or_default();

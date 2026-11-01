@@ -9,16 +9,16 @@ import { Command } from "./ssh-setup-help";
 /** What setup will do on a Linux host, in the Mac status line's place (D-105). */
 function plan(prepared: RemoteHostPreparation, linux: LinuxPreparation) {
   if (prepared.installed && prepared.newer_installed)
-    return `Kelvo agent ${linux.existing_version} is installed. This server runs a newer agent than this app, so Kelvo connects to it without updating it.`;
+    return `StatGlass agent ${linux.existing_version} is installed. This server runs a newer agent than this app, so StatGlass connects to it without updating it.`;
   if (prepared.installed && prepared.compatible)
-    return `Kelvo agent ${linux.existing_version} is installed and ready to connect.`;
+    return `StatGlass agent ${linux.existing_version} is installed and ready to connect.`;
   if (prepared.installed)
-    return `Kelvo agent ${linux.existing_version ?? "(unknown version)"} is installed. It will be updated to this build’s version; its history and identity are kept.`;
+    return `StatGlass agent ${linux.existing_version ?? "(unknown version)"} is installed. It will be updated to this build’s version; its history and identity are kept.`;
   const service =
     linux.layout === "system"
       ? "a system service that runs as root and starts at boot"
       : `a user service for ${linux.user}`;
-  return `Kelvo will install its agent at ${linux.binary_path} as ${service}.`;
+  return `StatGlass will install its agent at ${linux.binary_path} as ${service}.`;
 }
 
 export function AddHostLinux({
@@ -65,7 +65,8 @@ export function AddHostLinux({
       )}
       {linux.selinux === "Enforcing" && (
         <p className="text-[12px] text-muted-foreground">
-          SELinux is enforcing. Kelvo labels the binary so systemd can run it.
+          SELinux is enforcing. StatGlass labels the binary so systemd can run
+          it.
         </p>
       )}
       {linux.docker === "unreadable" && (

@@ -1,6 +1,6 @@
 [package]
-name = "kelvo"
-description = "Kelvo app shell: windows, tray, commands and settings ownership"
+name = "statglass"
+description = "StatGlass app shell: windows, tray, commands and settings ownership"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,15 +10,15 @@ publish.workspace = true
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "kelvo_lib"
+name = "statglass_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 # Sandboxed (Mac App Store) edition (plan/v3-native-distribution.md, v3.2). Forwarded
-# through kelvo-engine to kelvo-collect; `make appstore-check` and CI check it compiles.
-appstore = ["kelvo-engine/appstore"]
+# through statglass-engine to statglass-collect; `make appstore-check` and CI check it compiles.
+appstore = ["statglass-engine/appstore"]
 # Coalition benchmark builds only (scripts/bench-coalition.sh, D-067): reads
-# KELVO_BENCH_SCENARIO at launch to open the popover or a dashboard route and skip
+# STATGLASS_BENCH_SCENARIO at launch to open the popover or a dashboard route and skip
 # onboarding. Never in a shipped build.
 bench = []
 
@@ -28,12 +28,12 @@ tauri-build = { version = "2.7.1", features = [] }
 sha2 = "0.10.9"
 
 [dependencies]
-kelvo-schema.workspace = true
-kelvo-store.workspace = true
-kelvo-engine.workspace = true
-kelvo-proto.workspace = true
-kelvo-remote.workspace = true
-kelvo-update.workspace = true
+statglass-schema.workspace = true
+statglass-store.workspace = true
+statglass-engine.workspace = true
+statglass-proto.workspace = true
+statglass-remote.workspace = true
+statglass-update.workspace = true
 # `specta` implements specta::Type for `tauri::ipc::Channel`, so `subscribe_live` exports.
 tauri = { version = "2.12.1", features = ["specta", "tray-icon"] }
 tauri-plugin-opener = "2.7.0"

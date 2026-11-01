@@ -3,8 +3,8 @@
 //! The SMC CPU power reading is scaled live to the PMP counters (D-054), but those
 //! counters can go half an hour without moving, so a fresh session would show values about
 //! 25% low until two of them do. The engine seeds each session from the scale an earlier
-//! one learned for the same chip, read through [`kelvo_engine::ScaleStore`], which this
-//! file implements. `kelvo-collect` never writes files.
+//! one learned for the same chip, read through [`statglass_engine::ScaleStore`], which this
+//! file implements. `statglass-collect` never writes files.
 //!
 //! The file is `power-calibration.json` in the app data directory, separate from
 //! `settings.json`: it is not a setting, no window reads it, and losing it only costs one
@@ -15,9 +15,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use kelvo_engine::ScaleStore;
-use kelvo_schema::lock::LockExt;
 use serde::{Deserialize, Serialize};
+use statglass_engine::ScaleStore;
+use statglass_schema::lock::LockExt;
 
 /// The file name in the app data directory.
 pub const FILE_NAME: &str = "power-calibration.json";
@@ -41,7 +41,7 @@ impl FileScaleStore {
     pub fn open(dir: &Path) -> Self {
         let path = dir.join(FILE_NAME);
         // Owner-only (D-074): new files are written 0600; one from before is tightened.
-        if let Err(e) = kelvo_store::restrict(&path) {
+        if let Err(e) = statglass_store::restrict(&path) {
             tracing::warn!("restricting {}: {e}", path.display());
         }
         let contents = match std::fs::read(&path) {
@@ -64,7 +64,7 @@ impl FileScaleStore {
     fn write(&self, contents: &Contents) -> std::io::Result<()> {
         let json = serde_json::to_vec_pretty(contents).map_err(std::io::Error::other)?;
         let tmp = self.path.with_extension("json.tmp");
-        kelvo_store::write_private(&tmp, &json)?;
+        statglass_store::write_private(&tmp, &json)?;
         std::fs::rename(&tmp, &self.path)
     }
 }
@@ -94,7 +94,7 @@ mod tests {
 
     fn temp_dir() -> tempfile::TempDir {
         tempfile::Builder::new()
-            .prefix("kelvo-calib-")
+            .prefix("statglass-calib-")
             .tempdir()
             .unwrap()
     }

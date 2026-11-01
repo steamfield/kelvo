@@ -16,7 +16,7 @@ import type {
 import { sizeLimitLabel } from "@core/history-projection";
 
 /**
- * How often the store's writer commits (`kelvo_store::DEFAULT_COMMIT_INTERVAL`,
+ * How often the store's writer commits (`statglass_store::DEFAULT_COMMIT_INTERVAL`,
  * D-070), generated from Rust. Stored processes and heatmap hours newer than
  * this may not be readable yet; `query_history` and `battery_hours` answer
  * through now (D-092).
@@ -44,7 +44,7 @@ export type GapLabelStyle = "clock" | "duration";
 
 /**
  * The band label for one gap (plan 4.17): "Asleep 11:02–11:31 · not
- * interpolated", "Kelvo not running", "Paused", "CPU sampling off". An open
+ * interpolated", "StatGlass not running", "Paused", "CPU sampling off". An open
  * sleep gap (asleep now) has no end, so it says when it started. A reason
  * this build does not know (`unknown`, or one a newer engine added) is still
  * a gap and gets the generic label.
@@ -60,7 +60,7 @@ export function gapLabel(gap: Gap, style: GapLabelStyle = "clock"): string {
         ? `Asleep ${formatClock(gap.start_ms)}–${formatClock(gap.end_ms)} · not interpolated`
         : `Asleep ${formatDuration(gap.end_ms - gap.start_ms)} · no samples`;
     case "app_not_running":
-      return "Kelvo not running";
+      return "StatGlass not running";
     case "paused":
       return "Recording paused here";
     case "module_disabled": {
@@ -202,7 +202,7 @@ export interface HistoryUnavailable {
   message: string;
   /**
    * `reset_history` moves the file aside and starts an empty one. It cannot
-   * help while another Kelvo holds the file (`locked`), nor with a single
+   * help while another StatGlass holds the file (`locked`), nor with a single
    * failed query (`store`), so the banner offers it only for the rest.
    */
   canReset: boolean;
@@ -211,7 +211,7 @@ export interface HistoryUnavailable {
 const LIVE = "Live values still work.";
 
 const tooNew = (found: number, supported: number): HistoryUnavailable => ({
-  message: `History was written by a newer version of Kelvo (format ${found}; this version reads up to ${supported}). ${LIVE}`,
+  message: `History was written by a newer version of StatGlass (format ${found}; this version reads up to ${supported}). ${LIVE}`,
   canReset: true,
 });
 
@@ -239,7 +239,7 @@ export function historyUnavailable(
       if (kind === "corrupt") return corrupt();
       if (kind === "locked") {
         return {
-          message: `History is unavailable: another copy of Kelvo has the history file open. Quit it, then reopen Kelvo. ${LIVE}`,
+          message: `History is unavailable: another copy of StatGlass has the history file open. Quit it, then reopen StatGlass. ${LIVE}`,
           canReset: false,
         };
       }
@@ -292,7 +292,7 @@ export function resetHistoryFailure(error: CommandError): string {
     error.kind === "store_busy" ||
     (error.kind === "history_unavailable" && error.reason?.kind === "locked");
   if (locked) {
-    return "Another copy of Kelvo has the history file open. Quit it and try again.";
+    return "Another copy of StatGlass has the history file open. Quit it and try again.";
   }
   return "Couldn't reset history.";
 }

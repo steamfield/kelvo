@@ -103,7 +103,7 @@ describe("mock transport heatmap and export", () => {
       from_ms: MONDAY - 7 * 24 * HOUR,
       to_ms: MONDAY,
       tier: "auto" as const,
-      file_name: "kelvo-2026-10-05.csv",
+      file_name: "statglass-2026-10-05.csv",
     };
     const t = createMockTransport({ now: () => MONDAY });
     const res = await t.exportCsv(request);
@@ -111,7 +111,7 @@ describe("mock transport heatmap and export", () => {
       status: "ok",
       data: {
         kind: "saved",
-        path: "/Users/mock/Downloads/kelvo-2026-10-05.csv",
+        path: "/Users/mock/Downloads/statglass-2026-10-05.csv",
         rows: 7 * 24 * 60,
       },
     });

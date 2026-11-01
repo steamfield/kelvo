@@ -1,0 +1,42 @@
+[package]
+name = "statglass-store"
+description = "SQLite series storage: interning, tiered rollups, gaps, cursors and pruning"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Test support for the engine: counts commits and WAL frames (`Writer::write_stats`) for the
+# store write-volume gate, and `Writer::set_fail_commits` for commit-failure tests. A
+# dev-dependency feature there, so shipped builds have neither.
+write-stats = []
+
+[dependencies]
+statglass-schema.workspace = true
+rusqlite.workspace = true
+ciborium.workspace = true
+# Pure Rust lossless compression; no additional runtime dylib.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+serde.workspace = true
+# Opaque bounded process continuation; clients do not interpret this JSON.
+serde_json.workspace = true
+sha2 = "0.10.9"
+uuid = { workspace = true, features = ["v4"] }
+thiserror.workspace = true
+tracing.workspace = true
+# statvfs for the low-disk guard, without unsafe FFI in the store.
+rustix.workspace = true
+
+[dev-dependencies]
+# Test-only edge: the in-process sync test (tests/sync.rs) carries pages through the
+# real proto message types and codec. The library itself stays proto-free.
+statglass-proto.workspace = true
+# examples/seed.rs (`bun run seed`) is a binary and reports errors with anyhow.
+anyhow.workspace = true
+# The write-failure test makes COMMIT fail with a commit hook.
+rusqlite = { workspace = true, features = ["hooks"] }
+tempfile.workspace = true
+
+[lints]
+workspace = true

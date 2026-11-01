@@ -1,7 +1,7 @@
 #![cfg_attr(test, allow(clippy::too_many_lines))]
-//! Kelvo's app shell: Tauri setup, the commands and events the webview reaches, settings
+//! StatGlass's app shell: Tauri setup, the commands and events the webview reaches, settings
 //! ownership, live channels, and the local source's lifecycle. Business logic lives in
-//! the `kelvo-*` crates; see `state.rs` for the startup order and the API the tray and
+//! the `statglass-*` crates; see `state.rs` for the startup order and the API the tray and
 //! window code builds on.
 
 mod addresses;
@@ -51,7 +51,7 @@ pub const BINDINGS_PATH: &str = concat!(
 
 /// The bundle identifier of debug builds; release builds use `tauri.conf.json`'s.
 #[cfg(debug_assertions)]
-pub const DEV_IDENTIFIER: &str = "com.tryopendata.kelvo.dev";
+pub const DEV_IDENTIFIER: &str = "com.tryopendata.statglass.dev";
 
 use startup::deferred_ui_launch;
 
@@ -62,7 +62,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         // One TS type per Rust type. Phased export splits any type that reaches a
         // `deserialize_with` field (`Capabilities`, `Settings`) into `_Serialize` and
         // `_Deserialize` aliases, and in rc.25 it then exports the internally tagged
-        // `LiveMsg` as externally tagged, which is not what serde sends. No Kelvo type has
+        // `LiveMsg` as externally tagged, which is not what serde sends. No StatGlass type has
         // a different shape per direction, so nothing is lost (D-048).
         .disable_serde_phases()
         .commands(collect_commands![
@@ -206,7 +206,7 @@ pub fn run() {
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
                 logs = ?log_dir,
-                "Kelvo starting"
+                "StatGlass starting"
             );
             builder.mount_events(app);
             AppState::start(app.handle())?;
@@ -269,8 +269,8 @@ pub fn run() {
     let app = match app {
         Ok(app) => app,
         Err(e) => {
-            tracing::error!("Kelvo failed to start: {e}");
-            eprintln!("Kelvo failed to start: {e}");
+            tracing::error!("StatGlass failed to start: {e}");
+            eprintln!("StatGlass failed to start: {e}");
             std::process::exit(1);
         }
     };
@@ -302,13 +302,13 @@ mod tests {
 
     #[test]
     fn launch_modes_defer_ui_only_for_remote_setup_and_background() {
-        for args in [vec!["kelvo"], vec!["kelvo", "--unrelated"], vec![]] {
+        for args in [vec!["statglass"], vec!["statglass", "--unrelated"], vec![]] {
             assert!(!deferred_ui_launch(args));
         }
         for args in [
-            vec!["kelvo", "--remote-setup"],
-            vec!["kelvo", "--background"],
-            vec!["kelvo", "--background", "--remote-setup"],
+            vec!["statglass", "--remote-setup"],
+            vec!["statglass", "--background"],
+            vec!["statglass", "--background", "--remote-setup"],
         ] {
             assert!(deferred_ui_launch(args));
         }
@@ -330,7 +330,7 @@ fn runtime_identifier(configured: &str) -> &str {
 mod identity_tests {
     #[test]
     fn bench_keeps_the_configured_identity_and_normal_debug_uses_dev_data() {
-        let configured = "com.tryopendata.kelvo.bench.ux-native";
+        let configured = "com.tryopendata.statglass.bench.ux-native";
         #[cfg(all(debug_assertions, not(feature = "bench")))]
         let expected = super::DEV_IDENTIFIER;
         #[cfg(not(all(debug_assertions, not(feature = "bench"))))]

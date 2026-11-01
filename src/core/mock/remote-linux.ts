@@ -32,7 +32,7 @@ const ERRORS: Record<string, CommandError> = {
   conflict: {
     kind: "remote_agent_conflict",
     message:
-      "This host already runs a Kelvo agent installed as user at /home/riley/.local/bin/kelvo-agent; remove it first",
+      "This host already runs a StatGlass agent installed as user at /home/riley/.local/bin/statglass-agent; remove it first",
   },
 };
 
@@ -56,8 +56,8 @@ function rootLinux(): LinuxPreparation {
     systemd_version: 256,
     linger_ok: true,
     selinux: "Enforcing",
-    binary_path: "/usr/local/bin/kelvo-agent",
-    data_dir: "/var/lib/kelvo-agent",
+    binary_path: "/usr/local/bin/statglass-agent",
+    data_dir: "/var/lib/statglass-agent",
     free_bytes: 13.4 * GB,
     needed_bytes: 2.15 * GB,
     budget_mb: 150,
@@ -78,8 +78,8 @@ const VARIANTS: Record<
     user: "riley",
     linger_ok: false,
     selinux: null,
-    binary_path: "/home/riley/.local/bin/kelvo-agent",
-    data_dir: "/home/riley/.local/state/kelvo-agent",
+    binary_path: "/home/riley/.local/bin/statglass-agent",
+    data_dir: "/home/riley/.local/state/statglass-agent",
     docker: "unreadable",
     warnings: [
       "riley is not lingering, so the agent stops when riley logs out and starts only at their next login. To keep it running, run `sudo loginctl enable-linger riley`",

@@ -1,6 +1,6 @@
 //! Scenario hook for the coalition benchmark (`scripts/bench-coalition.sh`, D-067).
 //!
-//! Only builds with the `bench` feature read `KELVO_BENCH_SCENARIO`; every other build
+//! Only builds with the `bench` feature read `STATGLASS_BENCH_SCENARIO`; every other build
 //! compiles [`scenario`] to `None`, so a shipped app has no way in. The benchmark builds
 //! its own bundle with the feature and a separate identifier, so it never touches the
 //! user's history or settings.
@@ -15,10 +15,10 @@
 //! Two more variables shape a run without touching the bench identity's settings file
 //! (D-088; D-073 recorded a run spoiled by a setting left in it):
 //!
-//! - `KELVO_BENCH_PERFORMANCE=1|0`: Performance mode on or off for this launch, in memory.
-//! - `KELVO_BENCH_BATTERY=1`: the engine sees the Mac on battery, with the battery
+//! - `STATGLASS_BENCH_PERFORMANCE=1|0`: Performance mode on or off for this launch, in memory.
+//! - `STATGLASS_BENCH_BATTERY=1`: the engine sees the Mac on battery, with the battery
 //!   slowdown on, so the backed-off case measures on AC.
-//! - `KELVO_BENCH_NO_MOTION=1`: zero popover motion tokens without changing cadence.
+//! - `STATGLASS_BENCH_NO_MOTION=1`: zero popover motion tokens without changing cadence.
 
 use std::time::Duration;
 
@@ -54,10 +54,10 @@ impl Scenario {
 /// The scenario this launch was asked for.
 #[cfg(feature = "bench")]
 pub fn scenario() -> Option<Scenario> {
-    let s = std::env::var("KELVO_BENCH_SCENARIO").ok()?;
+    let s = std::env::var("STATGLASS_BENCH_SCENARIO").ok()?;
     let parsed = Scenario::parse(&s);
     if parsed.is_none() {
-        tracing::warn!(scenario = %s, "unknown KELVO_BENCH_SCENARIO");
+        tracing::warn!(scenario = %s, "unknown STATGLASS_BENCH_SCENARIO");
     }
     parsed
 }
@@ -67,14 +67,14 @@ pub fn scenario() -> Option<Scenario> {
     None
 }
 
-/// `KELVO_BENCH_PERFORMANCE`: Performance mode for this launch, never saved.
+/// `STATGLASS_BENCH_PERFORMANCE`: Performance mode for this launch, never saved.
 #[cfg(feature = "bench")]
 pub fn performance_override() -> Option<bool> {
-    match std::env::var("KELVO_BENCH_PERFORMANCE").ok()?.as_str() {
+    match std::env::var("STATGLASS_BENCH_PERFORMANCE").ok()?.as_str() {
         "1" => Some(true),
         "0" => Some(false),
         other => {
-            tracing::warn!(value = %other, "KELVO_BENCH_PERFORMANCE is 1 or 0");
+            tracing::warn!(value = %other, "STATGLASS_BENCH_PERFORMANCE is 1 or 0");
             None
         }
     }
@@ -85,10 +85,10 @@ pub fn performance_override() -> Option<bool> {
     None
 }
 
-/// `KELVO_BENCH_BATTERY=1`: report the Mac on battery to the engine.
+/// `STATGLASS_BENCH_BATTERY=1`: report the Mac on battery to the engine.
 #[cfg(feature = "bench")]
 pub fn force_battery() -> bool {
-    std::env::var("KELVO_BENCH_BATTERY").is_ok_and(|v| v == "1")
+    std::env::var("STATGLASS_BENCH_BATTERY").is_ok_and(|v| v == "1")
 }
 
 #[cfg(not(feature = "bench"))]
@@ -96,21 +96,21 @@ pub fn force_battery() -> bool {
     false
 }
 
-/// `KELVO_BENCH_DEFAULTS=1`: this launch starts from shipped default settings, kept in
+/// `STATGLASS_BENCH_DEFAULTS=1`: this launch starts from shipped default settings, kept in
 /// memory and never saved, so a setting left in the bench identity's file cannot spoil a
-/// run (D-073, and again on 2026-10-07). `KELVO_BENCH_MENU_BAR=items.cpu=graph,bars.gpu=false`
+/// run (D-073, and again on 2026-10-07). `STATGLASS_BENCH_MENU_BAR=items.cpu=graph,bars.gpu=false`
 /// sets menu bar choices (D-102) on top of the defaults. Without the variable, `file` is used.
 #[cfg(feature = "bench")]
 pub fn settings_file(
     file: Box<dyn crate::settings::SettingsFile>,
 ) -> Box<dyn crate::settings::SettingsFile> {
-    if !std::env::var("KELVO_BENCH_DEFAULTS").is_ok_and(|v| v == "1") {
+    if !std::env::var("STATGLASS_BENCH_DEFAULTS").is_ok_and(|v| v == "1") {
         return file;
     }
-    let menu_bar = std::env::var("KELVO_BENCH_MENU_BAR").unwrap_or_default();
-    let docker_socket = std::env::var("KELVO_BENCH_DOCKER_SOCKET").unwrap_or_default();
+    let menu_bar = std::env::var("STATGLASS_BENCH_MENU_BAR").unwrap_or_default();
+    let docker_socket = std::env::var("STATGLASS_BENCH_DOCKER_SOCKET").unwrap_or_default();
     let mut defaults = defaults_with(&menu_bar, &docker_socket);
-    if let Ok(density) = std::env::var("KELVO_BENCH_POPOVER") {
+    if let Ok(density) = std::env::var("STATGLASS_BENCH_POPOVER") {
         popover_density(&mut defaults, &density);
     }
     Box::new(MemorySettings(std::sync::Mutex::new(Some(defaults))))
@@ -148,7 +148,7 @@ pub fn settings_file(
 /// owner's validation, which falls back to defaults.
 #[cfg_attr(not(feature = "bench"), allow(dead_code))]
 fn defaults_with(menu_bar: &str, docker_socket: &str) -> serde_json::Value {
-    let mut value = serde_json::to_value(kelvo_schema::settings::Settings::default())
+    let mut value = serde_json::to_value(statglass_schema::settings::Settings::default())
         .unwrap_or(serde_json::Value::Null);
     if !docker_socket.is_empty() {
         value["docker"]["enabled"] = serde_json::Value::Bool(true);
@@ -156,7 +156,7 @@ fn defaults_with(menu_bar: &str, docker_socket: &str) -> serde_json::Value {
     }
     for pair in menu_bar.split(',').filter(|p| !p.is_empty()) {
         let Some((path, v)) = pair.split_once('=') else {
-            tracing::warn!(pair, "KELVO_BENCH_MENU_BAR pairs are group.field=value");
+            tracing::warn!(pair, "STATGLASS_BENCH_MENU_BAR pairs are group.field=value");
             continue;
         };
         let v = match v {
@@ -167,7 +167,7 @@ fn defaults_with(menu_bar: &str, docker_socket: &str) -> serde_json::Value {
         let pointer = format!("/menu_bar/{}", path.replace('.', "/"));
         match value.pointer_mut(&pointer) {
             Some(slot) => *slot = v,
-            None => tracing::warn!(path, "KELVO_BENCH_MENU_BAR: no such field"),
+            None => tracing::warn!(path, "STATGLASS_BENCH_MENU_BAR: no such field"),
         }
     }
     value
@@ -188,11 +188,11 @@ impl crate::settings::SettingsFile for MemorySettings {
     }
 }
 
-/// `KELVO_BENCH_TRAY_COUNTERS_MS`: how often the tray logs its pacing counters (debug
+/// `STATGLASS_BENCH_TRAY_COUNTERS_MS`: how often the tray logs its pacing counters (debug
 /// level, "tray frames"), so the bench can count drawn frames inside its measured window.
 #[cfg(feature = "bench")]
 pub fn tray_counters_every() -> Option<std::time::Duration> {
-    let ms: u64 = std::env::var("KELVO_BENCH_TRAY_COUNTERS_MS")
+    let ms: u64 = std::env::var("STATGLASS_BENCH_TRAY_COUNTERS_MS")
         .ok()?
         .parse()
         .ok()?;
@@ -206,15 +206,15 @@ pub fn tray_counters_every() -> Option<std::time::Duration> {
 
 /// Power signals that report the Mac on battery and pass everything else through.
 #[cfg_attr(not(feature = "bench"), allow(dead_code))]
-pub struct ForceBattery(pub Box<dyn kelvo_engine::PowerSignals>);
+pub struct ForceBattery(pub Box<dyn statglass_engine::PowerSignals>);
 
-impl kelvo_engine::PowerSignals for ForceBattery {
-    fn start(&mut self, inbox: kelvo_engine::Inbox) {
+impl statglass_engine::PowerSignals for ForceBattery {
+    fn start(&mut self, inbox: statglass_engine::Inbox) {
         self.0.start(inbox);
     }
 
-    fn poll(&mut self) -> kelvo_engine::PowerState {
-        kelvo_engine::PowerState {
+    fn poll(&mut self) -> statglass_engine::PowerState {
+        statglass_engine::PowerState {
             on_battery: true,
             ..self.0.poll()
         }
@@ -258,7 +258,7 @@ fn open(app: &AppHandle, scenario: &Scenario) {
 fn disable_motion(app: &AppHandle) {
     use tauri::Manager;
 
-    if !std::env::var("KELVO_BENCH_NO_MOTION").is_ok_and(|v| no_motion(&v)) {
+    if !std::env::var("STATGLASS_BENCH_NO_MOTION").is_ok_and(|v| no_motion(&v)) {
         return;
     }
     let Some(window) = app.get_webview_window("popover") else {
@@ -321,8 +321,8 @@ mod tests {
 
     #[test]
     fn menu_bar_pairs_apply_on_top_of_the_defaults() {
-        use kelvo_schema::Module;
-        use kelvo_schema::settings::{ItemMode, Settings};
+        use statglass_schema::Module;
+        use statglass_schema::settings::{ItemMode, Settings};
 
         let value = defaults_with(
             "items.cpu=graph,items.gpu=graph,bars.gpu=false,readouts.power=true,bogus,items.nope=graph",
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn docker_bench_override_only_enables_the_selected_engine() {
-        use kelvo_schema::settings::Settings;
+        use statglass_schema::settings::Settings;
         let mut settings: Settings =
             serde_json::from_value(defaults_with("", "/tmp/benchmark-docker.sock"))
                 .expect("decodes");
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn shipped_builds_ignore_the_variable() {
         // SAFETY (test): no other thread of this test reads the variable.
-        unsafe { std::env::set_var("KELVO_BENCH_SCENARIO", "tray") };
+        unsafe { std::env::set_var("STATGLASS_BENCH_SCENARIO", "tray") };
         assert_eq!(scenario(), None);
     }
 }

@@ -2,7 +2,7 @@
 # PreToolUse/Bash dispatcher: one process, one stdin read, several checks.
 #
 # Ported from opendata's pre-bash.sh. Its rr/uv rewriters and typecheck steering
-# are dropped (Kelvo runs everything locally); the destructive-command deny,
+# are dropped (StatGlass runs everything locally); the destructive-command deny,
 # sleep-poll deny, generated-file write guard, worktree anchor and flag fixes
 # are kept.
 #

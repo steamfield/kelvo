@@ -1,49 +1,59 @@
-# Kelvo
+# StatGlass
 
 A menu bar system monitor for Apple Silicon Macs that keeps history.
 
-Kelvo shows CPU, GPU, memory, power and sensors, network, disk and battery once a second, and keeps local history, with up to 30 days available depending on your size limit and recorded activity. When the fans spun up at 3pm, you can scroll back and see which process did it.
+StatGlass shows CPU, GPU, memory, power and sensors, network, disk and battery once a second, and keeps local history, with up to 30 days available depending on your size limit and recorded activity. When the fans spun up at 3pm, you can scroll back and see which process did it.
 
-Kelvo is free and open source. Download the app below; no build tools are needed.
+StatGlass is free and open source. Download the app below; no build tools are needed.
 See the [changelog](CHANGELOG.md) for release history.
 
-![The Kelvo dashboard switching between modules](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/dashboard.webp)
+![The StatGlass dashboard switching between modules](https://raw.githubusercontent.com/steamfield/statglass/assets/media/dashboard.webp)
 
 ## Install
 
 You need an Apple Silicon Mac (M1 or newer) on macOS 26 or newer. Intel Macs aren't supported because the power and sensor readings come from interfaces only Apple Silicon has.
 
-1. [Download Kelvo for Apple Silicon](https://github.com/steamfield/kelvo/releases/latest/download/Kelvo_aarch64.dmg).
-2. Open the DMG and drag **Kelvo** into **Applications**.
-3. Eject the DMG, then open **Kelvo** from Applications.
+The first StatGlass binary release has not been published. [Build it yourself](#build-it-yourself)
+to run the renamed app. [Earlier releases](https://github.com/steamfield/statglass/releases)
+remain available under their original names.
+
+StatGlass uses a separate installation and update channel. Previous settings and
+history remain in their old locations and are not imported. Quit the previous app
+and stop its remote agents before switching, then install StatGlass on each host
+and add the hosts again.
+
+Once a StatGlass DMG is published:
+
+1. Download it from [Releases](https://github.com/steamfield/statglass/releases).
+2. Open the DMG and drag **StatGlass** into **Applications**.
+3. Eject the DMG, then open **StatGlass** from Applications.
 4. If macOS blocks the first launch, go to **System Settings → Privacy & Security → Open Anyway**, then confirm **Open**.
 
-Kelvo is currently **ad-hoc signed, without Apple notarization**, so the first-launch
+StatGlass is currently **ad-hoc signed, without Apple notarization**, so the first-launch
 approval is expected. You do not need an Apple Developer account. Managed Macs may
 restrict this approval; see [Apple’s instructions](https://support.apple.com/en-us/102445).
 
-Kelvo appears in the menu bar and asks you to choose a menu bar style.
+StatGlass appears in the menu bar and asks you to choose a menu bar style.
 
 ### Updates
 
 Open **Settings → General → Check now**. When a new release is available, choose
-**Install and restart**. Kelvo verifies the download’s updater signature before
+**Install and restart**. StatGlass verifies the download’s updater signature before
 installing it, restarts, and keeps your history and settings.
 
-With **Check for updates automatically** enabled, Kelvo checks GitHub shortly after
+With **Check for updates automatically** enabled, StatGlass checks GitHub shortly after
 launch and roughly daily while running, with up to 30 minutes of jitter. **Install updates automatically** defaults
-on: Kelvo verifies signed downloads, waits until interactive windows are closed and
+on: StatGlass verifies signed downloads, waits until interactive windows are closed and
 maintenance has finished, then installs and restarts. Automatic installation never
 requests administrator privileges; Settings offers a manual installation when
 needed. Turn off automatic installation to review each release yourself.
 
 Turning off automatic checks also stops automatic installation; **Check now** still
-works. Existing check opt-outs stay disabled. Checks contact GitHub; Kelvo sends no
-metrics, history or machine identifier. Versions before 0.3.0 need one manual update
-through **Install and restart** to gain automatic installation.
+works. Existing check opt-outs stay disabled. Checks contact GitHub; StatGlass sends no
+metrics, history or machine identifier.
 
 If an update fails, use **Check now** to retry or download the latest DMG and replace
-the app after quitting Kelvo. Run Kelvo from Applications, not from the mounted DMG.
+the app after quitting StatGlass. Run StatGlass from Applications, not from the mounted DMG.
 Older source builds without updater support need this first DMG installation.
 Quit the old copy and replace it in its existing Applications folder (the source
 installer used `~/Applications`) so you do not keep two copies.
@@ -53,24 +63,24 @@ installer used `~/Applications`) so you do not keep two copies.
 For contributors and users who prefer source builds, install the [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/) (`xcode-select --install`), [Rust](https://rustup.rs) and [Bun](https://bun.sh), then:
 
 ```bash
-git clone https://github.com/steamfield/kelvo.git
-cd kelvo
+git clone https://github.com/steamfield/statglass.git
+cd statglass
 scripts/install.sh
 ```
 
 Run from a checkout, the script builds that checkout as it is and doesn't pull.
 
 During development, `bun run build:prod` (also available as `bun run build:local`)
-builds the release app, quits Kelvo, replaces `~/Applications/Kelvo.app`, and opens it.
+builds the release app, quits StatGlass, replaces `~/Applications/StatGlass.app`, and opens it.
 
 ### Uninstall
 
-Quit Kelvo from its menu bar item, then delete the app, its data and the source:
+Quit StatGlass from its menu bar item, then delete the app, its data and the source:
 
 ```bash
-rm -rf ~/Applications/Kelvo.app
-rm -rf ~/Library/Application\ Support/com.tryopendata.kelvo ~/Library/Logs/com.tryopendata.kelvo
-rm -rf ~/.kelvo
+rm -rf ~/Applications/StatGlass.app
+rm -rf ~/Library/Application\ Support/com.tryopendata.statglass ~/Library/Logs/com.tryopendata.statglass
+rm -rf ~/.statglass
 ```
 
 ## What it shows
@@ -87,7 +97,7 @@ rm -rf ~/.kelvo
 | Processes | Every process, with CPU, memory, disk, network and GPU columns |
 | Containers (opt-in) | Local Docker CPU, memory and I/O, history, logs, storage inventory and reviewed cleanup |
 
-Enable monitoring from Containers and choose one local Docker engine. Kelvo reads
+Enable monitoring from Containers and choose one local Docker engine. StatGlass reads
 the Unix socket directly and needs no Docker CLI. Up to 128 containers are
 monitored at once; larger inventories show explicit partial coverage. Container
 memory and macOS runtime footprint are separate measurements, and unavailable
@@ -104,15 +114,15 @@ engine builds. Docker-managed usage is not the VM's allocated Mac footprint or a
 promise of immediately recovered Mac disk space. See the
 [storage and cleanup plan](plan/docker-storage-cleanup.md) for limits and verification.
 
-![The CPU page](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/cpu.webp)
+![The CPU page](https://raw.githubusercontent.com/steamfield/statglass/assets/media/cpu.webp)
 
-![The Memory page](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/memory.webp)
+![The Memory page](https://raw.githubusercontent.com/steamfield/statglass/assets/media/memory.webp)
 
-![The Network page](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/network.webp)
+![The Network page](https://raw.githubusercontent.com/steamfield/statglass/assets/media/network.webp)
 
 The Timeline puts every module on one chart covering the last hour, 24 hours, 7 days or 30 days, and marks events on it: fans ramping, thermal state changes, a process pinning the CPU, power spikes. Select an interval to zoom in, inspect its events and carry the range into module charts; Back restores the previous range. Recorded app usage shows the top ten app groups, sortable by CPU, GPU, RAM, estimated CPU power or network usage, with expandable process details and comparison with the previous interval. A heatmap shows CPU load or temperature by hour across available history. Any range exports to CSV.
 
-![The Timeline](https://raw.githubusercontent.com/steamfield/kelvo/assets/media/timeline.webp)
+![The Timeline](https://raw.githubusercontent.com/steamfield/statglass/assets/media/timeline.webp)
 
 CPU, GPU, Memory, Power, Network and Disk also support rolling durations and fixed
 date ranges. Return to Live to resume a moving window; brush Network or Disk charts
@@ -122,22 +132,22 @@ The menu bar can show one combined item or one item per module, each as a number
 
 ## Monitor another Mac
 
-Open **Hosts → Add Mac** in a packaged Kelvo build. Both Macs need Apple Silicon
-and macOS 26 or newer. Kelvo connects over SSH using the account signed in to the
+Open **Hosts → Add Mac** in a packaged StatGlass build. Both Macs need Apple Silicon
+and macOS 26 or newer. StatGlass connects over SSH using the account signed in to the
 other Mac's desktop.
 
 1. On the other Mac, enable **System Settings → General → Sharing → Remote Login**
    and allow that account.
 2. On this Mac, set up SSH key access. The in-app **SSH setup guide** explains how
    to create a key, authorize its public key on the other Mac, and unlock it in your
-   SSH agent. Kelvo's connections cannot prompt for passwords or key passphrases.
+   SSH agent. StatGlass's connections cannot prompt for passwords or key passphrases.
 3. Enter an SSH alias from `~/.ssh/config` or `user@address`. A config file is optional;
-   Kelvo detects when it is missing and opens the guide. Leave Tailscale blank unless
+   StatGlass detects when it is missing and opens the guide. Leave Tailscale blank unless
    you use it; both addresses must reach the same Mac and account.
 4. Choose **Check connection**. If the host is unknown, choose **Verify host** and
    compare its fingerprint with the other Mac before trusting it. Then connect.
 
-Setup reuses or copies the packaged Kelvo app and enables remote monitoring and
+Setup reuses or copies the packaged StatGlass app and enables remote monitoring and
 launch at login on the other Mac. macOS approvals must be completed there. Select
 the Mac in Hosts to see its live metrics and mirrored history; settings, alerts,
 process control and menu-bar metrics remain local.
@@ -153,7 +163,7 @@ for recovery behavior and the [remaining real-device checks](plan/remote-macs-ex
 
 In **Hosts**, add the Linux server using its SSH alias or `user@address`, then
 choose **Check connection**. The same SSH key and host verification requirements
-apply. Kelvo bundles static agents for x86_64 and aarch64 Linux; the Mac app
+apply. StatGlass bundles static agents for x86_64 and aarch64 Linux; the Mac app
 remains the controller. Linux setup requires systemd.
 
 Review the detected system, installation path, service account and history budget
@@ -178,26 +188,26 @@ coverage and remaining native checks.
 
 ## Resource use
 
-With only the menu bar showing, Kelvo samples every 2 seconds and uses under 1% of one core. Open a window and it samples every second (adjustable from 0.5 to 60 seconds) and uses 6 to 10%, depending on the page.
+With only the menu bar showing, StatGlass samples every 2 seconds and uses under 1% of one core. Open a window and it samples every second (adjustable from 0.5 to 60 seconds) and uses 6 to 10%, depending on the page.
 
 Measured on an M3 Max running macOS 27, plugged in, on 2026-10-07:
 
 | App | State | CPU (% of one core) | Memory |
 | --- | --- | --- | --- |
-| Kelvo | Menu bar only, default settings | 0.67% | 105 MB |
+| StatGlass | Menu bar only, default settings | 0.67% | 105 MB |
 | [Stats](https://github.com/exelban/stats) 3.0.20 | Menu bar only, default settings | 4.1% | 149 MB |
 | Activity Monitor | Window open, 5 s updates | 3.9% | 138 MB |
 
-CPU is the kernel's CPU time for the app and its helper processes over 120 seconds; memory is their physical footprint. These default-setting measurements predate remote monitoring and have Docker monitoring off. Each figure is a single run on a machine busy with other builds, and Stats ran its own default modules rather than Kelvo's set. Activity Monitor had its window open, so compare it with Kelvo's 6 to 10% windowed figure, not the menu bar one.
+CPU is the kernel's CPU time for the app and its helper processes over 120 seconds; memory is their physical footprint. These default-setting measurements predate remote monitoring and have Docker monitoring off. Each figure is a single run on a machine busy with other builds, and Stats ran its own default modules rather than StatGlass's set. Activity Monitor had its window open, so compare it with StatGlass's 6 to 10% windowed figure, not the menu bar one.
 
 To measure on your Mac, run `make bench`, or `make bench-vs-stats` to compare against Stats for 10 minutes each. Raw numbers are in [`plan/competitor-benchmarks.md`](plan/competitor-benchmarks.md).
 
 ## FAQ
 
-### Does Kelvo need any permissions?
+### Does StatGlass need any permissions?
 
 Local monitoring reads macOS data as your user, without a privileged helper. If
-you turn on an alert in Settings, macOS asks once whether Kelvo may send notifications.
+you turn on an alert in Settings, macOS asks once whether StatGlass may send notifications.
 Monitoring another Mac requires Remote Login and SSH key access on that Mac;
 setup uses a bundled SSH helper and may require native macOS approval there.
 
@@ -208,7 +218,7 @@ macOS only shows an app the network traffic of processes owned by the same user.
 ### How much disk does the history use?
 
 The default history size limit is 750 MB; valid limits saved by older versions stay
-unchanged. Kelvo records app attribution and coverage alongside resource history,
+unchanged. StatGlass records app attribution and coverage alongside resource history,
 and keeps resource aggregates in 10-second buckets for 24 hours, one-minute
 buckets through 7 days and 15-minute buckets through 30 days. The amount of
 activity and your size limit determine how much history fits, so 30 days is not
@@ -221,19 +231,19 @@ Settings.
 Durable app attribution starts recording after upgrading to 0.3.0. Earlier
 unrecorded app usage is unavailable; upgrading cannot reconstruct it.
 
-### Where does Kelvo keep its data?
+### Where does StatGlass keep its data?
 
-History and settings are in `~/Library/Application Support/com.tryopendata.kelvo/`,
-logs in `~/Library/Logs/com.tryopendata.kelvo/`. Local monitoring keeps that data on
+History and settings are in `~/Library/Application Support/com.tryopendata.statglass/`,
+logs in `~/Library/Logs/com.tryopendata.statglass/`. Local monitoring keeps that data on
 your Mac. If you enable remote monitoring, authorized SSH clients can read its
 metrics and history; a controller keeps a separate local history mirror for each
-remote host. This sharing uses SSH directly, with no Kelvo backend.
+remote host. This sharing uses SSH directly, with no StatGlass backend.
 
 ### Is there a Homebrew or Mac App Store version?
 
-Use the [DMG download](https://github.com/steamfield/kelvo/releases/latest) and in-app
-updates for now. Homebrew and Mac App Store distribution are not part of this release.
-Kelvo remains free; Apple notarization may be added later.
+Use the [source build](#build-it-yourself) until the first StatGlass DMG is published.
+Homebrew and Mac App Store distribution are not part of this release.
+StatGlass remains free; Apple notarization may be added later.
 
 ## Development
 

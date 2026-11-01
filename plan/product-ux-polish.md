@@ -6,12 +6,12 @@ Product choices and Devil's Advocate review corrections incorporated.
 
 ## Intent and agreed scope
 
-Make Kelvo useful in three moments: a sensible first launch, a small menu-bar glance,
+Make StatGlass useful in three moments: a sensible first launch, a small menu-bar glance,
 and a historical investigation that identifies which apps contributed to load.
 Keep existing SF typography, module accents, card surfaces and transport boundaries.
 Use the existing design system, not a new visual theme.
 
-Sources: [issue #1](https://github.com/tryopendata/kelvo/issues/1), the user's Timeline
+Sources: [issue #1](https://github.com/tryopendata/statglass/issues/1), the user's Timeline
 and popover screenshots, and the inspected current implementation. The issue describes
 0.1.0; several batteryless behaviors already exist on main.
 

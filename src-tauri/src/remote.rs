@@ -1,17 +1,17 @@
 //! Remote monitoring of other Macs (D-104) and Linux agents (D-116): shell adapters,
 //! saved hosts and host-specific history. Transport, protocol state machines and agent
-//! installation live in kelvo-remote.
+//! installation live in statglass-remote.
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use kelvo_remote::{
+use serde::{Deserialize, Serialize};
+use statglass_remote::{
     ControlRequest, ControlResponse, EndpointConfig, HostServer, Mirror, RemoteCommand,
     RemoteSource, SocketPaths,
 };
-use kelvo_schema::lock::LockExt;
-use kelvo_schema::{HostId, HostRecord};
-use serde::{Deserialize, Serialize};
+use statglass_schema::lock::LockExt;
+use statglass_schema::{HostId, HostRecord};
 use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
 
@@ -99,7 +99,7 @@ struct RegisteredMirror {
 pub struct RemoteManager {
     saved: Mutex<BTreeMap<HostId, SavedHost>>,
     setups: Mutex<BTreeMap<String, tokio::sync::watch::Sender<bool>>>,
-    trust: Mutex<BTreeMap<String, (std::time::Instant, kelvo_remote::trust::TrustCandidate)>>,
+    trust: Mutex<BTreeMap<String, (std::time::Instant, statglass_remote::trust::TrustCandidate)>>,
     statuses: Mutex<BTreeMap<HostId, RemoteHostStatus>>,
     mirrors: Mutex<BTreeMap<HostId, RegisteredMirror>>,
     sources: Mutex<BTreeMap<HostId, Arc<RemoteSource>>>,
@@ -126,7 +126,7 @@ impl RemoteManager {
             .lock_ok()
             .get(&host)
             .and_then(|s| s.clock().now_ms())
-            .unwrap_or_else(kelvo_engine::wall_ms)
+            .unwrap_or_else(statglass_engine::wall_ms)
     }
     /// The remote host's source, to ask it queries (D-117).
     pub fn source(&self, host: HostId) -> Result<Arc<RemoteSource>, CommandError> {
@@ -144,16 +144,16 @@ impl RemoteManager {
             source.set_controller_on_battery(on_battery);
         }
     }
-    pub fn recent(&self, host: HostId, from: i64, to: i64) -> Vec<kelvo_store::BucketRow> {
+    pub fn recent(&self, host: HostId, from: i64, to: i64) -> Vec<statglass_store::BucketRow> {
         self.mirrors
             .lock_ok()
             .get(&host)
             .map_or_else(Vec::new, |m| m.sink.recent_rows(from, to))
     }
 }
-impl From<kelvo_remote::RemoteError> for CommandError {
-    fn from(error: kelvo_remote::RemoteError) -> Self {
-        use kelvo_remote::RemoteError;
+impl From<statglass_remote::RemoteError> for CommandError {
+    fn from(error: statglass_remote::RemoteError) -> Self {
+        use statglass_remote::RemoteError;
         let message = error.to_string();
         match error {
             RemoteError::Authentication(_) => Self::RemoteAuth { message },
@@ -178,9 +178,9 @@ impl From<kelvo_remote::RemoteError> for CommandError {
     }
 }
 
-impl From<kelvo_remote::agent_install::AgentInstallError> for CommandError {
-    fn from(error: kelvo_remote::agent_install::AgentInstallError) -> Self {
-        use kelvo_remote::agent_install::AgentInstallError as E;
+impl From<statglass_remote::agent_install::AgentInstallError> for CommandError {
+    fn from(error: statglass_remote::agent_install::AgentInstallError) -> Self {
+        use statglass_remote::agent_install::AgentInstallError as E;
         let message = error.to_string();
         match error {
             E::Remote(e) => e.into(),
@@ -341,7 +341,7 @@ mod command_regressions {
 
     #[test]
     fn remote_errors_preserve_actionable_kinds() {
-        use kelvo_remote::RemoteError;
+        use statglass_remote::RemoteError;
         for (error, kind) in [
             (RemoteError::Authentication("login".into()), "remote_auth"),
             (RemoteError::HostKey("unknown".into()), "host_key_unknown"),

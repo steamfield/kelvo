@@ -1,8 +1,33 @@
 # Progress
 
-This file tracks where Kelvo is against the plan. Task-level checkboxes live in each version doc. This file holds the milestone status and a dated log, so an agent starting fresh can see what's done and what's next without reading every doc.
+This file tracks where StatGlass is against the plan. Task-level checkboxes live in each version doc. This file holds the milestone status and a dated log, so an agent starting fresh can see what's done and what's next without reading every doc.
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
+
+## Rename to StatGlass (2026-11-01, QA accepted)
+
+The [approved rename](rename-statglass.md) uses fresh app and agent identities,
+without importing or deleting existing Kelvo data. A tracked-file script performs
+the case-sensitive text and path changes; generated bindings and agent guidance
+come from their existing generators. The release channel uses separate StatGlass
+manifest filenames. Historical records below keep the original names and URLs.
+Implementation and independent review use GPT-6.1 Terra with `ce:executing-plans`.
+The tracked rename, new release-channel names, outlined wordmarks and regenerated
+outputs are implemented. Frontend checks passed 1,384 tests, Chromium/WebKit passed
+500 cases, the script passed 16 disposable-repository cases and Terra code review
+approved the fixes. App/DMG packaging and native signature, dependency and bundled
+agent checks pass. The running StatGlass app shows live readings and copied history
+without startup errors. At the user's later request, both local data environments
+were copied with WAL-consistent SQLite snapshots and host IDs rebound to the new
+namespace; original data and prelaunch copies are retained. Launch at Login moved
+to StatGlass.
+
+The native process-allocation gate varied on both unchanged main and the renamed
+build in alternating runs; no limit was changed. The user inspected the running
+app and explicitly accepted QA as complete. Local integration follows that
+acceptance. GitHub is now `steamfield/statglass`; current media and historical
+release redirects work. No release or push is part of this work. Evidence is in
+the primary checkout's `target/qa/rename-statglass/`.
 
 ## Host versions and update notices (2026-11-01, in review)
 

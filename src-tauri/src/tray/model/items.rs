@@ -16,7 +16,7 @@ pub struct ItemChange {
 }
 
 /// What to remove and create so the items on screen are `wanted`. macOS puts a new
-/// status item to the left of Kelvo's existing ones, so new items are created last to
+/// status item to the left of StatGlass's existing ones, so new items are created last to
 /// first and come out in `wanted`'s (module) order. Once a position is saved under the
 /// item's autosave name, macOS uses that instead. A key in `waiting` could not be
 /// created earlier and is not tried again yet ([`Retries`]).

@@ -7,7 +7,7 @@ globs: "**/src/app/**/*.ts,**/src/app/**/*.tsx,**/src/core/**/*.ts,**/src/main.t
 
 # Frontend Rules
 
-React 19 + Vite frontend for Kelvo, rendered inside Tauri 2 webviews (popover panel,
+React 19 + Vite frontend for StatGlass, rendered inside Tauri 2 webviews (popover panel,
 dashboard window, onboarding, desktop board windows). There is no server and no SSR.
 
 ## Architecture
@@ -52,7 +52,7 @@ import { Button } from "~/components/ui/button"; // src/app/*
 ### Typed IPC
 
 Rust types are the single source of truth. tauri-specta generates TS bindings for every
-command, event and `kelvo-schema` type into `src/core/generated/`. Never hand-write a type
+command, event and `statglass-schema` type into `src/core/generated/`. Never hand-write a type
 that mirrors a Rust type; regenerate instead (see `.claude/rules/generated-bindings.md`).
 
 `seq` and timestamps cross the bridge as `i64` exported as `number`. They stay below 2^53;

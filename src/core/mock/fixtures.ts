@@ -149,7 +149,7 @@ export const SCENARIOS: readonly ScenarioName[] = [
   "docker-rerank",
 ];
 
-/** The schema version the mock's "newer Kelvo" wrote, and the one it reads. */
+/** The schema version the mock's "newer StatGlass" wrote, and the one it reads. */
 export const MOCK_SCHEMA = { found: 4, supported: 2 } as const;
 
 /** Series in the `wide-layout` scenario: a full Mac's layout (D-066). */
@@ -420,7 +420,7 @@ export function defaultSettings(flags: ScenarioFlags): Settings {
   };
 }
 
-/** The mock app's own pid: the Kelvo row. */
+/** The mock app's own pid: the StatGlass row. */
 export const MOCK_SELF_PID = 2010;
 
 /** The CPU page's "Top processes", plus the Overview's memory and disk figures. */
@@ -464,7 +464,7 @@ export const BACKGROUND_PROCESSES: LiveProcess[] = [
   proc(1203, "Terminal", 0.3, 0.07e9, 7, 5, 0.1, 0, "me"),
   proc(1288, "zsh", 0, 0.004e9, 1, 0, 0, 0, "me"),
   proc(1977, "Safari Web Content", 0.9, 0.09e9, 14, 38, 0.3, 0.05e6, "me"),
-  proc(2010, "Kelvo", 0.3, 0.06e9, 9, 6, 0.1, 0, "me"),
+  proc(2010, "StatGlass", 0.3, 0.06e9, 9, 6, 0.1, 0, "me"),
   proc(2240, "SourceKitService", 0.8, 0.09e9, 6, 4, 0.2, 0.1e6, "me"),
 ];
 
@@ -517,12 +517,12 @@ export const IDLE_PROCESSES: LiveProcess[] = Array.from(
 
 /**
  * `SignalRefusal::of` (`process_signal/mod.rs`) for a mock row, with the
- * Kelvo row as the mock app's only own process.
+ * StatGlass row as the mock app's only own process.
  */
 function refusal(pid: number, name: string): SignalRefusal | null {
   if (pid <= 0) return "kernel_task";
   if (pid === 1) return "launchd";
-  if (pid === MOCK_SELF_PID) return "kelvo";
+  if (pid === MOCK_SELF_PID) return "statglass";
   switch (name) {
     case "kernel_task":
       return "kernel_task";

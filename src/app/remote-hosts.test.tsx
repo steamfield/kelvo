@@ -152,7 +152,7 @@ describe("remote host selection", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Check connection" }));
     fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
-    await screen.findByText("Setting up Kelvo and connecting…");
+    await screen.findByText("Setting up StatGlass and connecting…");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     const cancelling = await screen.findByRole("button", {
       name: "Cancelling…",

@@ -1,8 +1,8 @@
 //! Text the menu bar shows and VoiceOver reads: percentages, temperatures, watts and
 //! rates, in the user's units.
 
-use kelvo_schema::Module;
-use kelvo_schema::settings::{NetworkUnit, TemperatureUnit};
+use statglass_schema::Module;
+use statglass_schema::settings::{NetworkUnit, TemperatureUnit};
 
 pub(super) fn pct_text(v: f32) -> String {
     format!("{}%", v.clamp(0.0, 999.0).round() as i32)

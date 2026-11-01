@@ -1,7 +1,7 @@
 ---
 paths:
   - "src/core/generated/**"
-  - "crates/kelvo-schema/**"
+  - "crates/statglass-schema/**"
   - "src-tauri/src/**/*.rs"
 ---
 
@@ -10,7 +10,7 @@ paths:
 ## Auto-generated files: do NOT hand-edit
 
 `src/core/generated/` holds the TypeScript bindings tauri-specta generates from the Rust
-commands, events and `kelvo-schema` types. Rust is the single source of truth.
+commands, events and `statglass-schema` types. Rust is the single source of truth.
 
 **Do not:**
 - Hand-edit anything under `src/core/generated/`
@@ -35,8 +35,8 @@ surfaces there.
 ## Wire compatibility is separate
 
 The webview gets JSON through tauri-specta; agents and controllers (v4) talk CBOR through
-`kelvo-proto`. Updated bindings say nothing about wire compatibility. A change to a type in
-`kelvo-schema` or `kelvo-proto` also needs the codec round-trip and skew test (old fixture
+`statglass-proto`. Updated bindings say nothing about wire compatibility. A change to a type in
+`statglass-schema` or `statglass-proto` also needs the codec round-trip and skew test (old fixture
 decoded by new code and the reverse) to pass.
 
 ## Spurious diffs

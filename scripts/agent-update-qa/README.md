@@ -14,19 +14,19 @@ This covers both bundled architectures and both system/user installations: timer
 configuration, disabled checks, deliberately stopped collection, invalid settings,
 private-trial public access refusal, recovery of an interrupted SQLite migration,
 postcommit history preservation, and uninstallation. To test one available native
-architecture, pass `--binary src-tauri/binaries/agent/kelvo-agent-aarch64-unknown-linux-musl`.
+architecture, pass `--binary src-tauri/binaries/agent/statglass-agent-aarch64-unknown-linux-musl`.
 Docker needs working amd64 emulation to execute x86_64 binaries on an arm64 machine;
 a successful cross-build alone does not verify that runtime.
 
 If the VM cannot retain a global emulator registration, both test scripts accept
-`--emulator-dir /tmp/kelvo-qa-emulator`. This runs native arm64 systemd with the
+`--emulator-dir /tmp/statglass-qa-emulator`. This runs native arm64 systemd with the
 actual x86_64 agent and registers its interpreter inside each disposable container.
 Obtain the two static tools from the arm64 `tonistiigi/binfmt` image:
 
 ```sh
-docker create --name kelvo-qa-binfmt tonistiigi/binfmt:latest
-docker cp kelvo-qa-binfmt:/usr/bin /tmp/kelvo-qa-emulator
-docker rm kelvo-qa-binfmt
+docker create --name statglass-qa-binfmt tonistiigi/binfmt:latest
+docker cp statglass-qa-binfmt:/usr/bin /tmp/statglass-qa-emulator
+docker rm statglass-qa-binfmt
 ```
 
 The harness registers with `QEMU_PRESERVE_ARGV0=1`, so commands keep their original
@@ -43,17 +43,17 @@ key and endpoint remain unchanged; private key contents are never printed.
 
 ```sh
 python3 scripts/agent-update-qa/build_fixtures.py \
-  --directory /tmp/kelvo-signed-qa --target aarch64-unknown-linux-musl
+  --directory /tmp/statglass-signed-qa --target aarch64-unknown-linux-musl
 python3 scripts/agent-update-qa/signed_release.py \
-  --old /tmp/kelvo-signed-qa/aarch64-unknown-linux-musl-0.2.0 \
-  --new /tmp/kelvo-signed-qa/aarch64-unknown-linux-musl-0.2.1 \
-  --version 0.2.1 --test-key /tmp/kelvo-signed-qa/test-key --fault-fixtures
+  --old /tmp/statglass-signed-qa/aarch64-unknown-linux-musl-0.2.0 \
+  --new /tmp/statglass-signed-qa/aarch64-unknown-linux-musl-0.2.1 \
+  --version 0.2.1 --test-key /tmp/statglass-signed-qa/test-key --fault-fixtures
 python3 scripts/agent-update-qa/build_fixtures.py \
-  --directory /tmp/kelvo-signed-qa --target x86_64-unknown-linux-musl
+  --directory /tmp/statglass-signed-qa --target x86_64-unknown-linux-musl
 python3 scripts/agent-update-qa/signed_release.py \
-  --old /tmp/kelvo-signed-qa/x86_64-unknown-linux-musl-0.2.0 \
-  --new /tmp/kelvo-signed-qa/x86_64-unknown-linux-musl-0.2.1 \
-  --version 0.2.1 --test-key /tmp/kelvo-signed-qa/test-key --fault-fixtures
+  --old /tmp/statglass-signed-qa/x86_64-unknown-linux-musl-0.2.0 \
+  --new /tmp/statglass-signed-qa/x86_64-unknown-linux-musl-0.2.1 \
+  --version 0.2.1 --test-key /tmp/statglass-signed-qa/test-key --fault-fixtures
 ```
 
 The failure fixtures attempt a forbidden filesystem write during private trial,
@@ -90,7 +90,7 @@ and verified the transient trial's actual sandbox and memory properties.
 The user-layout uninstall test makes its unit directory read-only as uid 1000.
 It verifies real permission errors remain in JSON stdout despite warning stderr,
 while cleanup of the binary and history continues. The controller regression in
-`crates/kelvo-agent/tests/support/update_reconnect.rs` uses an actual protocol
+`crates/statglass-agent/tests/support/update_reconnect.rs` uses an actual protocol
 cursor before trial, rejects public access during trial, and reconnects with the
 same cursor after rollback to verify new history remains reachable and failed
 trial sequences were never exposed.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Kelvo",
+  "productName": "StatGlass",
   "version": "0.3.2",
-  "identifier": "com.tryopendata.kelvo",
+  "identifier": "com.tryopendata.statglass",
   "build": {
     "beforeDevCommand": "bun run dev:fast",
     "devUrl": "http://localhost:1420",
@@ -46,7 +46,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU2ODFDMzU4QTlDMTQ4MTUKUldRVlNNR3BXTU9CVmo0NXR4dkh4MGZxdW1QT3ROSVRrWk4rRkh0OGxPamh3VXB1eEU5dXd5UVgK",
       "endpoints": [
-        "https://github.com/steamfield/kelvo/releases/latest/download/latest.json"
+        "https://github.com/steamfield/statglass/releases/latest/download/statglass-latest.json"
       ],
       "requireSignedVersion": true
     }

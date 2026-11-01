@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run native Tauri restart acceptance without touching installed Kelvo or its data."""
+"""Run native Tauri restart acceptance without touching installed StatGlass or its data."""
 import argparse
 import json
 import os
@@ -32,23 +32,23 @@ def stop_owned_processes(root: Path, executable: Path) -> None:
 
 
 def run_case(binary: Path, mode: str, arguments: list[str], output: Path) -> dict:
-    with tempfile.TemporaryDirectory(prefix="kelvo-update-restart-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="statglass-update-restart-") as temporary:
         root = Path(temporary).resolve()
-        identifier = f"com.tryopendata.kelvo.acceptance.{uuid.uuid4().hex}"
-        bundle = root / "Kelvo update acceptance.app"
+        identifier = f"com.tryopendata.statglass.acceptance.{uuid.uuid4().hex}"
+        bundle = root / "StatGlass update acceptance.app"
         executable = bundle / "Contents/MacOS/verify_update_restart"
         executable.parent.mkdir(parents=True)
         shutil.copy2(binary, executable)
         with (bundle / "Contents/Info.plist").open("wb") as stream:
             plistlib.dump({"CFBundleExecutable": executable.name,
                           "CFBundleIdentifier": identifier,
-                          "CFBundleName": "Kelvo update acceptance",
+                          "CFBundleName": "StatGlass update acceptance",
                           "CFBundlePackageType": "APPL",
                           "CFBundleVersion": "1",
                           "LSUIElement": True}, stream)
         subprocess.run(["codesign", "--force", "--sign", "-", str(bundle)], check=True, capture_output=True)
         env = os.environ.copy()
-        env.update(KELVO_ACCEPTANCE_ROOT=str(root), KELVO_ACCEPTANCE_IDENTIFIER=identifier)
+        env.update(STATGLASS_ACCEPTANCE_ROOT=str(root), STATGLASS_ACCEPTANCE_IDENTIFIER=identifier)
         log_path = output / f"{mode}.log"
         try:
             with log_path.open("w") as log:

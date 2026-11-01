@@ -17,7 +17,7 @@ const byText = (pattern: RegExp) =>
   );
 
 const OVERHEAD =
-  /Kelvo uses about ([\d.]+)% CPU at (\S+), this window included/;
+  /StatGlass uses about ([\d.]+)% CPU at (\S+), this window included/;
 
 /** The quoted overhead and the interval it names, or null while measuring. */
 const overhead = () => {
@@ -284,7 +284,7 @@ describe("Settings sampling and history", () => {
     );
   });
 
-  it("measures Kelvo's CPU again after the interval changes", async () => {
+  it("measures StatGlass's CPU again after the interval changes", async () => {
     let t = 1_800_000_000_000;
     const { transport, user } = renderWithProviders(<SettingsRoute />, {
       transportOptions: { now: () => t },
@@ -298,7 +298,7 @@ describe("Settings sampling and history", () => {
       });
     // Backfilled readings predate this window's first frame: not quoted.
     expect(
-      await screen.findByText("Measuring Kelvo's CPU at 1s…")
+      await screen.findByText("Measuring StatGlass's CPU at 1s…")
     ).toBeInTheDocument();
 
     advance(1000, 40);
@@ -307,7 +307,7 @@ describe("Settings sampling and history", () => {
 
     await user.click(screen.getByRole("radio", { name: "30s" }));
     expect(
-      await screen.findByText("Measuring Kelvo's CPU at 30s…")
+      await screen.findByText("Measuring StatGlass's CPU at 30s…")
     ).toBeInTheDocument();
     // The first reading spans the change; two more are needed.
     advance(30_000, 2);
@@ -322,7 +322,7 @@ describe("Settings sampling and history", () => {
     const { transport } = renderWithProviders(<SettingsRoute />, {
       transportOptions: { now: () => t },
     });
-    await screen.findByText("Measuring Kelvo's CPU at 1s…");
+    await screen.findByText("Measuring StatGlass's CPU at 1s…");
     act(() => {
       for (let i = 0; i < 40; i++) {
         t += 1000;
@@ -333,7 +333,7 @@ describe("Settings sampling and history", () => {
 
     await act(() => transport.setPaused(true));
     expect(overhead()).toBeNull();
-    expect(screen.queryByText(/Measuring Kelvo's CPU/)).toBeNull();
+    expect(screen.queryByText(/Measuring StatGlass's CPU/)).toBeNull();
   });
 
   it("Network history is on by default and turns off through update_settings (D-089)", async () => {

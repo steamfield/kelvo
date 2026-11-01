@@ -11,7 +11,7 @@ export function remoteErrorText(error: CommandError): string {
     case "history_unavailable":
       return "History is unavailable.";
     case "store_too_new":
-      return "This history was saved by a newer Kelvo version.";
+      return "This history was saved by a newer StatGlass version.";
   }
 }
 
@@ -24,7 +24,7 @@ export function remoteQueryText(error: unknown, what: string): string | null {
   if (!(error instanceof CommandFailure)) return null;
   switch (error.error.kind) {
     case "remote_incompatible":
-      return `This host's Kelvo is too old to share ${what}. Update Kelvo on it, then try again.`;
+      return `This host's StatGlass is too old to share ${what}. Update StatGlass on it, then try again.`;
     case "remote_unreachable":
       return `This host isn't connected, so its ${what} can't be read now.`;
     case "remote_busy":
@@ -49,11 +49,11 @@ export function remoteErrorAdvice(
       return {
         title: "SSH could not sign in.",
         recovery:
-          "Set up SSH key access for the account. On a Mac, use the account signed in there and allow it in Remote Login. Kelvo cannot ask for a password or key passphrase; unlock your key in your SSH agent, then check the connection again.",
+          "Set up SSH key access for the account. On a Mac, use the account signed in there and allow it in Remote Login. StatGlass cannot ask for a password or key passphrase; unlock your key in your SSH agent, then check the connection again.",
       };
     case "remote_unreachable":
       return {
-        title: "Kelvo could not complete the connection setup.",
+        title: "StatGlass could not complete the connection setup.",
         // This variant also carries installation, protocol and local I/O failures.
         // Keep the actual cause visible instead of assuming a network failure.
         recovery: error.message,
@@ -62,13 +62,13 @@ export function remoteErrorAdvice(
       return {
         title: "SSH needs to verify this host.",
         recovery:
-          "Compare its fingerprint with the host before trusting it. If SSH says the key changed, confirm why with the owner and resolve it in Terminal; Kelvo will not replace a known key.",
+          "Compare its fingerprint with the host before trusting it. If SSH says the key changed, confirm why with the owner and resolve it in Terminal; StatGlass will not replace a known key.",
       };
     case "remote_incompatible":
       return {
-        title: "This host cannot run this Kelvo build.",
+        title: "This host cannot run this StatGlass build.",
         recovery:
-          "A Mac needs Apple Silicon, macOS 26 or newer and a compatible Kelvo version. A Linux server needs a 64-bit ARM or x86 processor and systemd. See the details for what needs to change.",
+          "A Mac needs Apple Silicon, macOS 26 or newer and a compatible StatGlass version. A Linux server needs a 64-bit ARM or x86 processor and systemd. See the details for what needs to change.",
       };
     case "remote_identity":
       return {
@@ -80,18 +80,18 @@ export function remoteErrorAdvice(
       return {
         title: "The server is low on disk space.",
         recovery:
-          "The agent needs room for its history plus the reserve Kelvo keeps free. Free some space on the server, then check the connection again.",
+          "The agent needs room for its history plus the reserve StatGlass keeps free. Free some space on the server, then check the connection again.",
       };
     case "remote_agent_conflict":
       return {
-        title: "This server’s Kelvo agent needs attention first.",
+        title: "This server’s StatGlass agent needs attention first.",
         recovery: error.message,
       };
     case "remote_agent_not_running":
       return {
-        title: "The Kelvo agent is not running on the server.",
+        title: "The StatGlass agent is not running on the server.",
         recovery:
-          "Check it on the server with systemctl status kelvo-agent (add --user for a user service), then retry. The service restarts on its own after most failures.",
+          "Check it on the server with systemctl status statglass-agent (add --user for a user service), then retry. The service restarts on its own after most failures.",
       };
     case "remote_agent_update_failed":
       return error.restored

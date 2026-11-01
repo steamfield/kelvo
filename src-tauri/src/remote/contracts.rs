@@ -45,7 +45,7 @@ pub struct RemoteHostStatus {
     pub memory_pct: Option<f64>,
     /// The version the host last reported (`Hello.app_version`), kept across restarts.
     pub agent_version: Option<String>,
-    /// How the host's Kelvo compares with the one this Mac can install (D-123).
+    /// How the host's StatGlass compares with the one this Mac can install (D-123).
     pub agent_update: AgentUpdate,
     /// The id the host answered with when it is not the paired one. The host list
     /// offers "Re-pair as a new host" (D-116).
@@ -77,7 +77,7 @@ pub enum AgentUpdateVia {
     AddHost,
 }
 
-/// A host's installed Kelvo against the version this Mac bundles, which is the newest
+/// A host's installed StatGlass against the version this Mac bundles, which is the newest
 /// this Mac can install there (D-123).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -108,7 +108,7 @@ pub enum AgentUpdate {
 #[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 pub struct RemoteHostRecord {
     pub config: RemoteHostConfig,
-    pub os: kelvo_schema::OsKind,
+    pub os: statglass_schema::OsKind,
     pub status: RemoteHostStatus,
 }
 
@@ -116,7 +116,7 @@ pub struct RemoteHostRecord {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum RemoteHostKind {
-    /// Another Mac, running Kelvo.app (D-104).
+    /// Another Mac, running StatGlass.app (D-104).
     Mac,
     /// A Linux host, running the headless agent (D-116).
     Linux,
@@ -179,11 +179,11 @@ pub struct LinuxPreparation {
     pub binary_path: String,
     pub data_dir: String,
     /// Free space on the data directory's volume.
-    #[specta(type = Option<kelvo_schema::JsSafeInt>)]
+    #[specta(type = Option<statglass_schema::JsSafeInt>)]
     pub free_bytes: Option<u64>,
     /// The low-disk reserve plus the history budget; `None` when an agent is already
     /// installed (its history already holds its share) or the volume size is unknown.
-    #[specta(type = Option<kelvo_schema::JsSafeInt>)]
+    #[specta(type = Option<statglass_schema::JsSafeInt>)]
     pub needed_bytes: Option<u64>,
     /// The agent's history size limit (decimal MB).
     pub budget_mb: u32,

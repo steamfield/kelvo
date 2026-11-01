@@ -26,7 +26,7 @@
 //! often), tied to the page load that asked for it through the stream id. It counts only
 //! while the window is visible, and the registry tells each host the shortest period any
 //! visible window wants, which is how often its collector runs. Which rows a view gets is
-//! [`kelvo_engine::select_processes`], on the engine's view the window sent.
+//! [`statglass_engine::select_processes`], on the engine's view the window sent.
 //!
 //! Detail interest works the same way without being asked for: a visible window with a
 //! live stream for a host counts once toward that engine's detail interest, which samples
@@ -41,12 +41,14 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use kelvo_engine::{
+use statglass_engine::{
     BackfillSegment, BusMsg, EngineStatus, FrameLayout, LiveFrame, LiveHub, ProcessSample,
     ProcessView, Recv, Subscriber,
 };
-use kelvo_schema::lock::LockExt;
-use kelvo_schema::{Capabilities, Catalog, HostId, MetricKind, PerformanceReason, SeriesSelector};
+use statglass_schema::lock::LockExt;
+use statglass_schema::{
+    Capabilities, Catalog, HostId, MetricKind, PerformanceReason, SeriesSelector,
+};
 use tokio::sync::watch;
 use tokio::time::Instant;
 
@@ -97,7 +99,7 @@ impl LiveSink for tauri::ipc::Channel<LiveMsg> {
 pub const DEFAULT_BACKFILL_MS: i64 = 60_000;
 
 /// Upper bound on the backfill a window can ask for: the ring's span.
-pub const MAX_BACKFILL_MS: i64 = kelvo_engine::RING_SPAN_MS;
+pub const MAX_BACKFILL_MS: i64 = statglass_engine::RING_SPAN_MS;
 
 /// History a fresh subscription sends before `subscribe_live` returns; the rest follows
 /// as `BackfillEarlier` chunks.
@@ -146,7 +148,7 @@ pub(crate) fn frame_period_ms(interval_ms: u32, min_period_ms: i64) -> u32 {
 }
 
 /// The shortest frame period a visible window gets in Performance mode (D-088).
-const PERFORMANCE_MIN_PERIOD_MS: i64 = kelvo_engine::PERFORMANCE_VISIBLE_MS as i64;
+const PERFORMANCE_MIN_PERIOD_MS: i64 = statglass_engine::PERFORMANCE_VISIBLE_MS as i64;
 
 /// A stream's frame pacing: what it asked for, raised to 2 s in Performance mode.
 pub(crate) fn effective_min_period_ms(requested: i64, performance: PerformanceReason) -> i64 {
@@ -453,7 +455,7 @@ impl Stream {
         self.timeline = Some(seg.timeline);
         // Stored buckets are stamped at their exact end, not nominal tick times.
         // Their 10 s interval must not suppress the first 5 s of live frames.
-        self.sent_until = if seg.layout.layout_no == kelvo_engine::WARM_LAYOUT_NO {
+        self.sent_until = if seg.layout.layout_no == statglass_engine::WARM_LAYOUT_NO {
             last
         } else {
             last + interval / 2
@@ -632,7 +634,7 @@ impl Stream {
             return Ok(());
         }
         self.holds_from = Some((Arc::clone(&f.holds), frame_period));
-        let floor = kelvo_engine::hold_ms(frame_period);
+        let floor = statglass_engine::hold_ms(frame_period);
         let holds: Vec<u32> = pick_holds(pick, &f.holds)
             .into_iter()
             .map(|h| h.max(floor))
@@ -668,7 +670,7 @@ impl Stream {
                 }
             }
             let refusal = crate::process_signal::refusals();
-            kelvo_engine::select_processes(rows, view, |r| live_process(r, &refusal))
+            statglass_engine::select_processes(rows, view, |r| live_process(r, &refusal))
         };
         self.last_procs_ts = Some(ts_ms);
         self.send(LiveMsg::Processes {

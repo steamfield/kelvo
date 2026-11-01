@@ -24,7 +24,7 @@ yanked = "deny"
 ignore = []
 
 [licenses]
-# Kelvo is Apache-2.0. Everything allowed here is permissive or file-level copyleft,
+# StatGlass is Apache-2.0. Everything allowed here is permissive or file-level copyleft,
 # so it is compatible with Apache-2.0 and with distributing the binary. MPL-2.0
 # (cssparser and friends, via Tauri's wry) obliges us to publish changes to MPL files
 # only, and we vendor none.

@@ -5,13 +5,13 @@
 //! setup freshly installed is removed again when a later step fails.
 use super::super::commands::older_version;
 use super::*;
-use kelvo_remote::agent_install::{self, AgentTarget, DockerSocket, LinuxProbe};
-use kelvo_remote::{AgentLayout, RemoteCommand};
+use statglass_remote::agent_install::{self, AgentTarget, DockerSocket, LinuxProbe};
+use statglass_remote::{AgentLayout, RemoteCommand};
 
 /// The agent's history size limit: the Mac's default (`HistorySettings`), which the
 /// agent's `configure` accepts.
 pub(in crate::remote) const AGENT_BUDGET_MB: u32 =
-    kelvo_schema::settings::HistorySettings::DEFAULT_SIZE_LIMIT_MB;
+    statglass_schema::settings::HistorySettings::DEFAULT_SIZE_LIMIT_MB;
 
 /// Whether an installed agent's `version` is newer than this build's, so it must not be
 /// replaced with this build's agent (a downgrade).
@@ -41,10 +41,10 @@ pub(in crate::remote) fn preparation(
     let existing_id = existing
         .and_then(|e| e.status.as_ref())
         .and_then(|s| s.host_id);
-    let system = target.layout == kelvo_remote::AgentLayout::System;
+    let system = target.layout == statglass_remote::AgentLayout::System;
     let needed_bytes = match (existing, probe.disk_total_bytes) {
         (None, Some(total)) => Some(
-            kelvo_store::low_disk_threshold(total)
+            statglass_store::low_disk_threshold(total)
                 .saturating_add(u64::from(AGENT_BUDGET_MB).saturating_mul(1_000_000)),
         ),
         _ => None,
@@ -54,9 +54,9 @@ pub(in crate::remote) fn preparation(
         kind: RemoteHostKind::Linux,
         installed: existing.is_some(),
         // Release age does not determine wire compatibility.
-        compatible: existing
-            .and_then(|e| e.version.as_ref())
-            .is_some_and(|v| kelvo_remote::control::protocol_compatible(v.min_compatible, v.proto)),
+        compatible: existing.and_then(|e| e.version.as_ref()).is_some_and(|v| {
+            statglass_remote::control::protocol_compatible(v.min_compatible, v.proto)
+        }),
         newer_installed: is_newer(existing_version.as_deref()),
         host_id: existing_id.map(|id| id.to_string()),
         name: probe.hostname.clone().unwrap_or_else(|| alias.to_owned()),
@@ -166,7 +166,7 @@ pub(in crate::remote) async fn install_agent(
             }
         }
         (None, None) => Err(CommandError::RemoteAgentConflict {
-            message: "No Kelvo agent is installed on this host. Install it to connect".into(),
+            message: "No StatGlass agent is installed on this host. Install it to connect".into(),
         }),
     }
 }
@@ -177,8 +177,8 @@ pub(in crate::remote) async fn connect(
     command: RemoteCommand,
     local: HostId,
     expected: Option<HostId>,
-) -> Result<kelvo_remote::SshSession, CommandError> {
-    kelvo_remote::connect(
+) -> Result<statglass_remote::SshSession, CommandError> {
+    statglass_remote::connect(
         &EndpointConfig {
             lan: config.lan.clone(),
             tailscale: config.tailscale.clone(),
@@ -207,7 +207,7 @@ pub(in crate::remote) async fn recover(
     }
     tracing::warn!("removing the agent after a failed setup: {report:?}");
     let message = format!(
-        "{error}. Kelvo could not remove the agent it installed: {}",
+        "{error}. StatGlass could not remove the agent it installed: {}",
         failed_steps(&report)
     );
     match error {
@@ -293,8 +293,9 @@ pub(super) async fn update_saved(app: AppHandle, id: String) -> Result<(), Comma
         .ok_or(CommandError::UnknownHost { host: id })?;
     if !saved.is_linux() {
         return Err(CommandError::InvalidArgument {
-            message: "Only Linux hosts run the Kelvo agent; update Kelvo on a Mac from Add host"
-                .into(),
+            message:
+                "Only Linux hosts run the StatGlass agent; update StatGlass on a Mac from Add host"
+                    .into(),
         });
     }
     let (alias, probe) = linux_probe(
@@ -327,14 +328,14 @@ pub(in crate::remote) fn check_update(
     {
         return Err(CommandError::RemoteIdentity {
             message: format!(
-                "The agent on this host now reports a different identity ({reported}), so Kelvo did not update it. Re-pair the host first"
+                "The agent on this host now reports a different identity ({reported}), so StatGlass did not update it. Re-pair the host first"
             ),
         });
     }
     if let Some(version) = existing_version(probe).filter(|v| is_newer(Some(v))) {
         return Err(CommandError::InvalidArgument {
             message: format!(
-                "The agent on this host ({version}) is newer than this app ({}); update Kelvo on this Mac instead",
+                "The agent on this host ({version}) is newer than this app ({}); update StatGlass on this Mac instead",
                 env!("CARGO_PKG_VERSION")
             ),
         });
@@ -373,7 +374,7 @@ pub(in crate::remote) fn layout_mismatch(
 pub(in crate::remote) async fn uninstall_saved(saved: &SavedHost, purge: bool) -> Option<String> {
     let warning = |detail: String| {
         format!(
-            "The host was removed, but Kelvo could not uninstall its agent ({detail}). On the host, stop the kelvo-agent service and run `kelvo-agent uninstall`."
+            "The host was removed, but StatGlass could not uninstall its agent ({detail}). On the host, stop the statglass-agent service and run `statglass-agent uninstall`."
         )
     };
     let attempt = async {
@@ -386,7 +387,7 @@ pub(in crate::remote) async fn uninstall_saved(saved: &SavedHost, purge: bool) -
         let target = probe.target()?;
         if let Some(mismatch) = layout_mismatch(&saved.command, &target) {
             return Ok(Some(format!(
-                "The host was removed, but Kelvo left its agent installed: {mismatch}."
+                "The host was removed, but StatGlass left its agent installed: {mismatch}."
             )));
         }
         let report = agent_install::uninstall_at(&alias, &target, purge).await;

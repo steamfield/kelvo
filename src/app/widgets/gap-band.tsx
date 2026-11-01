@@ -5,7 +5,7 @@ import { cn } from "~/lib/utils";
 export interface GapBandProps {
   fromMs: number;
   toMs: number;
-  /** "Asleep 11:02–11:31 · not interpolated", "Paused", "Kelvo not running". */
+  /** "Asleep 11:02–11:31 · not interpolated", "Paused", "StatGlass not running". */
   label: string;
   reason?: string | undefined;
   closedDurationMs?: number | null;

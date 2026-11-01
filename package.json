@@ -1,9 +1,9 @@
 {
-  "name": "kelvo",
+  "name": "statglass",
   "private": true,
   "version": "0.3.2",
   "license": "Apache-2.0",
-  "repository": "github:steamfield/kelvo",
+  "repository": "github:steamfield/statglass",
   "type": "module",
   "packageManager": "bun@1.4.2",
   "engines": {
@@ -17,8 +17,8 @@
     "build:app": "scripts/build-app.sh",
     "build:prod": "scripts/build-local.sh",
     "build:local": "scripts/build-local.sh",
-    "seed": "cargo run --release -p kelvo-store --example seed --",
-    "seed:prod": "cargo run --release -p kelvo-store --example seed -- --prod",
+    "seed": "cargo run --release -p statglass-store --example seed --",
+    "seed:prod": "cargo run --release -p statglass-store --example seed -- --prod",
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json && tsc -p tsconfig.node.json",

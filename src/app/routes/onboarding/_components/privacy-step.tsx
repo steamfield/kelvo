@@ -11,7 +11,7 @@ import { useSeriesCount } from "~/stores/live-selectors";
 import { FIELD_LABEL } from "~/widgets/lib/classes";
 import { OnboardingFrame } from "./onboarding-frame";
 
-const HISTORY_DIR = "~/Library/Application Support/com.tryopendata.kelvo/";
+const HISTORY_DIR = "~/Library/Application Support/com.tryopendata.statglass/";
 
 /**
  * Step 2 of 2, "Updates and privacy" (plan 4.16, D-028; it reuses step
@@ -47,7 +47,7 @@ export function PrivacyStep({
     <OnboardingFrame
       step={2}
       title="Updates and privacy"
-      sub="Kelvo works without a network connection. You decide whether it checks for updates."
+      sub="StatGlass works without a network connection. You decide whether it checks for updates."
       footer={
         <>
           <span className="flex-1" />
@@ -66,8 +66,8 @@ export function PrivacyStep({
                 Check for updates automatically
               </label>
               <span className="font-normal text-[11px] text-muted-foreground">
-                This is the only network request Kelvo makes. You can turn it
-                off any time in Settings.
+                This is the only network request StatGlass makes. You can turn
+                it off any time in Settings.
               </span>
             </div>
             <Switch
@@ -80,7 +80,7 @@ export function PrivacyStep({
         <div className="flex flex-col gap-2">
           <span className={FIELD_LABEL}>Privacy</span>
           <p className="font-normal text-[13px] text-fg-subtle leading-relaxed">
-            Kelvo has no telemetry. All history stays on this Mac, in{" "}
+            StatGlass has no telemetry. All history stays on this Mac, in{" "}
             <span className="figures whitespace-nowrap text-[12px] text-foreground">
               {HISTORY_DIR}
             </span>

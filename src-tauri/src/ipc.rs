@@ -1,24 +1,24 @@
 //! IPC-only types: what commands take and return, what live channels carry, and the
 //! events Rust emits (v1-local-monitor.md 6.3). The data vocabulary itself (`HostRecord`,
-//! `Capabilities`, `Settings`, `SeriesKey`, `Gap`) comes from `kelvo-schema`; the types
+//! `Capabilities`, `Settings`, `SeriesKey`, `Gap`) comes from `statglass-schema`; the types
 //! here wrap it for the webview. Exported to `src/core/generated/` by tauri-specta.
 //!
 //! Every `i64` timestamp carries `#[specta(type = JsSafeInt)]` (D-039).
 
-use kelvo_schema::settings::Appearance;
-use kelvo_schema::{
+use serde::{Deserialize, Serialize};
+use statglass_schema::settings::Appearance;
+use statglass_schema::{
     Capabilities, Event, Gap, HostId, HostRecord, JsSafeInt, MetricKind, PerformanceReason,
     PowerSource, SeriesKey, SeriesSelector, Settings, Tier,
 };
-use serde::{Deserialize, Serialize};
 
 use crate::process_signal::SignalRefusal;
 
 /// Engine types the webview takes as they are: process views (`set_process_interest`)
 /// and the usage sort key (`query_usage_by_app`). They stay in the engine, which a
 /// headless agent shares (D-100).
-pub use kelvo_engine::{ProcessSort, ProcessView};
-pub use kelvo_schema::usage::UsageKey;
+pub use statglass_engine::{ProcessSort, ProcessView};
+pub use statglass_schema::usage::UsageKey;
 
 /// A millisecond epoch timestamp passed as a plain JS `number` (D-039).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -46,8 +46,8 @@ pub struct HistoryGrowth {
     pub usage: Option<UsageHistoryGrowth>,
 }
 
-impl From<kelvo_store::HistoryGrowth> for HistoryGrowth {
-    fn from(g: kelvo_store::HistoryGrowth) -> Self {
+impl From<statglass_store::HistoryGrowth> for HistoryGrowth {
+    fn from(g: statglass_store::HistoryGrowth) -> Self {
         Self {
             measured_ms: g.measured_ms,
             fixed_bytes: ByteCount(g.fixed_bytes),
@@ -69,8 +69,8 @@ pub struct UsageHistoryGrowth {
     pub fixed_identity_bytes: ByteCount,
 }
 
-impl From<kelvo_store::UsageHistoryGrowth> for UsageHistoryGrowth {
-    fn from(g: kelvo_store::UsageHistoryGrowth) -> Self {
+impl From<statglass_store::UsageHistoryGrowth> for UsageHistoryGrowth {
+    fn from(g: statglass_store::UsageHistoryGrowth) -> Self {
         Self {
             measured_ms: g.measured_ms,
             finest_day_bytes: ByteCount(g.finest_day_bytes),
@@ -198,7 +198,7 @@ pub struct LiveStatus {
     /// `adapter` (D-092).
     pub power_source: PowerSource,
     /// The `iface` label of the reported interface carrying the default route, `null`
-    /// when the route is on an interface Kelvo does not report (a VPN tunnel) or there is
+    /// when the route is on an interface StatGlass does not report (a VPN tunnel) or there is
     /// none. Re-read on interface changes and every 60 s (D-092).
     pub primary_iface: Option<String>,
 }
@@ -242,7 +242,7 @@ pub struct LiveProcess {
     pub ports: Option<Vec<u16>>,
     pub user: String,
     /// Why Quit and Force Quit refuse this process, `null` when they may signal it: the
-    /// rule `process_signal` checks, with Kelvo's own processes from the self-CPU
+    /// rule `process_signal` checks, with StatGlass's own processes from the self-CPU
     /// collector's list (D-092).
     pub refusal: Option<SignalRefusal>,
 }
@@ -409,8 +409,8 @@ pub struct ExportRequest {
     /// `auto` writes the tier a history read of the range would use, one row per bucket
     /// (no merging).
     pub tier: TierRequest,
-    /// The file name the dialog proposes (`kelvo-2026-10-04.csv`); local dates are the
-    /// frontend's to format. Path separators are dropped. Default `kelvo-history.csv`.
+    /// The file name the dialog proposes (`statglass-2026-10-04.csv`); local dates are the
+    /// frontend's to format. Path separators are dropped. Default `statglass-history.csv`.
     #[specta(optional)]
     pub file_name: Option<String>,
 }
@@ -546,7 +546,7 @@ pub struct NetworkByApp {
     #[specta(type = JsSafeInt)]
     pub overhead_tx_bytes: u64,
     /// "System and other": interface minus apps, other apps and overhead, never below 0.
-    /// Root daemons (software update, mDNSResponder, backups) that Kelvo cannot see.
+    /// Root daemons (software update, mDNSResponder, backups) that StatGlass cannot see.
     #[specta(type = JsSafeInt)]
     pub system_rx_bytes: u64,
     #[specta(type = JsSafeInt)]
@@ -630,7 +630,7 @@ pub struct UsageTotal {
     pub avg_w: f64,
 }
 
-/// What the host measured beyond Kelvo's processes ("System and other"): the host's
+/// What the host measured beyond StatGlass's processes ("System and other"): the host's
 /// own series over the same range less `UsageByApp.total`. It holds other users' and
 /// root's processes and those that lived less than one sample. `null` fields where the
 /// series was not recorded (module off, GPU never measured).
@@ -649,7 +649,7 @@ pub struct UsageOther {
 }
 
 /// `query_usage_by_app`: which apps used CPU, GPU, memory, disk and energy over a range,
-/// from the last hour of process samples Kelvo keeps in memory (D-093, D-099). Your
+/// from the last hour of process samples StatGlass keeps in memory (D-093, D-099). Your
 /// processes only; `other` holds the rest.
 #[derive(Clone, Debug, PartialEq, Serialize, specta::Type)]
 pub struct UsageByApp {
@@ -658,7 +658,7 @@ pub struct UsageByApp {
     pub from_ms: i64,
     #[specta(type = JsSafeInt)]
     pub to_ms: i64,
-    /// When Kelvo started counting (this launch, or the last history clear); `null`
+    /// When StatGlass started counting (this launch, or the last history clear); `null`
     /// before the first process sample. After `from_ms`, the range is covered only from
     /// here.
     #[specta(type = Option<JsSafeInt>)]

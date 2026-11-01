@@ -6,7 +6,7 @@ v3 needs a paid Apple Developer Program membership. Nothing in v1 or v2 does. Re
 
 ## Goal and user value
 
-Until v3, installing Kelvo means clearing Gatekeeper by hand: Open Anyway in System Settings, Privacy & Security, or `xattr -d com.apple.quarantine`, then trusting an ad-hoc signed binary. That is fine for the macmon and asitop crowd and a real barrier for everyone else. v3 makes Kelvo install like any other Mac app: download a notarized DMG or `brew install --cask`, open it, done. Updates arrive signed twice (Developer ID and the updater's minisign key), and existing v1 and v2 installs move over without losing settings or history.
+Until v3, installing StatGlass means clearing Gatekeeper by hand: Open Anyway in System Settings, Privacy & Security, or `xattr -d com.apple.quarantine`, then trusting an ad-hoc signed binary. That is fine for the macmon and asitop crowd and a real barrier for everyone else. v3 makes StatGlass install like any other Mac app: download a notarized DMG or `brew install --cask`, open it, done. Updates arrive signed twice (Developer ID and the updater's minisign key), and existing v1 and v2 installs move over without losing settings or history.
 
 v3.1 brings WidgetKit to everyone, not only people who build from source. v3.2 answers the question that has been open since D-015: is a sandboxed App Store edition worth shipping?
 
@@ -29,7 +29,7 @@ v3.1 brings WidgetKit to everyone, not only people who build from source. v3.2 a
 - v3.0: updater artifacts signed with the existing minisign key, published with the release.
 - v3.0: migration from the v1/v2 ad-hoc (and v2.2 self-signed) channel, including login item re-registration.
 - v3.0: an official Homebrew cask, or a documented reason it is blocked and the tap kept current meanwhile.
-- v3.1: `AppGroupWidgetFeed` on the Team-ID-prefixed group `TEAMID.com.tryopendata.kelvo`; extension drops the temporary exception; WidgetKit ships in the release build.
+- v3.1: `AppGroupWidgetFeed` on the Team-ID-prefixed group `TEAMID.com.tryopendata.statglass`; extension drops the temporary exception; WidgetKit ships in the release build.
 - v3.1: a recorded decision on a launchd helper for data while the app is closed (amends D-014).
 - v3.2: an `appstore` edition build that runs sandboxed, a table of surviving modules, and a go/no-go in D-015.
 
@@ -50,19 +50,19 @@ v3.1 brings WidgetKit to everyone, not only people who build from source. v3.2 a
 
 ### Install and first launch (v3.0)
 
-A new user downloads the notarized DMG or runs `brew install --cask <token>`, opens Kelvo, and lands straight in onboarding with no Gatekeeper dialog beyond the standard "downloaded from the internet" confirmation. Onboarding itself is unchanged from v1. The README drops the first-launch workaround section and keeps a short note for people still on v2.x builds.
+A new user downloads the notarized DMG or runs `brew install --cask <token>`, opens StatGlass, and lands straight in onboarding with no Gatekeeper dialog beyond the standard "downloaded from the internet" confirmation. Onboarding itself is unchanged from v1. The README drops the first-launch workaround section and keeps a short note for people still on v2.x builds.
 
 ### Migration notice for existing installs (v3.0)
 
 No mock. Compose from `11-first-run` (single-window sheet with a title, one paragraph and a Continue CTA) and `13-settings` General rows for the toggles it re-applies.
 
-On the first launch after updating from an ad-hoc or self-signed build, Kelvo runs the migration silently and shows a one-time sheet only if something needs the user. Cases:
+On the first launch after updating from an ad-hoc or self-signed build, StatGlass runs the migration silently and shows a one-time sheet only if something needs the user. Cases:
 
 | Situation | What the user sees |
 |---|---|
 | Launch at login was on, re-registration succeeded | Nothing |
-| Re-registration needs approval in System Settings, Login Items | "Kelvo is now signed by its developer. macOS needs you to allow it in Login Items again." with an "Open Login Items" button |
-| v2.2 WidgetKit dev-build user | "Desktop widgets were rebuilt for the signed app. Remove and re-add Kelvo widgets from the widget gallery." (only shown in v3.1, when the public extension ships) |
+| Re-registration needs approval in System Settings, Login Items | "StatGlass is now signed by its developer. macOS needs you to allow it in Login Items again." with an "Open Login Items" button |
+| v2.2 WidgetKit dev-build user | "Desktop widgets were rebuilt for the signed app. Remove and re-add StatGlass widgets from the widget gallery." (only shown in v3.1, when the public extension ships) |
 | Notification permission for alerts was granted before | Nothing if it carried over; otherwise the standard permission prompt on the next alert, with the rule name in the explainer |
 
 ### Update prompt (v3.0)
@@ -75,7 +75,7 @@ Behaviour stays as v1: an opt-out check, a pill in the popover footer when an up
 
 No mock. Compose from `10-desktop-widgets` widget cards and `14-component-popover-panel` cards; the SwiftUI views are the ones built in v2.2.
 
-The widgets look and behave as in v2.2. What changes is that anyone installing the release gets them, there is no access prompt on supported versions (26 and later), and the Settings row from v2.2 shows "Feed: App Group" instead of a file path. If the launchd helper ships, the "Kelvo isn't running" state from v2.2 disappears for users who keep the helper on, and the row gains a "Keep collecting when Kelvo is closed" switch.
+The widgets look and behave as in v2.2. What changes is that anyone installing the release gets them, there is no access prompt on supported versions (26 and later), and the Settings row from v2.2 shows "Feed: App Group" instead of a file path. If the launchd helper ships, the "StatGlass isn't running" state from v2.2 disappears for users who keep the helper on, and the row gains a "Keep collecting when StatGlass is closed" switch.
 
 ### Keep collecting when closed (v3.1, conditional)
 
@@ -138,7 +138,7 @@ Workflow hygiene: third-party actions pinned by commit SHA, `permissions: conten
 
 Collectors already declare `required_entitlements()` (architecture item 6), but those are capability requirements, not codesign entitlements. Outside the sandbox, IOReport, the SMC user client, HID sensors and NetworkStatistics need no codesign entitlement at all; the hardened runtime does not block them. So for the Developer ID build the generated entitlement set is expected to be close to empty. The value of generating it anyway is that the file is derived, not hand-edited, and CI catches drift.
 
-A small build step, `cargo run -p kelvo-app-entitlements -- --edition direct|appstore`, writes `src-tauri/Entitlements.<edition>.plist` from two inputs: the shell's own needs and the union of enabled collectors' declarations mapped through this table.
+A small build step, `cargo run -p statglass-app-entitlements -- --edition direct|appstore`, writes `src-tauri/Entitlements.<edition>.plist` from two inputs: the shell's own needs and the union of enabled collectors' declarations mapped through this table.
 
 | `Entitlement` (architecture item 6) | Direct (Developer ID, hardened runtime) | Appstore (sandboxed) |
 |---|---|---|
@@ -154,17 +154,17 @@ A small build step, `cargo run -p kelvo-app-entitlements -- --edition direct|app
 | WKWebView JIT | Not expected to need `com.apple.security.cs.allow-jit`, because JavaScript runs in WebKit's own WebContent process (unverified; confirm with a notarized build in phase 3.0a) | Same |
 | Updater network access | Nothing | Updater not compiled; App Store updates |
 | v2.3 alert notifications | Nothing | Nothing |
-| WidgetKit App Group (v3.1) | `com.apple.security.application-groups` = `TEAMID.com.tryopendata.kelvo` | Same |
+| WidgetKit App Group (v3.1) | `com.apple.security.application-groups` = `TEAMID.com.tryopendata.statglass` | Same |
 
 CI extracts the signed entitlements with `codesign -d --entitlements - --xml` and fails if they differ from the generated plist.
 
 ### Migration from the unsigned channel (v3.0)
 
-The v1 updater verifies the minisign signature, not the Apple signature, so an ad-hoc v2.x install can update straight to a Developer ID v3.0 build with the same key. The bundle identifier `com.tryopendata.kelvo` stays. What changes is the code signature's designated requirement, and some macOS state is tied to it.
+The v1 updater verifies the minisign signature, not the Apple signature, so an ad-hoc v2.x install can update straight to a Developer ID v3.0 build with the same key. The bundle identifier `com.tryopendata.statglass` stays. What changes is the code signature's designated requirement, and some macOS state is tied to it.
 
 | State | Tied to | Plan |
 |---|---|---|
-| Settings, widget layouts, SQLite history | Paths under the bundle id and `Kelvo/` | Nothing to do; same paths |
+| Settings, widget layouts, SQLite history | Paths under the bundle id and `StatGlass/` | Nothing to do; same paths |
 | Launch at login (`SMAppService.mainApp`) | Background task management records the signing identity (unverified exactly how) | On first v3 launch, if `signing_channel` in settings is missing or `adhoc`, unregister and re-register; if status comes back `requiresApproval`, show the migration sheet |
 | Notification permission | Bundle id (unverified whether the signature change resets it) | Detect `notDetermined` and re-request on the next alert, not at launch |
 | v2.2 WidgetKit dev-build users | Self-signed identity; widgets cached per identity | v3.1 ships the public extension; the migration sheet explains re-adding widgets |
@@ -174,19 +174,19 @@ A last v2.x release (the "bridge" release) ships before v3.0 with no feature cha
 
 ### Homebrew (v3.0)
 
-The app's working name was Vitals, and the `vitals` token in the official cask repo is taken by an unrelated monitor, hmarr/vitals. That collision is why the app is now Kelvo (D-027). The `kelvo` token was free on 2026-10-05, so the official cask can use it. Phase 3.0a checks that it is still free before submitting, and the trademark search D-027 left open should be done well before then.
+The app's working name was Vitals, and the `vitals` token in the official cask repo is taken by an unrelated monitor, hmarr/vitals. That collision is why the app is now StatGlass (D-027). The `statglass` token was free on 2026-10-05, so the official cask can use it. Phase 3.0a checks that it is still free before submitting, and the trademark search D-027 left open should be done well before then.
 
 Homebrew also has notability requirements for new casks (for self-submitted projects, thresholds on GitHub stars, forks and watchers; exact numbers unverified). Until the cask is accepted, the v1 personal tap stays the install path and the release workflow commits the new version and SHA-256 to it. Once accepted, the tap's cask gets a `deprecate!` pointing at the official token, and the workflow switches to opening bump PRs with `brew bump-cask-pr`.
 
-The cask declares `depends_on arch: :arm64`, `auto_updates true` (the app updates itself), and a `zap` stanza listing `~/Library/Application Support/com.tryopendata.kelvo`, `~/Library/Application Support/Kelvo`, the App Group container and the preferences plist.
+The cask declares `depends_on arch: :arm64`, `auto_updates true` (the app updates itself), and a `zap` stanza listing `~/Library/Application Support/com.tryopendata.statglass`, `~/Library/Application Support/StatGlass`, the App Group container and the preferences plist.
 
 ### Public WidgetKit through an App Group (v3.1)
 
-The v2.2 seam pays off here. `AppGroupWidgetFeed` implements `WidgetFeedSink` by writing the same per-kind `WidgetFeedDoc` JSON into `~/Library/Group Containers/TEAMID.com.tryopendata.kelvo/widget-feed/`. Both the app and the extension get `com.apple.security.application-groups` with `TEAMID.com.tryopendata.kelvo`. The extension's temporary-exception entitlement is removed.
+The v2.2 seam pays off here. `AppGroupWidgetFeed` implements `WidgetFeedSink` by writing the same per-kind `WidgetFeedDoc` JSON into `~/Library/Group Containers/TEAMID.com.tryopendata.statglass/widget-feed/`. Both the app and the extension get `com.apple.security.application-groups` with `TEAMID.com.tryopendata.statglass`. The extension's temporary-exception entitlement is removed.
 
 The group uses the macOS Team-ID-prefixed form rather than the iOS-style `group.` form. On supported versions (26 and later), a Team-ID-prefixed group whose prefix matches the signing team avoids the "access data from other apps" prompt that the temporary exception (and `group.` groups without a provisioning profile) can trigger. Whether the appex needs a Developer ID provisioning profile for this group is unverified and is the first check in phase 3.1a.
 
-The release workflow gains the v2.2 steps with the Developer ID identity: `xcodebuild` the extension, sign the appex with its entitlements and hardened runtime, embed it at `PlugIns/KelvoWidgets.appex`, sign the outer app, then notarize the whole bundle. The `widgetkit` feature and overlay config from v2.2 become the default for release builds. The v2.2 self-signed path stays for contributors without a paid account, still on `FileWidgetFeed`, chosen by a build flag rather than at runtime.
+The release workflow gains the v2.2 steps with the Developer ID identity: `xcodebuild` the extension, sign the appex with its entitlements and hardened runtime, embed it at `PlugIns/StatGlassWidgets.appex`, sign the outer app, then notarize the whole bundle. The `widgetkit` feature and overlay config from v2.2 become the default for release builds. The v2.2 self-signed path stays for contributors without a paid account, still on `FileWidgetFeed`, chosen by a build flag rather than at runtime.
 
 ### Launchd helper decision (v3.1)
 
@@ -194,8 +194,8 @@ D-014 kept the engine in process and named WidgetKit staleness as the trigger to
 
 | Option | What runs when the app is closed | Cost | Effect on later versions |
 |---|---|---|---|
-| A. Stay in process | Nothing; widgets show "Kelvo isn't running" past 30 minutes; history records `app_not_running` gaps | None | None |
-| B. Helper owns the engine | A LaunchAgent (`SMAppService.agent`, plist in `Contents/Library/LaunchAgents`) runs the engine and is the single writer; the app becomes a client through `LocalSource` over a unix socket speaking `kelvo-proto` | A second process, roughly the v4 agent's budget (0.3% CPU, 30 MB); the app's store becomes read-only plus ingest of synced rows | Builds most of v4.0's `kelvo-agent` early and exercises the proto locally |
+| A. Stay in process | Nothing; widgets show "StatGlass isn't running" past 30 minutes; history records `app_not_running` gaps | None | None |
+| B. Helper owns the engine | A LaunchAgent (`SMAppService.agent`, plist in `Contents/Library/LaunchAgents`) runs the engine and is the single writer; the app becomes a client through `LocalSource` over a unix socket speaking `statglass-proto` | A second process, roughly the v4 agent's budget (0.3% CPU, 30 MB); the app's store becomes read-only plus ingest of synced rows | Builds most of v4.0's `statglass-agent` early and exercises the proto locally |
 | C. Feed-only helper | A small helper samples a few series only for the widget feed while the app is closed | A second sampler with its own collectors, which duplicates engine logic and invites drift | None useful |
 
 Option C is rejected up front. The choice between A and B is made on two facts gathered in phase 3.1b: how many open issues or discussions ask for data while closed, and whether the v4 agent work is next on the roadmap. If v4.0 follows directly, B is mostly v4.0's agent built a version early and is worth it. If not, A stays and the stale state is clearly labelled. The outcome is appended to D-014.
@@ -265,9 +265,9 @@ No SQLite schema changes in v3.
 - [ ] App Store Connect API key created with the Developer role for `notarytool`
 - [ ] Local dry run: sign and notarize a hand-built bundle with `notarytool submit --wait`, staple, `spctl --assess` passes on a second Mac
 - [ ] Confirm whether the notarized app needs `com.apple.security.cs.allow-jit` (expected no)
-- [ ] decisions.md entries: arm64 only; Homebrew token (confirm `kelvo` is still free, D-027)
+- [ ] decisions.md entries: arm64 only; Homebrew token (confirm `statglass` is still free, D-027)
 
-Acceptance: a hand-signed, notarized build opens on a Mac that has never seen Kelvo with no Gatekeeper override.
+Acceptance: a hand-signed, notarized build opens on a Mac that has never seen StatGlass with no Gatekeeper override.
 
 #### Phase 3.0b: Release workflow
 
@@ -275,7 +275,7 @@ CI:
 - [ ] `release` GitHub environment with required reviewers and the secrets in the table
 - [ ] `.github/workflows/release.yml` with temp keychain, `tauri-action`, notarization by API key, stapling
 - [ ] Verification steps: `codesign --verify --strict`, `spctl --assess`, `stapler validate`
-- [ ] `kelvo-app-entitlements` generator and the CI entitlement diff
+- [ ] `statglass-app-entitlements` generator and the CI entitlement diff
 - [ ] Updater artifacts and `latest.json` uploaded to a draft release
 - [ ] Actions pinned by SHA; default `contents: read`; no secrets on `pull_request`
 - [ ] Manual dispatch dry run that stops before publishing
@@ -308,7 +308,7 @@ Acceptance: `brew install --cask` from a clean machine installs a notarized buil
 
 #### Phase 3.1a: App Group feed
 
-- [ ] Check whether the appex needs a Developer ID provisioning profile for `TEAMID.com.tryopendata.kelvo`; record the answer
+- [ ] Check whether the appex needs a Developer ID provisioning profile for `TEAMID.com.tryopendata.statglass`; record the answer
 - [ ] `AppGroupWidgetFeed` implementing `WidgetFeedSink`, writing to the group container
 - [ ] App and extension entitlements carry the App Group; temporary exception removed from the release extension
 - [ ] Build flag keeps `FileWidgetFeed` and the self-signed path for contributor builds
@@ -323,14 +323,14 @@ Acceptance: on both supported macOS versions (D-028), a fresh install shows live
 - [ ] `CFBundleVersion` derived from the workflow run number for both app and appex
 - [ ] Migration sheet text for v2.2 dev-build users
 
-Acceptance: the released DMG's app has `PlugIns/KelvoWidgets.appex`, `pluginkit` lists it after first launch, and the widget gallery shows Kelvo.
+Acceptance: the released DMG's app has `PlugIns/StatGlassWidgets.appex`, `pluginkit` lists it after first launch, and the widget gallery shows StatGlass.
 
 #### Phase 3.1c: Helper decision
 
 - [ ] Gather the two decision inputs (requests for data while closed; whether v4.0 is next)
 - [ ] Append the outcome to D-014
-- [ ] If option B: `kelvo-helper` LaunchAgent via `SMAppService.agent`, engine and single writer moved into it, `LocalSource` switched to the unix socket, Settings switch, budget measured
-- [ ] If option A: the "Kelvo isn't running" state verified in the release build
+- [ ] If option B: `statglass-helper` LaunchAgent via `SMAppService.agent`, engine and single writer moved into it, `LocalSource` switched to the unix socket, Settings switch, budget measured
+- [ ] If option A: the "StatGlass isn't running" state verified in the release build
 
 Acceptance: D-014 updated with the decision and its inputs; if B, quitting the app keeps widgets updating and history has no `app_not_running` gap.
 
@@ -366,20 +366,20 @@ Acceptance: D-015 status changes from Open to Accepted or Rejected, with the mea
 
 | Risk or question | Impact | Plan |
 |---|---|---|
-| Cask token `kelvo` claimed by someone else before v3.0, or a trademark conflict with the name | Official cask needs another token, or a second rename | Check the token and run the trademark search before the v1.0 release (D-027); re-check in phase 3.0a |
+| Cask token `statglass` claimed by someone else before v3.0, or a trademark conflict with the name | Official cask needs another token, or a second rename | Check the token and run the trademark search before the v1.0 release (D-027); re-check in phase 3.0a |
 | Homebrew notability thresholds (unverified numbers) | Official cask delayed | Keep the tap current from the release workflow |
-| Login item re-registration after the signature change (unverified behaviour) | Kelvo silently stops launching at login | Bridge release gathers facts; migration re-registers and asks for approval when needed |
+| Login item re-registration after the signature change (unverified behaviour) | StatGlass silently stops launching at login | Bridge release gathers facts; migration re-registers and asks for approval when needed |
 | Whether WKWebView in a hardened-runtime Tauri app needs JIT entitlements (unverified) | Notarized build crashes or runs slowly | Check in phase 3.0a before CI work |
 | Whether the appex needs a provisioning profile for the Team-ID App Group (unverified) | Extension fails to load in the release build | First check in 3.1a |
 | Apple Developer membership lapses | Releases stop; notarized builds keep working but no new ones | Renewal reminder; the self-signed contributor path still builds |
-| Secrets exposure through CI | Someone signs malware as Kelvo | Environment with reviewers, pinned actions, no secrets on PRs, revocation runbook in `docs/` |
+| Secrets exposure through CI | Someone signs malware as StatGlass | Environment with reviewers, pinned actions, no secrets on PRs, revocation runbook in `docs/` |
 | Private-symbol references in an appstore binary (unverified strictness) | Store rejection | Compile-time gating plus the symbol check |
 
 ## Infra this version lays for later versions
 
-- The release workflow, temp keychain and notarization steps are what v4 reuses to sign and notarize the macOS `kelvo-agent` binary that the controller installs on remote Macs.
+- The release workflow, temp keychain and notarization steps are what v4 reuses to sign and notarize the macOS `statglass-agent` binary that the controller installs on remote Macs.
 - The entitlement generator and CI diff keep working as v4 adds collectors.
-- If the helper decision is B, the local engine already runs as a separate process speaking `kelvo-proto` over a socket, which is most of v4.0's agent.
+- If the helper decision is B, the local engine already runs as a separate process speaking `statglass-proto` over a socket, which is most of v4.0's agent.
 - The appstore edition's survivor table tells v4 which remote features a store edition could never have (spawning `ssh`), so v4 can be scoped to the direct edition from the start.
 - The edition-agnostic capabilities path (no UI feature checks) is confirmed under a real second edition.
 
@@ -394,6 +394,6 @@ Acceptance: D-015 status changes from Open to Accepted or Rejected, with the mea
 | Launch at login through `smappservice-rs` | v1.0 | Migration re-registration |
 | Rust-owned settings store | v1.0 | `signing_channel` |
 | `LocalSource` and the `Source` trait | v1.0 | Helper option B |
-| `kelvo-proto` framing and handshake | v1.0 | Helper option B |
-| `WidgetFeedSink`, `FileWidgetFeed`, `WidgetFeedDoc`, generated Swift types, the `widgetkit` feature and overlay config, `native/KelvoWidgets/` | v2.2 | `AppGroupWidgetFeed` and release integration |
+| `statglass-proto` framing and handshake | v1.0 | Helper option B |
+| `WidgetFeedSink`, `FileWidgetFeed`, `WidgetFeedDoc`, generated Swift types, the `widgetkit` feature and overlay config, `native/StatGlassWidgets/` | v2.2 | `AppGroupWidgetFeed` and release integration |
 | Alert notifications | v1.2, v2.3 | Notification permission migration |

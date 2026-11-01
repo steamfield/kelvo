@@ -11,15 +11,15 @@
 use std::collections::BTreeMap;
 use std::sync::{Mutex, MutexGuard};
 
-use kelvo_engine::EngineSettings;
-use kelvo_schema::AlertRule;
-use kelvo_schema::Module;
-use kelvo_schema::Settings;
-use kelvo_schema::lock::LockExt;
-use kelvo_schema::settings::{
+use serde::Deserialize;
+use statglass_engine::EngineSettings;
+use statglass_schema::AlertRule;
+use statglass_schema::Module;
+use statglass_schema::Settings;
+use statglass_schema::lock::LockExt;
+use statglass_schema::settings::{
     Appearance, ChartWindow, ItemMode, MemoryUnit, NetworkUnit, TemperatureUnit,
 };
-use serde::Deserialize;
 
 use crate::error::CommandError;
 use crate::ipc::SettingsSnapshot;
@@ -36,7 +36,7 @@ pub struct SettingsPatch {
     #[specta(optional)]
     pub popover: Option<PopoverPatch>,
     #[specta(optional)]
-    pub docker: Option<kelvo_schema::docker::DockerSettings>,
+    pub docker: Option<statglass_schema::docker::DockerSettings>,
     #[specta(optional)]
     pub modules: Option<BTreeMap<Module, ModulePatch>>,
     #[specta(optional)]
@@ -532,7 +532,7 @@ impl<R: tauri::Runtime> SettingsFile for PluginStoreFile<R> {
         self.store.save().map_err(|e| e.to_string())?;
         // The plugin creates the file with the default mode and rewrites it in place,
         // which keeps the mode, so this does work once per file.
-        if let Err(e) = kelvo_store::restrict(&self.path) {
+        if let Err(e) = statglass_store::restrict(&self.path) {
             tracing::warn!("restricting {}: {e}", self.path.display());
         }
         Ok(())
@@ -544,7 +544,7 @@ mod tests {
     use std::cell::RefCell;
     use std::sync::Arc;
 
-    use kelvo_schema::settings::ModuleSettings;
+    use statglass_schema::settings::ModuleSettings;
 
     use super::*;
 
@@ -642,13 +642,13 @@ mod tests {
     #[test]
     fn popover_partial_patch_preserves_other_cards_and_engine_settings() {
         let mut before = Settings::default();
-        before.popover.gpu = kelvo_schema::settings::CardDensity::Compact;
+        before.popover.gpu = statglass_schema::settings::CardDensity::Compact;
         let patch: SettingsPatch =
             serde_json::from_value(serde_json::json!({"popover":{"cpu":"compact"}})).unwrap();
         let after = patch.apply(&before).unwrap();
         assert_eq!(
             after.popover.cpu,
-            kelvo_schema::settings::CardDensity::Compact
+            statglass_schema::settings::CardDensity::Compact
         );
         assert_eq!(after.popover.gpu, before.popover.gpu);
         assert_eq!(after.modules, before.modules);
@@ -1000,7 +1000,7 @@ mod tests {
     #[test]
     fn alerts_switched_on_lists_only_newly_enabled_rules() {
         let with = |hot_process, thermal_serious| Settings {
-            alerts: kelvo_schema::AlertSettings {
+            alerts: statglass_schema::AlertSettings {
                 hot_process,
                 thermal_serious,
             },

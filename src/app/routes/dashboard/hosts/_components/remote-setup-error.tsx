@@ -5,7 +5,7 @@ export function RemoteSetupError({ error }: { error: CommandError | string }) {
   const advice =
     typeof error === "string"
       ? {
-          title: "Kelvo could not complete this step.",
+          title: "StatGlass could not complete this step.",
           recovery: "Try again; your entries are still here.",
         }
       : remoteErrorAdvice(error);

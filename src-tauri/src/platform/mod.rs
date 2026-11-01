@@ -1,4 +1,4 @@
-//! Platform pieces of the shell. Kelvo's app shell ships on macOS only; the fallback keeps
+//! Platform pieces of the shell. StatGlass's app shell ships on macOS only; the fallback keeps
 //! the crate compiling elsewhere.
 
 #[cfg(target_os = "macos")]

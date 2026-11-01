@@ -59,7 +59,7 @@ async fn frontend_protocol_fixture_matches_native_registry() {
     });
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../tests/fixtures/live-protocol.json");
-    if std::env::var_os("KELVO_UPDATE_PROTOCOL_FIXTURE").is_some() {
+    if std::env::var_os("STATGLASS_UPDATE_PROTOCOL_FIXTURE").is_some() {
         std::fs::write(
             &path,
             format!("{}\n", serde_json::to_string_pretty(&result).unwrap()),
@@ -69,6 +69,6 @@ async fn frontend_protocol_fixture_matches_native_registry() {
     let saved: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
     assert_eq!(
         result, saved,
-        "regenerate with KELVO_UPDATE_PROTOCOL_FIXTURE=1, review Rust/mock parity together"
+        "regenerate with STATGLASS_UPDATE_PROTOCOL_FIXTURE=1, review Rust/mock parity together"
     );
 }

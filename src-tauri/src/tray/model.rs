@@ -13,9 +13,9 @@
 
 use std::collections::VecDeque;
 
-use kelvo_engine::FrameLayout;
-use kelvo_schema::settings::{BarSettings, ItemMode, NetworkUnit, Readout};
-use kelvo_schema::{Module, Settings};
+use statglass_engine::FrameLayout;
+use statglass_schema::settings::{BarSettings, ItemMode, NetworkUnit, Readout};
+use statglass_schema::{Module, Settings};
 
 use self::format::{pct_text, rate_line, rate_text, rate_words, temp_text, watts_text, words_name};
 pub use self::items::{ItemChange, ItemChanges, ItemState, RETRY_AFTER, Retries, item_change};
@@ -437,18 +437,18 @@ impl ItemKey {
     /// keeps each item's ⌘-drag position across launches.
     pub fn id(self) -> &'static str {
         match self {
-            ItemKey::Combined => "kelvo",
-            ItemKey::Docker => "kelvo-containers",
+            ItemKey::Combined => "statglass",
+            ItemKey::Docker => "statglass-containers",
             ItemKey::Own(m) => match m {
-                Module::Cpu => "kelvo-cpu",
-                Module::Gpu => "kelvo-gpu",
-                Module::Memory => "kelvo-memory",
-                Module::Power | Module::Sensors => "kelvo-power",
-                Module::Network => "kelvo-network",
-                Module::Disk => "kelvo-disk",
-                Module::Battery => "kelvo-battery",
+                Module::Cpu => "statglass-cpu",
+                Module::Gpu => "statglass-gpu",
+                Module::Memory => "statglass-memory",
+                Module::Power | Module::Sensors => "statglass-power",
+                Module::Network => "statglass-network",
+                Module::Disk => "statglass-disk",
+                Module::Battery => "statglass-battery",
                 // Containers has no menu-bar item (D-116); this id is never shown.
-                Module::Containers | Module::Unknown => "kelvo-unknown",
+                Module::Containers | Module::Unknown => "statglass-unknown",
             },
         }
     }
@@ -512,7 +512,7 @@ impl Layout {
 
     fn own_item(&mut self, module: Module, frame: TrayFrame, words: String) {
         let accessibility = if self.paused {
-            format!("Kelvo {}, sampling paused", words_name(module))
+            format!("StatGlass {}, sampling paused", words_name(module))
         } else {
             words
         };
@@ -805,9 +805,9 @@ pub fn build(
         let mut words: Vec<String> = l.bar_words;
         words.extend(l.readout_words);
         let accessibility = if paused {
-            "Kelvo, sampling paused".to_owned()
+            "StatGlass, sampling paused".to_owned()
         } else if words.is_empty() {
-            "Kelvo".to_owned()
+            "StatGlass".to_owned()
         } else {
             words.join(", ")
         };
@@ -827,11 +827,11 @@ mod tests;
 
 /// The optional count consumes the worker's inventory/coverage, never a tray collector.
 pub fn docker_item(
-    status: &kelvo_schema::docker::DockerStatus,
-    aggregate: &kelvo_schema::docker::DockerAggregate,
+    status: &statglass_schema::docker::DockerStatus,
+    aggregate: &statglass_schema::docker::DockerAggregate,
     scale: u32,
 ) -> TrayItem {
-    use kelvo_schema::docker::DockerStatus;
+    use statglass_schema::docker::DockerStatus;
     let (text, accessibility) = if *status == DockerStatus::Connected {
         (
             format!(
@@ -878,7 +878,7 @@ pub fn docker_item(
 #[cfg(test)]
 mod docker_tests {
     use super::*;
-    use kelvo_schema::docker::{DockerAggregate, DockerStatus};
+    use statglass_schema::docker::{DockerAggregate, DockerStatus};
     #[test]
     fn count_distinguishes_partial_inventory_and_unavailable_data() {
         let aggregate = DockerAggregate {

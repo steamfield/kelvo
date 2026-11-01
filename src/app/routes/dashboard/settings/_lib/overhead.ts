@@ -2,7 +2,7 @@ import type { HostLive } from "@core/live-state";
 import { windowMean } from "@core/series-stats";
 import { INTERVALS_MS } from "@core/settings-patch";
 
-/** The overhead sentence averages Kelvo's own CPU over this window (plan 4.15). */
+/** The overhead sentence averages StatGlass's own CPU over this window (plan 4.15). */
 export const OVERHEAD_WINDOW_MS = 10 * 60_000;
 
 /** Readings under the current sampling setup before the sentence quotes one. */
@@ -21,7 +21,7 @@ const KEY = "self.cpu";
  * readings taken under the current sampling setup (`statusSinceMs`), rounded
  * to 0.1 so a selector returning it changes only when the sentence would.
  *
- * Each reading is Kelvo's CPU over the span since the previous one, so the
+ * Each reading is StatGlass's CPU over the span since the previous one, so the
  * first reading after a change still covers time under the old setup and is
  * skipped, even when it lands just inside the window. The mean is
  * `windowMean` (as the popover footer takes it) over the window cut to start

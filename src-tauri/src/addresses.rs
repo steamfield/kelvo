@@ -17,18 +17,18 @@ const PUBLIC_IP_TIMEOUT: Duration = Duration::from_secs(5);
 /// The addresses of `iface`, the interface carrying the default route.
 pub fn network_addresses(iface: Option<&str>) -> NetworkAddresses {
     let addrs = iface
-        .map(kelvo_engine::interface_addresses)
+        .map(statglass_engine::interface_addresses)
         .unwrap_or_default();
     NetworkAddresses {
         iface: iface.map(str::to_owned),
         ipv4: addrs.ipv4.iter().map(ToString::to_string).collect(),
         ipv6: addrs.ipv6.iter().map(ToString::to_string).collect(),
-        egress: kelvo_engine::egress_interface(),
+        egress: statglass_engine::egress_interface(),
     }
 }
 
 /// The address the internet sees this Mac at, from [`PUBLIC_IP_URL`] through the
-/// system's `/usr/bin/curl`, which keeps Kelvo free of an HTTP and TLS stack for one
+/// system's `/usr/bin/curl`, which keeps StatGlass free of an HTTP and TLS stack for one
 /// request. Blocking; run it off the main thread. `Err` carries what went wrong.
 pub fn public_ip() -> Result<IpAddr, String> {
     let out = Command::new("/usr/bin/curl")

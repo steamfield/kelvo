@@ -52,7 +52,7 @@ export class MockStream {
         this.setWindowVisible(true);
         // The perf gate measures long tasks from here: building the messages
         // above is Rust's work, applying them is the webview's.
-        performance.mark("kelvo:resume");
+        performance.mark("statglass:resume");
       }, 50);
     }
     const ts = this.ring.now() + this.ring.clockOffset;

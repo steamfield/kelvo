@@ -79,7 +79,7 @@ export function agentVersionLine(
     remote.status.state !== "connected" && update.kind !== "required"
       ? " (last reported)"
       : "";
-  const installed = `Kelvo ${update.installed}${seen}`;
+  const installed = `StatGlass ${update.installed}${seen}`;
   const later = localTarget ? ` · ${localTarget} after updating this Mac` : "";
   switch (update.kind) {
     case "up_to_date":
@@ -105,7 +105,7 @@ export function agentVersionLine(
 /** A release page link, only for a plain version the opener scope allows. */
 export function releaseUrl(version: string): string | null {
   return /^\d+\.\d+\.\d+$/.test(version)
-    ? `https://github.com/steamfield/kelvo/releases/tag/v${version}`
+    ? `https://github.com/steamfield/statglass/releases/tag/v${version}`
     : null;
 }
 

@@ -1,10 +1,10 @@
 //! The error every command returns (`.claude/rules/rust/error-handling.md`). Serialized
 //! with a `kind` tag so the frontend can switch on it.
 
-use kelvo_schema::{HostId, JsSafeInt};
-use kelvo_store::StoreError;
-use kelvo_store::rusqlite::ErrorCode;
 use serde::Serialize;
+use statglass_schema::{HostId, JsSafeInt};
+use statglass_store::StoreError;
+use statglass_store::rusqlite::ErrorCode;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -17,7 +17,7 @@ pub enum CommandError {
     /// The other Mac's host key isn't trusted yet, or needs checking in Terminal.
     #[error("{message}")]
     HostKeyUnknown { message: String },
-    /// The other Mac can't run this Kelvo (architecture, macOS or protocol version).
+    /// The other Mac can't run this StatGlass (architecture, macOS or protocol version).
     #[error("{message}")]
     RemoteIncompatible { message: String },
     /// The Mac that answered is not the one this host was added as.
@@ -67,7 +67,7 @@ pub enum CommandError {
     #[error("host {host} does not share this data")]
     RemoteHost { host: HostId },
     /// There is no history store: it could not be opened at launch, the local host could
-    /// not be registered in it, or a reset failed. Kelvo runs live-only. `reason` says
+    /// not be registered in it, or a reset failed. StatGlass runs live-only. `reason` says
     /// why when it is known; `reset_history` can recover from everything but `locked`.
     #[error("history is unavailable")]
     HistoryUnavailable {
@@ -81,7 +81,7 @@ pub enum CommandError {
     /// The database file is damaged. `reset_history` moves it aside and starts a new one.
     #[error("history store is corrupt: {message}")]
     StoreCorrupt { message: String },
-    /// A newer Kelvo wrote the database; this build cannot read it.
+    /// A newer StatGlass wrote the database; this build cannot read it.
     #[error("history store schema {found} is newer than this build supports ({supported})")]
     StoreTooNew {
         #[specta(type = JsSafeInt)]
@@ -95,7 +95,7 @@ pub enum CommandError {
     /// A disk space scan could not start, or its report is gone.
     #[error("{message}")]
     DiskSpace { message: String },
-    /// A bug or a crashed worker inside Kelvo (a command's task panicked). Not retryable.
+    /// A bug or a crashed worker inside StatGlass (a command's task panicked). Not retryable.
     #[error("internal error: {message}")]
     Internal { message: String },
     /// The settings patch produced settings that fail validation. Nothing changed.
@@ -130,7 +130,7 @@ impl CommandError {
     }
 }
 
-pub use kelvo_engine::HistoryUnavailableReason;
+pub use statglass_engine::HistoryUnavailableReason;
 
 fn sqlite_code(e: &StoreError) -> Option<ErrorCode> {
     match e {
@@ -177,13 +177,13 @@ impl From<StoreError> for CommandError {
     }
 }
 
-impl From<kelvo_engine::HistoryStoreError> for CommandError {
-    fn from(error: kelvo_engine::HistoryStoreError) -> Self {
+impl From<statglass_engine::HistoryStoreError> for CommandError {
+    fn from(error: statglass_engine::HistoryStoreError) -> Self {
         match error {
-            kelvo_engine::HistoryStoreError::Unavailable { reason } => {
+            statglass_engine::HistoryStoreError::Unavailable { reason } => {
                 Self::HistoryUnavailable { reason }
             }
-            kelvo_engine::HistoryStoreError::Store(error) => error.into(),
+            statglass_engine::HistoryStoreError::Store(error) => error.into(),
         }
     }
 }
@@ -192,7 +192,7 @@ impl From<kelvo_engine::HistoryStoreError> for CommandError {
 mod tests {
     use std::path::PathBuf;
 
-    use kelvo_store::rusqlite;
+    use statglass_store::rusqlite;
 
     use super::*;
 

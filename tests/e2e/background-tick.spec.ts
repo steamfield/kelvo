@@ -32,7 +32,8 @@ test("the popover reopens on the 1 s tick with its 60 s charts", async ({
   await page.goto("/?window=popover&theme=dark&scenario=hidden-resume");
   const resumedAt = () =>
     page.evaluate(
-      () => performance.getEntriesByName("kelvo:resume")[0]?.startTime ?? null
+      () =>
+        performance.getEntriesByName("statglass:resume")[0]?.startTime ?? null
     );
   await expect.poll(resumedAt, { timeout: 20_000 }).not.toBeNull();
   const labels = () =>

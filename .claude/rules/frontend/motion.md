@@ -10,7 +10,7 @@ paths:
 
 # Motion Rules
 
-Kelvo is a monitor, not a landing page, but it should feel alive (D-086). Motion does three
+StatGlass is a monitor, not a landing page, but it should feel alive (D-086). Motion does three
 jobs: continuity (a value or chart moving to its next state), feedback (a control
 responding), and choreography (a surface settling into place when it appears). There are
 no scroll reveals and no decorative loops, and per-tick motion stays quiet.

@@ -49,7 +49,9 @@ test("performance gate runtime uses the requested React build and preview contro
   page,
 }) => {
   await page.goto("/?route=/dashboard/cpu&theme=light&ticks=0");
-  await expect(page.locator('meta[name="kelvo-production"]')).toHaveAttribute(
+  await expect(
+    page.locator('meta[name="statglass-production"]')
+  ).toHaveAttribute(
     "content",
     String(process.env.PLAYWRIGHT_PERFORMANCE === "1")
   );
@@ -446,10 +448,11 @@ test.describe("performance gate", () => {
     await expect(chart).toBeVisible();
 
     // The mock hides the window on its eleventh tick, samples half an hour,
-    // shows it again and marks `kelvo:resume`.
+    // shows it again and marks `statglass:resume`.
     const resumedAt = () =>
       page.evaluate(
-        () => performance.getEntriesByName("kelvo:resume")[0]?.startTime ?? null
+        () =>
+          performance.getEntriesByName("statglass:resume")[0]?.startTime ?? null
       );
     await expect.poll(resumedAt, { timeout: 20_000 }).not.toBeNull();
     const from = (await resumedAt()) ?? 0;

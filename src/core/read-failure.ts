@@ -3,7 +3,7 @@
  * layout has no current value, while frames keep arriving. Rust nulls a
  * series' `held` once its last sample is older than its hold: the period
  * times `HOLD_FACTOR` (generated from the engine's `STALE_NUM / STALE_DEN`,
- * 5/2; `stale_ms` in `kelvo-engine/src/engine.rs`, D-047, D-090). So this is
+ * 5/2; `stale_ms` in `statglass-engine/src/engine.rs`, D-047, D-090). So this is
  * a collector that failed on consecutive samples, not one slow tick, and the
  * client never times it itself. Paused and stale are their own states and
  * never count as a failed read.

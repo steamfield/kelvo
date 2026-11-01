@@ -15,7 +15,7 @@ export const historyReason: Record<string, string> = {
   writer_disconnected: "History writer stopped",
   events_disconnected: "Lost connection to Docker events",
   event_replay_uncertain: "Some events may be missing after reconnecting",
-  app_not_running: "Kelvo was not running",
+  app_not_running: "StatGlass was not running",
   engine_switch: "Monitoring switched Docker engines",
 };
 export function mergeCoverage(

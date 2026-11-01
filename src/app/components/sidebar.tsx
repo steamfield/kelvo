@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useRef,
 } from "react";
-import { KelvoMark } from "~/components/kelvo-mark";
+import { StatGlassMark } from "~/components/statglass-mark";
 import { cn } from "~/lib/utils";
 
 /** Icon paths (24 x 24, 1.5 px stroke). */
@@ -290,9 +290,9 @@ const SidebarBrand = memo(function SidebarBrand() {
         data-tauri-drag-region
         className="mb-2 flex shrink-0 items-center gap-2.5 border-border-subtle border-b px-2 pt-0.5 pb-3"
       >
-        <KelvoMark className="pointer-events-none size-5" />
+        <StatGlassMark className="pointer-events-none size-5" />
         <span className="pointer-events-none font-[620] text-[18px] leading-none tracking-[-0.02em] max-sm:sr-only">
-          Kelvo
+          StatGlass
         </span>
       </div>
     </>

@@ -26,11 +26,11 @@ if [[ "$TARGET" != aarch64-apple-darwin ]]; then
   exit 1
 fi
 
-CARGO_ARGS=(build -p kelvo-remote-helper --bin kelvo-remote-helper --target "$TARGET")
+CARGO_ARGS=(build -p statglass-remote-helper --bin statglass-remote-helper --target "$TARGET")
 if [[ "$PROFILE" == release ]]; then CARGO_ARGS+=(--release); fi
 cargo "${CARGO_ARGS[@]}"
 mkdir -p "$ROOT/src-tauri/binaries"
-cp "$ROOT/target/$TARGET/$PROFILE/kelvo-remote-helper" "$ROOT/src-tauri/binaries/kelvo-remote-helper-$TARGET"
+cp "$ROOT/target/$TARGET/$PROFILE/statglass-remote-helper" "$ROOT/src-tauri/binaries/statglass-remote-helper-$TARGET"
 # The agents are Linux resources, not app binaries, so they build for their own targets
 # whatever the app's; build.rs compiles their digests into this build. They need the
 # pinned zig and cargo-zigbuild. Without them the app is packaged without agents and
@@ -43,6 +43,6 @@ else
   echo "build-app: packaging without the Linux agents. $tools" >&2
   # Agents left from an earlier build would be hashed into this one by build.rs while
   # the package carries none; with the directory empty the app says they are missing.
-  rm -f "$ROOT"/src-tauri/binaries/agent/kelvo-agent-*
+  rm -f "$ROOT"/src-tauri/binaries/agent/statglass-agent-*
 fi
 bun run tauri build "${CONFIGS[@]}" "$@"

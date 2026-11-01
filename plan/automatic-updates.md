@@ -100,7 +100,7 @@ that instruction.
 Implementation `c434a4e18d27b561fa7309cbd5eaf29dcac7d18f` was reviewed and integrated
 with main's release documentation. Source landed on main as
 `6931c0843e86ed010655792260705c051edeecd0` through the normal push hooks.
-[Exact-source CI](https://github.com/tryopendata/kelvo/actions/runs/40266417306)
+[Exact-source CI](https://github.com/tryopendata/statglass/actions/runs/40266417306)
 passed all five jobs, including Linux, frontend and both advisory audits. Frontend
 unit tests passed 1,289 cases in 99.38 seconds. Browser checks passed 218 Chromium
 cases in 6.3 minutes and two WebKit shards of 109 cases in 4.4 and 4.7 minutes,

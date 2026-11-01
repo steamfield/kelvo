@@ -27,7 +27,7 @@ fn agent_digests() {
         let Some(triple) = path
             .file_name()
             .and_then(|n| n.to_str())
-            .and_then(|n| n.strip_prefix("kelvo-agent-"))
+            .and_then(|n| n.strip_prefix("statglass-agent-"))
         else {
             continue;
         };

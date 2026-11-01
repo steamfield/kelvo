@@ -72,7 +72,7 @@ export function UpdateAllDialog({
         <DialogDescription>
           {outcomes && !running
             ? `Requested on ${requested?.length ?? 0} of ${attempted}. Each host finishes the update on its own and reconnects.`
-            : "Kelvo installs this Mac’s agent on each host below. Each host’s service restarts, so its live readings pause briefly."}
+            : "StatGlass installs this Mac’s agent on each host below. Each host’s service restarts, so its live readings pause briefly."}
         </DialogDescription>
         <ul className="m-0 max-h-60 list-none divide-y divide-border-subtle overflow-y-auto border-border-subtle border-y p-0 text-[13px]">
           {remotes.map((remote) => {

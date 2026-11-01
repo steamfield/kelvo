@@ -1,6 +1,6 @@
 //! The menu bar items (architecture.md, Tray rendering pipeline; v1-local-monitor.md 4.2).
 //!
-//! A `kelvo-tray` thread follows the local host's bus. On each frame it records the
+//! A `statglass-tray` thread follows the local host's bus. On each frame it records the
 //! graph history and builds the quantized [`TrayItem`](model::TrayItem)s for the current
 //! menu bar settings: the combined item, and one item per module in an own-item mode
 //! (D-080). Status items are created and removed so exactly those exist; each has a
@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
-use kelvo_engine::{BusMsg, EngineStatus};
+use statglass_engine::{BusMsg, EngineStatus};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -46,7 +46,7 @@ use crate::state::AppState;
 use crate::windows;
 
 /// The combined item's tray id.
-pub const TRAY_ID: &str = "kelvo";
+pub const TRAY_ID: &str = "statglass";
 /// How often the debug log reports the pacing counters.
 const COUNTER_LOG_EVERY: Duration = Duration::from_secs(60);
 
@@ -88,7 +88,7 @@ pub fn create(app: &AppHandle) -> anyhow::Result<()> {
             &MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?,
             &pause,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "quit", "Quit Kelvo", true, Some("CmdOrCtrl+Q"))?,
+            &MenuItem::with_id(app, "quit", "Quit StatGlass", true, Some("CmdOrCtrl+Q"))?,
         ],
     )?;
     // Once for the app, not per status item: Tauri keeps every tray's menu handler as a
@@ -124,7 +124,7 @@ pub fn create(app: &AppHandle) -> anyhow::Result<()> {
 
     let handle = app.clone();
     std::thread::Builder::new()
-        .name("kelvo-tray".into())
+        .name("statglass-tray".into())
         .spawn(move || run(&handle, &entry, items, &changed, scale, status))
         .context("starting the tray thread")?;
     Ok(())
@@ -183,7 +183,7 @@ fn left_click(tray: &TrayIcon, clicked: Instant) {
         }
         return;
     }
-    if tray.id().as_ref() == "kelvo-containers" {
+    if tray.id().as_ref() == "statglass-containers" {
         if let Err(error) =
             windows::open_dashboard(tray.app_handle(), Some("/dashboard/containers"))
         {
@@ -219,7 +219,7 @@ fn build_items(
     app: &AppHandle,
     readings: &Readings,
     history: &TrayHistory,
-    settings: &kelvo_schema::Settings,
+    settings: &statglass_schema::Settings,
     paused: bool,
     scale: u32,
 ) -> Vec<TrayItem> {

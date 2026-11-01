@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
-use kelvo_engine::EngineStatus;
+use statglass_engine::EngineStatus;
 
 use super::{ItemKey, TrayContent, TrayFrame, TrayItem};
 

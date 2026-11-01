@@ -113,7 +113,7 @@ pub fn open_dashboard(app: &AppHandle, route: Option<&str>) -> Result<(), Comman
     }
     let path = route.unwrap_or(DEFAULT_ROUTE).trim_start_matches('/');
     let w = WebviewWindowBuilder::new(app, DASHBOARD, WebviewUrl::App(path.into()))
-        .title("Kelvo")
+        .title("StatGlass")
         .inner_size(1200.0, 800.0)
         .min_inner_size(1024.0, 700.0)
         .title_bar_style(TitleBarStyle::Overlay)
@@ -176,7 +176,7 @@ pub fn show_onboarding_if_needed(app: &AppHandle) -> anyhow::Result<()> {
         return Ok(());
     }
     let w = WebviewWindowBuilder::new(app, ONBOARDING, WebviewUrl::App("onboarding".into()))
-        .title("Set up Kelvo")
+        .title("Set up StatGlass")
         .inner_size(820.0, 566.0)
         .resizable(false)
         .maximizable(false)

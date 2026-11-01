@@ -41,8 +41,8 @@ export function MonitoringDialog({
         <section className="space-y-2 text-[12px]">
           <h3 className="text-[13px]">Automatic collection</h3>
           <p className="text-muted-foreground">
-            Docker is the source of truth. Kelvo follows this engine’s container
-            inventory and starts collecting when containers run, up to{" "}
+            Docker is the source of truth. StatGlass follows this engine’s
+            container inventory and starts collecting when containers run, up to{" "}
             {snapshot.aggregate.monitoring_limit} at a time. Recorded history
             remains available after a container stops or is removed.
           </p>

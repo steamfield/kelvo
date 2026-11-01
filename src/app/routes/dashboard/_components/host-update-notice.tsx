@@ -28,19 +28,19 @@ function noticeText(notice: Notice): {
       };
     case "hosts":
       return {
-        text: `${hosts(notice.count)} ${notice.count === 1 ? "is" : "are"} running an older Kelvo.`,
+        text: `${hosts(notice.count)} ${notice.count === 1 ? "is" : "are"} running an older StatGlass.`,
         action: "Review hosts",
         href: "/dashboard/hosts",
       };
     case "local_first":
       return {
-        text: `Kelvo ${notice.version} is available. Update this Mac first, then your hosts.`,
+        text: `StatGlass ${notice.version} is available. Update this Mac first, then your hosts.`,
         action: "Open Settings",
         href: "/dashboard/settings",
       };
     case "local_restart":
       return {
-        text: `Kelvo ${notice.version} is installing on this Mac. Update your hosts after it restarts.`,
+        text: `StatGlass ${notice.version} is installing on this Mac. Update your hosts after it restarts.`,
         action: "Open Settings",
         href: "/dashboard/settings",
       };

@@ -28,7 +28,7 @@ function refusal(
     return {
       kind: "remote_unsupported",
       message:
-        "This host does not support usage history; update Kelvo on that host",
+        "This host does not support usage history; update StatGlass on that host",
     };
   return null;
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Accuracy check: runs the kelvo-engine `dump` example and macmon side by side and
+# Accuracy check: runs the statglass-engine `dump` example and macmon side by side and
 # compares window means of CPU cluster frequency and active residency, GPU frequency,
 # GPU and system power, and CPU/GPU temperature. Fails when a mean is off by more than
 # ±5% (power, frequency, residency) or ±2 °C (temperature).
@@ -13,14 +13,14 @@
 # written.
 #
 # Definitions differ in places, so read a failure before blaming a collector:
-# - macmon's pcpu/ecpu residency averages per-core residencies; Kelvo's
+# - macmon's pcpu/ecpu residency averages per-core residencies; StatGlass's
 #   cpu.cluster.active is the cluster complex's HW active residency and its frequency is
-#   weighted over active states only (D-043). Kelvo's P value is the mean of its P
+#   weighted over active states only (D-043). StatGlass's P value is the mean of its P
 #   clusters.
-# - macmon's cpu_temp_avg/gpu_temp_avg average sensors; Kelvo's thermal.cpu/thermal.gpu
+# - macmon's cpu_temp_avg/gpu_temp_avg average sensors; StatGlass's thermal.cpu/thermal.gpu
 #   are the max of the chip's SMC key group.
 # - On macOS 27 the PMP counters behind CPU/ANE/DRAM power refresh every ~5 minutes, so
-#   Kelvo reports a gap for them (D-043); those rows are reported as skipped.
+#   StatGlass reports a gap for them (D-043); those rows are reported as skipped.
 set -euo pipefail
 
 SECONDS_TO_RUN="${1:-600}"
@@ -35,7 +35,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 2
 fi
 
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/kelvo-accuracy.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/statglass-accuracy.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 echo "chip:  $(sysctl -n machdep.cpu.brand_string)"
@@ -44,17 +44,17 @@ echo "macOS: $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
 echo "macmon: $(macmon --version 2>/dev/null || echo unknown)"
 echo "window: ${SECONDS_TO_RUN} s"
 
-cargo build --release -q -p kelvo-engine --example dump --manifest-path "$ROOT/Cargo.toml"
+cargo build --release -q -p statglass-engine --example dump --manifest-path "$ROOT/Cargo.toml"
 DUMP="$ROOT/target/release/examples/dump"
 
-"$DUMP" --json --seconds "$SECONDS_TO_RUN" >"$WORK/kelvo.jsonl" 2>"$WORK/kelvo.log" &
-KELVO_PID=$!
+"$DUMP" --json --seconds "$SECONDS_TO_RUN" >"$WORK/statglass.jsonl" 2>"$WORK/statglass.log" &
+STATGLASS_PID=$!
 macmon pipe -i 1000 -s "$SECONDS_TO_RUN" >"$WORK/macmon.jsonl" 2>"$WORK/macmon.log" &
 MACMON_PID=$!
-wait "$KELVO_PID"
+wait "$STATGLASS_PID"
 wait "$MACMON_PID" || true
 
-python3 - "$WORK/kelvo.jsonl" "$WORK/macmon.jsonl" <<'PY'
+python3 - "$WORK/statglass.jsonl" "$WORK/macmon.jsonl" <<'PY'
 import json, statistics, sys
 
 def lines(path):
@@ -69,9 +69,9 @@ def lines(path):
                     pass
     return out
 
-kelvo, macmon = lines(sys.argv[1]), lines(sys.argv[2])
-if len(kelvo) < 10 or len(macmon) < 10:
-    print(f"too few samples: kelvo {len(kelvo)}, macmon {len(macmon)}")
+statglass, macmon = lines(sys.argv[1]), lines(sys.argv[2])
+if len(statglass) < 10 or len(macmon) < 10:
+    print(f"too few samples: statglass {len(statglass)}, macmon {len(macmon)}")
     sys.exit(1)
 
 def mean(vals):
@@ -102,7 +102,7 @@ def m(path, idx=None, scale=1.0):
         return None if cur is None else cur * scale
     return get
 
-# (name, kelvo getter, macmon getter, kind) where kind is "pct" (±5% relative) or "temp" (±2 °C).
+# (name, statglass getter, macmon getter, kind) where kind is "pct" (±5% relative) or "temp" (±2 °C).
 rows = [
     ("P cluster freq (MHz)", lambda s: (k_cluster(s, "P", "freq_hz") or 0) / 1e6 or None, m(["pcpu_usage"], 0), "pct"),
     ("E cluster freq (MHz)", lambda s: (k_cluster(s, "E", "freq_hz") or 0) / 1e6 or None, m(["ecpu_usage"], 0), "pct"),
@@ -117,9 +117,9 @@ rows = [
 ]
 
 failed = False
-print(f"{'metric':<24}{'kelvo':>12}{'macmon':>12}{'diff':>12}  result")
+print(f"{'metric':<24}{'statglass':>12}{'macmon':>12}{'diff':>12}  result")
 for name, kg, mg, kind in rows:
-    kv = mean(kg(s) for s in kelvo)
+    kv = mean(kg(s) for s in statglass)
     mv = mean(mg(s) for s in macmon)
     if kv is None or mv is None:
         print(f"{name:<24}{'-' if kv is None else f'{kv:.2f}':>12}{'-' if mv is None else f'{mv:.2f}':>12}{'':>12}  skipped (no data)")
@@ -137,6 +137,6 @@ for name, kg, mg, kind in rows:
     failed |= not ok
     print(f"{name:<24}{kv:>12.2f}{mv:>12.2f}{shown:>12}  {'ok' if ok else 'FAIL'}")
 
-print(f"samples: kelvo {len(kelvo)}, macmon {len(macmon)}")
+print(f"samples: statglass {len(statglass)}, macmon {len(macmon)}")
 sys.exit(1 if failed else 0)
 PY

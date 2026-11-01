@@ -11,7 +11,7 @@ describe("host update notice", () => {
       transport,
     });
     expect(
-      await screen.findByText("4 hosts are running an older Kelvo.")
+      await screen.findByText("4 hosts are running an older StatGlass.")
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
     await waitFor(() =>
@@ -44,7 +44,7 @@ describe("host update notice", () => {
     renderWithProviders(<HostUpdateNotice />, { transport });
     expect(
       await screen.findByText(
-        "Kelvo 0.4.0 is available. Update this Mac first, then your hosts."
+        "StatGlass 0.4.0 is available. Update this Mac first, then your hosts."
       )
     ).toBeInTheDocument();
     expect(
@@ -60,7 +60,7 @@ describe("host update notice", () => {
     renderWithProviders(<HostUpdateNotice />, { transport });
     expect(
       await screen.findByText(
-        "Kelvo 0.4.0 is installing on this Mac. Update your hosts after it restarts."
+        "StatGlass 0.4.0 is installing on this Mac. Update your hosts after it restarts."
       )
     ).toBeInTheDocument();
   });

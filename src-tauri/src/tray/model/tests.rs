@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use kelvo_engine::EngineStatus;
-use kelvo_schema::settings::{ItemSettings, ReadoutSettings, TemperatureUnit};
-use kelvo_schema::{Labels, MetricId, SeriesKey};
+use statglass_engine::EngineStatus;
+use statglass_schema::settings::{ItemSettings, ReadoutSettings, TemperatureUnit};
+use statglass_schema::{Labels, MetricId, SeriesKey};
 
 use super::pacer::{EARLY, GRACE};
 use super::*;
@@ -263,7 +263,7 @@ fn paused_and_gaps_drop_to_tracks_and_dashes() {
         ],
         "markers stay, values dash"
     );
-    assert_eq!(c.accessibility, "Kelvo, sampling paused");
+    assert_eq!(c.accessibility, "StatGlass, sampling paused");
 
     let r = Readings {
         gpu: Reading::Gap,
@@ -484,9 +484,9 @@ fn pacer_period_follows_performance_mode_and_the_background() {
         backed_off,
         backgrounded,
         performance: if performance {
-            kelvo_schema::PerformanceReason::Setting
+            statglass_schema::PerformanceReason::Setting
         } else {
-            kelvo_schema::PerformanceReason::Off
+            statglass_schema::PerformanceReason::Off
         },
         ..EngineStatus::default()
     };
@@ -671,7 +671,10 @@ fn graph_per_module_builds_own_items_only() {
         ]
     );
     let ids: Vec<&str> = keys.iter().map(|k| k.id()).collect();
-    assert_eq!(ids, ["kelvo-cpu", "kelvo-memory", "kelvo-network"]);
+    assert_eq!(
+        ids,
+        ["statglass-cpu", "statglass-memory", "statglass-network"]
+    );
 
     // 50% of the 12 pt travel at 2x is 12 px; the three samples sit at the right.
     let mut points = vec![None; SPARK_SAMPLES - 3];
@@ -821,7 +824,7 @@ fn paused_own_items_drop_to_tracks() {
             points: vec![None; SPARK_SAMPLES]
         }]
     );
-    assert_eq!(cpu.accessibility, "Kelvo CPU, sampling paused");
+    assert_eq!(cpu.accessibility, "StatGlass CPU, sampling paused");
     assert_eq!(
         own(&items, Module::Memory).frame.graphs,
         [Graph::Gauge {

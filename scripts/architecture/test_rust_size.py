@@ -62,7 +62,7 @@ class SizeGateTests(unittest.TestCase):
     def test_test_only_external_files_and_vendor_are_excluded(self):
         self.file.write_text("#[cfg(test)]\n#[allow(dead_code)]\nmod checks;\nfn production() {}\n")
         (self.file.parent / "checks.rs").write_text("// test\n" * 1000)
-        vendor = self.root / "crates/kelvo-collect/src/macos/vendor/ffi.rs"
+        vendor = self.root / "crates/statglass-collect/src/macos/vendor/ffi.rs"
         vendor.parent.mkdir(parents=True)
         vendor.write_text("// vendor\n" * 1000)
         self.assertEqual(source_paths(self.root), [self.file])

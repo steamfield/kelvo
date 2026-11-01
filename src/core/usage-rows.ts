@@ -125,7 +125,7 @@ export function usageRows(
 /**
  * The rows after the apps: "Other apps" (the processes below the table's
  * floor or past its limit) when they used a visible share, then "System
- * and other" (what the host measured beyond Kelvo's processes) when Rust
+ * and other" (what the host measured beyond StatGlass's processes) when Rust
  * could read it. None for memory, whose peaks do not add.
  */
 export function remainderRows(data: UsageByApp, by: UsageKey): RemainderRow[] {

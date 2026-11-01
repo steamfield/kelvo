@@ -17,7 +17,7 @@ for (const theme of ["dark", "light"]) {
     });
     await install.click();
     await expect(
-      page.getByText("Update installed. Restarting Kelvo…")
+      page.getByText("Update installed. Restarting StatGlass…")
     ).toBeVisible();
   });
   test(`manual update check with automatic checks off (${theme})`, async ({

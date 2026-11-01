@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Runtime dependency check (D-058): every library a Kelvo binary links must ship with
+# Runtime dependency check (D-058): every library a StatGlass binary links must ship with
 # macOS, i.e. live under /System/Library/ or /usr/lib/. Anything else (Homebrew,
-# /usr/local, @rpath) would be a library the user has to install, which Kelvo never
+# /usr/local, @rpath) would be a library the user has to install, which StatGlass never
 # requires. A dependency that is genuinely needed is bundled in the .app; doing that is a
 # deliberate change to this allowlist, not a silent link.
 #
-# Usage: scripts/check-deps.sh [binary...]   (default: target/debug/kelvo)
+# Usage: scripts/check-deps.sh [binary...]   (default: target/debug/statglass)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "$#" -eq 0 ]; then
-  set -- "$ROOT/target/debug/kelvo"
+  set -- "$ROOT/target/debug/statglass"
 fi
 
 status=0

@@ -8,13 +8,13 @@ globs: "**/crates/**/*.rs,**/src-tauri/**/*.rs"
 # Rust Error Handling
 
 Load the `ce:handling-errors` skill and its Rust reference before designing error types,
-propagation or logging. This file covers Kelvo's choices on top of it.
+propagation or logging. This file covers StatGlass's choices on top of it.
 
 ## Error types
 
-- Library crates (`kelvo-*`) define typed errors with `thiserror`. Callers match on variants.
+- Library crates (`statglass-*`) define typed errors with `thiserror`. Callers match on variants.
   Never `anyhow` in a library crate's public API.
-- Binaries and the app shell (`src-tauri`, `kelvo-agent`, scripts) use `anyhow` with
+- Binaries and the app shell (`src-tauri`, `statglass-agent`, scripts) use `anyhow` with
   `.context("what we were doing")` at each boundary.
 - Put classification on the error type, not in callers. `RemoteError::retryable()` is the
   pattern: callers ask the error, they don't match on message text.
@@ -34,7 +34,7 @@ its own variant; don't overload a generic one.
   `.get()`, or a typed error. The only exceptions are invariants proven locally, with
   `.expect("why this cannot fail")` naming the invariant. Clippy enforces
   `unwrap_used` outside tests (see `clippy.toml` and the workspace lints).
-- Take locks through `kelvo_schema::lock` (`LockExt`/`RwLockExt`), which recovers from
+- Take locks through `statglass_schema::lock` (`LockExt`/`RwLockExt`), which recovers from
   poisoning, never `.lock().unwrap()`.
 - A sampler tick must never take the process down. A failing collector yields no value for
   that tick and the engine records a gap. Repeating failures on a 1 Hz path log through the

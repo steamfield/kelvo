@@ -84,7 +84,7 @@ class SyncTests(unittest.TestCase):
         (self.root / ".claude/rules/new.md").write_text("# New shared rule\n")
         manifest = self.root / "scripts/agent-config/shared.txt"
         manifest.write_text(manifest.read_text() + "rule:new.md\n")
-        (self.root / ".claude/commands/kelvo:new.md").write_text(
+        (self.root / ".claude/commands/statglass:new.md").write_text(
             "---\ndescription: New workflow\n---\n\nFollow the new workflow.\n")
         # An unshared source should not need a generated rule or routing row.
         (self.root / ".claude/rules/private.md").write_text("# Unshared rule\n")
@@ -114,7 +114,7 @@ class SyncTests(unittest.TestCase):
                 self.assertEqual(self.snapshot(), before)
                 self.generate()
                 self.assertIn(addition, (self.root / output).read_text())
-        command = self.root / ".claude/commands/kelvo:test.md"
+        command = self.root / ".claude/commands/statglass:test.md"
         command.write_text(command.read_text().replace("Run tests (scoped by default)", "Updated test workflow"))
         self.assertEqual(self.run_cli("--check").returncode, 1)
         self.generate()

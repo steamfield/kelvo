@@ -1,7 +1,7 @@
 /**
  * Window statistics over the live row ring, for module pages: averages, minima
  * and maxima over the last N seconds (residency and zone ranges over the
- * chart window, Kelvo's own CPU) and averages in buckets aligned to
+ * chart window, StatGlass's own CPU) and averages in buckets aligned to
  * wall-clock multiples (the per-core heatmap's columns over the chart window,
  * a downsampled hour of CPU total).
  *
@@ -78,7 +78,7 @@ export function seriesStats(
 
 /**
  * Mean of one key over the last `windowMs` on the grid, `null` with no
- * value: Kelvo's own CPU in the popover footer and the settings overhead.
+ * value: StatGlass's own CPU in the popover footer and the settings overhead.
  */
 export function windowMean(
   state: RingState,

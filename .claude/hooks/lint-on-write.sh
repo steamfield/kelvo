@@ -35,7 +35,7 @@ file_dir="$(dirname "$file_path")"
 repo_root="$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 rel_path="$(git -C "$file_dir" rev-parse --show-prefix 2>/dev/null)$(basename "$file_path")"
 
-# Only lint files inside a Kelvo checkout (another repo can share the src/
+# Only lint files inside a StatGlass checkout (another repo can share the src/
 # layout; its files are not ours to format).
 [[ -f "$repo_root/.claude/hooks/lint-on-write.sh" ]] || exit 0
 

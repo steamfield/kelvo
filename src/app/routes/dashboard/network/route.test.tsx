@@ -80,7 +80,7 @@ describe("Network page Apps card (D-089)", () => {
       "Other apps",
       "Protocol overhead (est.)",
       "System and other",
-      "macOS services (updates, backups, DNS). Kelvo can't see these without a helper.",
+      "macOS services (updates, backups, DNS). StatGlass can't see these without a helper.",
     ]);
     expect(
       within(table).getByRole("columnheader", { name: /Total/ })

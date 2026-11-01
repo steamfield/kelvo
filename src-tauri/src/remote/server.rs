@@ -1,6 +1,6 @@
 //! Tauri adapters for local metrics/control servers and their lifecycle.
 use super::*;
-use kelvo_engine::disk_space::SpaceService;
+use statglass_engine::disk_space::SpaceService;
 pub fn start(app: &AppHandle) -> anyhow::Result<()> {
     let state = app.state::<AppState>();
     let path = saved_path(app)?;
@@ -31,7 +31,7 @@ pub fn start(app: &AppHandle) -> anyhow::Result<()> {
                 break;
             }
             if let Err(e) =
-                kelvo_remote::serve_control(paths.control.clone(), control.clone(), rx.clone())
+                statglass_remote::serve_control(paths.control.clone(), control.clone(), rx.clone())
                     .await
             {
                 tracing::error!("remote control socket: {e}");
@@ -90,7 +90,7 @@ fn control_response(app: &AppHandle, ok: bool, message: String) -> ControlRespon
 fn control(app: &AppHandle, request: ControlRequest) -> ControlResponse {
     match request {
         ControlRequest::Status | ControlRequest::UpdateStatus => {
-            control_response(app, true, "Kelvo is running".into())
+            control_response(app, true, "StatGlass is running".into())
         }
         ControlRequest::UpdatePolicy {
             check_updates,
@@ -186,7 +186,7 @@ pub fn refresh_metrics(app: &AppHandle, enabled: bool) {
                 continue;
             }
             let (stop, rx) = tokio::sync::watch::channel(false);
-            let server = kelvo_remote::serve_metrics(path.clone(), provider.clone(), rx);
+            let server = statglass_remote::serve_metrics(path.clone(), provider.clone(), rx);
             tokio::pin!(server);
             tokio::select! {
                 result=&mut server=>{

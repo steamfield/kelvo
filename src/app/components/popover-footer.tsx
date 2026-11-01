@@ -9,7 +9,7 @@ export interface PopoverFooterProps {
   onActivity: () => void;
 }
 
-/** Popover footer: Open dashboard CTA, Activity, Kelvo's own CPU. */
+/** Popover footer: Open dashboard CTA, Activity, StatGlass's own CPU. */
 export function PopoverFooter({
   selfCpuPct,
   onOpenDashboard,
@@ -33,7 +33,7 @@ export function PopoverFooter({
       </Button>
       <span className="flex-1" />
       <span className="figures whitespace-nowrap text-[10px] text-muted-foreground">
-        kelvo {formatPercent(selfCpuPct, { decimals: 1 })} cpu
+        statglass {formatPercent(selfCpuPct, { decimals: 1 })} cpu
       </span>
     </footer>
   );

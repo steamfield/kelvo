@@ -1,6 +1,6 @@
 # v1.x: Local monitor
 
-v1 is the first version people install. It covers one Mac, the one Kelvo runs on: a menu bar item, a popover, a dashboard window with an Overview, module pages, a Timeline backed by persistent history, Settings and onboarding. It ships in three installable steps, v1.0, v1.1 and v1.2.
+v1 is the first version people install. It covers one Mac, the one StatGlass runs on: a menu bar item, a popover, a dashboard window with an Overview, module pages, a Timeline backed by persistent history, Settings and onboarding. It ships in three installable steps, v1.0, v1.1 and v1.2.
 
 Related docs: [architecture.md](architecture.md) for the system design every version shares, [design-system.md](design-system.md) for tokens, components and chart rules, [decisions.md](decisions.md) for why things are the way they are, and [PROGRESS.md](PROGRESS.md) for status. Task checkboxes in this doc are the progress tracker for v1; tick them as work lands and log the phase in PROGRESS.md.
 
@@ -22,9 +22,9 @@ Related docs: [architecture.md](architecture.md) for the system design every ver
 
 v1 answers two questions for an Apple Silicon developer: what is my Mac doing right now, and what was it doing at 3pm when the fans spun up. The first is the menu bar and the popover. The second is the Timeline, which keeps 30 days of history on disk and shows which processes were on top at any moment.
 
-The user gets this without paying for it in CPU. Kelvo measures its own overhead the same way the benchmark does and prints it in the popover footer ("kelvo 0.4% cpu"). The target is to cost no more than Stats with the same modules enabled, and under 0.5% CPU across the app and its WebKit helpers.
+The user gets this without paying for it in CPU. StatGlass measures its own overhead the same way the benchmark does and prints it in the popover footer ("statglass 0.4% cpu"). The target is to cost no more than Stats with the same modules enabled, and under 0.5% CPU across the app and its WebKit helpers.
 
-The user also gets honest data. Sensor names that Apple does not document stay as their raw keys ("PMU tdie4"), gaps in history are drawn as gaps, and a chip Kelvo does not know gets a clear "not mapped yet" state with a way to send a sensor dump.
+The user also gets honest data. Sensor names that Apple does not document stay as their raw keys ("PMU tdie4"), gaps in history are drawn as gaps, and a chip StatGlass does not know gets a clear "not mapped yet" state with a way to send a sensor dump.
 
 | Version | What the user can do after installing it |
 |---|---|
@@ -104,13 +104,13 @@ Every Must traces to a job. "Should" items ship in the version if they fit; othe
 
 ### 4.1 Journeys
 
-First launch (v1.0). The user opens Kelvo.app from the DMG and follows the documented Gatekeeper step (unsigned app). The onboarding window appears with detected modules switched on, the chip status in the footer ("M4 Pro detected · all sensors mapped"), and the Combined menu bar style preselected. Continue applies the choices and shows step 2 (updates and privacy). The tray item appears and starts updating. The onboarding window closes; no dashboard opens unless the user clicks the tray.
+First launch (v1.0). The user opens StatGlass.app from the DMG and follows the documented Gatekeeper step (unsigned app). The onboarding window appears with detected modules switched on, the chip status in the footer ("M4 Pro detected · all sensors mapped"), and the Combined menu bar style preselected. Continue applies the choices and shows step 2 (updates and privacy). The tray item appears and starts updating. The onboarding window closes; no dashboard opens unless the user clicks the tray.
 
 Glance (v1.0). The tray icon shows three bars and the hottest SoC zone. A click opens the popover under the status item without stealing focus. The user scrolls the cards, clicks Open dashboard or Activity, or clicks outside to dismiss.
 
 Investigate a fan spike (v1.0, improved in v1.2). The user opens the dashboard, picks Timeline, chooses 24h, and sees a CPU peak at 14:02 lining up with a temperature rise. Hovering the peak shows the values at that minute and the top processes then (`swift-frontend (Xcode)` at 412%). In v1.2 the same moment has an annotation pill, "14:02 Fans ramped up · kernel_task + Xcode build", and the user can get a notification next time.
 
-Unknown chip (v1.0). On a Mac whose sensors Kelvo does not map yet, Power & Sensors is hidden, CPU and GPU watts still show on their pages, and a notice offers "Share sensor dump". The user reviews the JSON in a sheet and opens a prefilled GitHub issue.
+Unknown chip (v1.0). On a Mac whose sensors StatGlass does not map yet, Power & Sensors is hidden, CPU and GPU watts still show on their pages, and a notice offers "Share sensor dump". The user reviews the JSON in a sheet and opens a prefilled GitHub issue.
 
 ### 4.2 Tray
 
@@ -127,7 +127,7 @@ Which elements appear is driven by the Menu bar settings (D-102): which of CPU, 
 | Readouts | `cpu.total`, `gpu.util`, `mem.pressure`, `thermal.hottest`, `power.system`, `net.tx_total` and `net.rx_total`, `disk.used` / `disk.total` of the boot volume (every 60 s), `battery.charge` | as above | live bus |
 | Accessibility label | same values in words | every redraw | live bus |
 
-Clicking the item toggles the popover. Right-click or Control-click opens a native menu: Open dashboard, Settings, Pause sampling, Quit Kelvo. On display sleep and screen lock the image stops updating. When sampling is paused, the bars drop to their tracks and the text shows "–".
+Clicking the item toggles the popover. Right-click or Control-click opens a native menu: Open dashboard, Settings, Pause sampling, Quit StatGlass. On display sleep and screen lock the image stops updating. When sampling is paused, the bars drop to their tracks and the text shows "–".
 
 ### 4.3 Popover
 
@@ -135,7 +135,7 @@ A 360 × 680 pt non-activating panel with a vibrant surface (see [design-system.
 
 | Region | Element | Data | Cadence | Source |
 |---|---|---|---|---|
-| Header | "Kelvo", "MacBook Pro · up 3d 4h" | `HostRecord.display_name`, `HostInfo.boot_time_ms` | on open, then every 60 s | `get_host` command |
+| Header | "StatGlass", "MacBook Pro · up 3d 4h" | `HostRecord.display_name`, `HostInfo.boot_time_ms` | on open, then every 60 s | `get_host` command |
 | Header | Interval pill "1s" with live dot | effective base interval, paused and on-battery flags | on change | `LiveMsg::Status` |
 | Header | Pause button | toggles sampling; writes a gap with reason `paused` | on click | `set_paused` command |
 | Header | Settings button | opens dashboard at `/dashboard/settings` | on click | `open_dashboard` command |
@@ -151,7 +151,7 @@ A 360 × 680 pt non-activating panel with a vibrant surface (see [design-system.
 | Battery card | Charge bar and "87%", REMAINING, HEALTH, CYCLES | `battery.charge`, `battery.time_remaining`, `battery.health`, `battery.cycles` | every 10 ticks | live |
 | Footer | Open dashboard (cyan CTA) | opens or focuses dashboard at last route, else Overview | on click | `open_dashboard` |
 | Footer | Activity | opens dashboard at `/dashboard/processes` | on click | `open_dashboard` |
-| Footer | "kelvo 0.4% cpu" | `self.cpu`, 60 s average | every 10 ticks | live |
+| Footer | "statglass 0.4% cpu" | `self.cpu`, 60 s average | every 10 ticks | live |
 
 The primary interface is the one carrying the default route (unverified how to read it cheaply; `SCDynamicStore` `State:/Network/Global/IPv4` is the likely source). The memory legend uses Activity Monitor's terms. The original popover mock labelled the second segment "Active" while the Overview mock called the same 11.6 GB "App"; v1 uses "App" in both places so the numbers reconcile (App + Wired + Compressed = Used).
 
@@ -221,7 +221,7 @@ The writer commits every 5 minutes (D-070), so the newest up to 5 minutes are on
 
 Crosshair tooltip: header "Sun Oct 4 · 14:02:00" and the resolution ("1 MIN AVG" or "10 S AVG"); one row per lane with the bucket avg, plus Fans (`fan.rpm` max) and Network down and up; then "TOP PROCESSES THEN" with values in "% of 1 core". Processes come from the `proc_snap` row nearest the cursor within 10 s when the cursor is inside the last 72 hours, otherwise from `proc_top_1m` for that minute. The query is a `query_processes_at` command, debounced to 50 ms of cursor rest and cached per bucket.
 
-Sleep bands come from `gaps` rows in range; the label gives the reason and duration ("Asleep 5h 15m · no samples", "Kelvo not running", "Paused"). The lines stop at the band edge with a hollow dot, per the gap rule in design-system.md.
+Sleep bands come from `gaps` rows in range; the label gives the reason and duration ("Asleep 5h 15m · no samples", "StatGlass not running", "Paused"). The lines stop at the band edge with a hollow dot, per the gap rule in design-system.md.
 
 ### 4.7 CPU page
 
@@ -336,7 +336,7 @@ Mock: No mock. Compose from the `07-cpu-detail` "Top processes" table, full heig
 
 While the pointer is over the table, row order is frozen and values keep updating in place, so a row does not move under the cursor. Order resumes when the pointer leaves.
 
-Quit and Force Quit (D-029) appear as a row action on hover and in the row's context menu. Quit asks the process to exit: `NSRunningApplication.terminate` when the process is a regular app, `SIGTERM` otherwise. Force Quit uses `forceTerminate` or `SIGKILL`. Both open a confirm dialog naming the process and PID; the Force Quit dialog also says that unsaved data in that process will be lost. The actions are disabled, with a tooltip saying why, for PID 1 (`launchd`), `kernel_task`, `WindowServer` and Kelvo's own processes, and Rust refuses them again regardless of what the UI sends. A process owned by another user fails with `EPERM`; the UI shows a toast ("Kelvo can't quit processes owned by another user") and does not offer to escalate. If the process has already exited, or its PID now belongs to a different process, the command reports that and the table drops the row on the next tick.
+Quit and Force Quit (D-029) appear as a row action on hover and in the row's context menu. Quit asks the process to exit: `NSRunningApplication.terminate` when the process is a regular app, `SIGTERM` otherwise. Force Quit uses `forceTerminate` or `SIGKILL`. Both open a confirm dialog naming the process and PID; the Force Quit dialog also says that unsaved data in that process will be lost. The actions are disabled, with a tooltip saying why, for PID 1 (`launchd`), `kernel_task`, `WindowServer` and StatGlass's own processes, and Rust refuses them again regardless of what the UI sends. A process owned by another user fails with `EPERM`; the UI shows a toast ("StatGlass can't quit processes owned by another user") and does not offer to escalate. If the process has already exited, or its PID now belongs to a different process, the command reports that and the table drops the row on the next tick.
 
 #### Shared selection and bulk Quit (2026-10-13)
 
@@ -385,7 +385,7 @@ Quit, privilege escalation, remote signals, or process-name kill patterns.
 |---|---|---|---|
 | Modules | One row per module: swatch, name, On switch | Switch | Off stops the module's collectors, removes it from tray, popover and Overview, and makes its series end (drawn as a gap). Modules the host lacks are listed disabled with "Not present on this Mac" |
 | Menu bar | Live preview, Bars, Values after the bars, Separate items (D-102) | Sticky `TrayPreview`; toggle group CPU, GPU, Memory; one switch per readout with its marker and live value; one select per module (Off, Value or its named value, Graph, Per-core graph as allowed) | Rows of an off module are disabled with "Turn on <module> in Modules to use this". Past about 150 pt the preview warns that wide items can hide behind the notch |
-| Sampling | Sample interval | `SegmentedControl` 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, with "Kelvo uses about 0.4% CPU at 1s" | Reconfigures the ticker. The sentence uses the measured `self.cpu` 10-minute average, not a constant. Live chart windows scale with the interval (D-059) |
+| Sampling | Sample interval | `SegmentedControl` 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, with "StatGlass uses about 0.4% CPU at 1s" | Reconfigures the ticker. The sentence uses the measured `self.cpu` 10-minute average, not a constant. Live chart windows scale with the interval (D-059) |
 | Sampling | Slow down on battery | Switch, "to 2s" (twice the interval, at most 60s) | Base tick doubles on battery, capped at 60 s (D-061) |
 | Sampling | Keep history | Select: 7, 30, 90 days, each with its projected size | Sets how long history is kept (`tier_15m` beyond the 7 days of `tier_1m`, gaps, events; D-076). When the size limit cuts it short: "Limited to about N days by the X MB limit" (D-059) |
 | Sampling (not in mock) | History size limit | Select: 150 MB, 300 MB, 500 MB, 1 GB | Oldest history is trimmed to stay under it; a change prunes immediately (D-057, D-059). Low-disk and trim notices appear under the card |
@@ -396,7 +396,7 @@ Quit, privilege escalation, remote signals, or process-name kill patterns.
 | General | Launch at login | Switch | `SMAppService` register or unregister |
 | General | Show in Dock | Switch | Activation policy Regular or Accessory |
 | General | Appearance | Select: Match system, Light, Dark | Sets theme in every window |
-| General (not in mock) | Check for updates automatically | Switch, on by default | The only network request Kelvo makes; off means no request at all |
+| General (not in mock) | Check for updates automatically | Switch, on by default | The only network request StatGlass makes; off means no request at all |
 | General (not in mock) | Version and "Check now" | Text and button | Runs the updater check once |
 
 Data: `get_settings`, `update_settings`, `settings-changed`, `history_size` (refreshed every 60 s while visible), `clear_history`, `history_health` and `history-health-changed`, and `self.cpu` from the live bus.
@@ -405,7 +405,7 @@ Data: `get_settings`, `update_settings`, `settings-changed`, `history_size` (ref
 
 A fixed-size window (820 × 566 pt) shown on first run only. The modules list comes from `Capabilities`: present modules are switched on (Disk off by default), absent modules are shown disabled with "Not present on this Mac". Menu bar style options are cards with a live `TrayPreview` drawn from current values: Combined (Recommended), Values only, and in v1.1 Graph per module. Choosing a style sets the menu bar settings described in 4.2 (D-102). The footer chip status reads "M4 Pro detected · all sensors mapped" or "Mac17,4 detected · sensors not mapped yet". Launch at login is checked by default.
 
-Skip applies the defaults and closes. Continue applies the choices and shows step 2 of 2, "Updates and privacy", which is not mocked. It has one switch, "Check for updates automatically" (on), with one sentence saying it is the only network request Kelvo makes and can be turned off any time in Settings. Below it, a plain statement: Kelvo has no telemetry, and all history stays on this Mac, with the history location (`~/Library/Application Support/com.tryopendata.kelvo/`) and its expected size ("about 150 MB for 30 days"). A Done button closes the window. Step 2 follows the step 1 layout and controls.
+Skip applies the defaults and closes. Continue applies the choices and shows step 2 of 2, "Updates and privacy", which is not mocked. It has one switch, "Check for updates automatically" (on), with one sentence saying it is the only network request StatGlass makes and can be turned off any time in Settings. Below it, a plain statement: StatGlass has no telemetry, and all history stays on this Mac, with the history location (`~/Library/Application Support/com.tryopendata.statglass/`) and its expected size ("about 150 MB for 30 days"). A Done button closes the window. Step 2 follows the step 1 layout and controls.
 
 Data: `get_capabilities`, `get_host`, live values for the previews, `history_size` and the retention setting for the size line, `update_settings` on Continue and Done.
 
@@ -415,7 +415,7 @@ Data: `get_capabilities`, `get_host`, live values for the previews, `history_siz
 |---|---|---|---|
 | Empty history | Timeline, history charts on module pages | Recorded span in the range is under 25% of the range (proposed threshold) | Dashed baselines, the recorded tail drawn at the right edge, overlay "Collecting · timeline fills in as you work" and "First 4 min recorded. History is kept for 30 days on this Mac only."; header right "started 22:36 · 1 sample/s" |
 | Sleep gap | Every history chart | `gaps` row with reason `sleep` | Hatched band, label "Asleep 11:02–11:31 · not interpolated", hollow dots at both edges |
-| Other gaps | Every history chart | reasons `app_not_running`, `paused`, `module_disabled` | Same band, label "Kelvo not running", "Paused", "CPU sampling off" |
+| Other gaps | Every history chart | reasons `app_not_running`, `paused`, `module_disabled` | Same band, label "StatGlass not running", "Paused", "CPU sampling off" |
 | Unknown chip | Overview, sidebar, Power & Sensors | `HostInfo.chip_known == false` or sensor collector `Unsupported(UnknownChip)` | Power & Sensors hidden; the other modules shown; notice with info icon: "Temperature and fan sensors aren't mapped for this chip (Mac17,4) yet, so Power & Sensors is hidden. CPU and GPU watts still show on their own pages." and "Share sensor dump" |
 | Module not present | sidebar, popover, Overview | `ModuleCap::NotPresent` | Entry omitted; Overview reflows to the remaining cards |
 | Not available in this edition | same | `ModuleCap::Unsupported(MissingEntitlement)` (appstore builds only) | Card with "Not available in this edition" |
@@ -425,7 +425,7 @@ Data: `get_capabilities`, `get_host`, live values for the previews, `history_siz
 | History unavailable | dashboard | store failed to open or write (disk full, corruption) | Banner on Timeline and history charts: "History is unavailable: disk is full. Live values still work." with "Reset history" when the file is corrupt |
 | Sensor read failed | one card | collector error on consecutive ticks | Card shows "Sensor read failed" and the time of the last good value; other cards unaffected |
 
-Share sensor dump opens a sheet with the JSON Kelvo collected: model identifier, chip string, macOS version, SMC key names with types and current values, HID sensor product names, IOReport group and channel names, fan count. No serial numbers, user names, host names or network identifiers. Buttons: Copy, Save…, and Open GitHub issue, which opens a prefilled issue template in the browser asking the user to paste the JSON (a full dump is too long for a URL).
+Share sensor dump opens a sheet with the JSON StatGlass collected: model identifier, chip string, macOS version, SMC key names with types and current values, HID sensor product names, IOReport group and channel names, fan count. No serial numbers, user names, host names or network identifiers. Buttons: Copy, Save…, and Open GitHub issue, which opens a prefilled issue template in the browser asking the user to paste the JSON (a full dump is too long for a URL).
 
 ## 5. Architecture changes
 
@@ -451,7 +451,7 @@ Deltas this plan made to architecture.md, now adopted there:
 
 ### 6.1 Metric catalog for v1
 
-This is the v1 content of `kelvo-schema::CATALOG`. IDs are stable; renaming one is a decision entry. "Persisted" means the series goes to `tier_10s` and `tier_1m`; non-persisted series live only in the 1 s ring buffer.
+This is the v1 content of `statglass-schema::CATALOG`. IDs are stable; renaming one is a decision entry. "Persisted" means the series goes to `tier_10s` and `tier_1m`; non-persisted series live only in the 1 s ring buffer.
 
 | metric_id | Labels | Unit | Kind | Cadence (base ticks) | Persisted | Source | Entitlement |
 |---|---|---|---|---|---|---|---|
@@ -568,10 +568,10 @@ Every command and event is generated by tauri-specta into `src/core/generated/`.
 
 | File | Path | Writer |
 |---|---|---|
-| History database | `~/Library/Application Support/com.tryopendata.kelvo/history.sqlite` (+ `-wal`, `-shm`) | store writer thread |
-| Settings | `~/Library/Application Support/com.tryopendata.kelvo/settings.json` | Rust settings owner via `tauri-plugin-store` |
-| Host identity | `~/Library/Application Support/com.tryopendata.kelvo/host-id` (UUID text) and `hosts` table | app shell on first run |
-| Logs | `~/Library/Logs/com.tryopendata.kelvo/` | `tracing` file appender, 5 files × 5 MB |
+| History database | `~/Library/Application Support/com.tryopendata.statglass/history.sqlite` (+ `-wal`, `-shm`) | store writer thread |
+| Settings | `~/Library/Application Support/com.tryopendata.statglass/settings.json` | Rust settings owner via `tauri-plugin-store` |
+| Host identity | `~/Library/Application Support/com.tryopendata.statglass/host-id` (UUID text) and `hosts` table | app shell on first run |
+| Logs | `~/Library/Logs/com.tryopendata.statglass/` | `tracing` file appender, 5 files × 5 MB |
 
 ## 7. Performance budget
 
@@ -595,18 +595,18 @@ The base budget is the table in [architecture.md, Performance budget](architectu
 
 ## 8. Milestones and tasks
 
-Until the release phase, Kelvo runs from source: `bun run tauri dev`, or a local `bun run tauri build` for packaged-only checks. Each phase ends with a build that does everything the phase lists. There are no tags, releases or updater builds before the release phase (D-078). The order is v1.0 (done), v1.1, v1.2, then manual QA and polish, then the release phase. Tasks marked "(infra N)" are the "Infrastructure laid in v1" items from architecture.md, numbered as there; section 11 maps them back.
+Until the release phase, StatGlass runs from source: `bun run tauri dev`, or a local `bun run tauri build` for packaged-only checks. Each phase ends with a build that does everything the phase lists. There are no tags, releases or updater builds before the release phase (D-078). The order is v1.0 (done), v1.1, v1.2, then manual QA and polish, then the release phase. Tasks marked "(infra N)" are the "Infrastructure laid in v1" items from architecture.md, numbered as there; section 11 maps them back.
 
 Every UI task is done only after its screen is checked against design-system.md and the screens already built: screenshot the route with the mock transport, and list any difference left in place in the PR.
 
 ### v1.0, phase 0: workspace, toolchain and spikes
 
-Installable result: a Kelvo-branded app that opens a token test page in light and dark.
+Installable result: a StatGlass-branded app that opens a token test page in light and dark.
 
 Workspace and crates
 - [x] Root `Cargo.toml` workspace with members `crates/*` and `src-tauri`, resolver 2, shared `[workspace.dependencies]` for serde, ciborium, rusqlite (bundled), tokio, uuid, smallvec, compact_str, thiserror, tracing
-- [x] Create `kelvo-schema`, `kelvo-proto`, `kelvo-collect`, `kelvo-store`, `kelvo-engine` with empty `lib.rs`, each depending only on what the direction table in architecture.md allows (infra 6)
-- [x] Rename the app in `tauri.conf.json`: productName "Kelvo", identifier `com.tryopendata.kelvo`, bundle category Utilities, `minimumSystemVersion` "26.0" (macOS N-1 policy, D-028)
+- [x] Create `statglass-schema`, `statglass-proto`, `statglass-collect`, `statglass-store`, `statglass-engine` with empty `lib.rs`, each depending only on what the direction table in architecture.md allows (infra 6)
+- [x] Rename the app in `tauri.conf.json`: productName "StatGlass", identifier `com.tryopendata.statglass`, bundle category Utilities, `minimumSystemVersion` "26.0" (macOS N-1 policy, D-028)
 - [x] Update Tauri to the latest 2.x at or above 2.12 and confirm in the changelog that the tray icon and template flag can be set in one call; record the version in decisions.md
 - [x] Pin `tauri-specta` and `specta` to exact versions, note their release status (RC or stable) in decisions.md
 - [x] Remove the template `App.tsx`, `App.css`, `assets/react.svg` and the `greet` command
@@ -627,14 +627,14 @@ Frontend tooling
 - [x] `bun run check` runs format check, lint, typecheck and Vitest
 
 CI
-- [x] Replace the opendata-derived `.github/workflows/ci.yml` with a Kelvo workflow; choose hosted or self-hosted macOS runner and record why in decisions.md
+- [x] Replace the opendata-derived `.github/workflows/ci.yml` with a StatGlass workflow; choose hosted or self-hosted macOS runner and record why in decisions.md
 - [x] macOS job: `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, `bun run check`, Playwright, `bun tauri build --debug`
 - [x] Run the macOS job on both supported majors (macOS 27 and 26, D-028), or record in decisions.md why only one runner image is available and how the other is covered before release
 - [x] Linux job on `ubuntu-latest`: `cargo check` and `cargo test` for the five crates (infra 6)
 - [x] Generated-bindings drift check: build exports bindings and the job fails if `src/core/generated/` differs from the commit
 
 Acceptance criteria
-- `bun tauri build` produces `Kelvo.app`; it launches and shows a page using `bg-background`, `bg-card`, `text-muted-foreground` and the module accents in both themes.
+- `bun tauri build` produces `StatGlass.app`; it launches and shows a page using `bg-background`, `bg-card`, `text-muted-foreground` and the module accents in both themes.
 - Both CI jobs pass on a clean checkout.
 - Every spike has a decisions.md entry.
 
@@ -642,7 +642,7 @@ Acceptance criteria
 
 Installable result: unchanged UI. The value of this phase is in tests, and in the one-way doors being closed before collectors depend on them.
 
-kelvo-schema
+statglass-schema
 - [x] `MetricId`, `Labels` (sorted, canonical display form `core=7`), `SeriesKey` with parse and display round-trip tests (infra 1)
 - [x] `MetricDef`, `Unit`, `MetricKind`, `Module` and `CATALOG` containing every metric in 6.1; test that IDs are unique and label keys match their `MetricDef` (infra 1)
 - [x] `HostId(Uuid)`, `HostRecord` with `is_local`, `HostInfo`, `ClusterInfo` with DVFS state tables (infra 2)
@@ -653,14 +653,14 @@ kelvo-schema
 - [x] `Tier`, `Cursor`, `Settings` with a `validate()` covering the allowed values in 6.4
 - [x] All IPC-facing types derive `specta::Type`
 
-kelvo-proto
+statglass-proto
 - [x] Length-prefixed framing (u32 BE) and CBOR encode/decode via ciborium (infra 3)
 - [x] `Message` enum per architecture.md including `HostSummary` (reserved) and `Unknown` (infra 3)
 - [x] Handshake negotiation function: version range check, feature intersection, error on incompatible versions; tests for equal, older-compatible and incompatible peers (infra 3)
-- [x] Skew fixtures under `crates/kelvo-proto/tests/fixtures/v1/` with a test that decodes them; a test that an unknown message variant carrying content decodes as `Unknown`, which settles the `#[serde(other)]` question in architecture.md (record the answer in decisions.md) (infra 3)
+- [x] Skew fixtures under `crates/statglass-proto/tests/fixtures/v1/` with a test that decodes them; a test that an unknown message variant carrying content decodes as `Unknown`, which settles the `#[serde(other)]` question in architecture.md (record the answer in decisions.md) (infra 3)
 - [x] Test that a `LiveFrame` whose layout contains an unknown `metric_id` is accepted and the unknown series ignored (infra 3)
 
-kelvo-store
+statglass-store
 - [x] Open or create with `auto_vacuum=INCREMENTAL` before any table, WAL, `journal_size_limit`, `synchronous=NORMAL`; migrations via `PRAGMA user_version`
 - [x] DDL from architecture.md, including `events`, with `gaps.reason` accepting `paused` and `module_disabled` and the nullable `gaps.module` column
 - [x] `meta` rows: `db_instance_uuid` created once, `schema_version`, `next_seq`; `seq` assigned inside each write transaction (infra 4)
@@ -683,12 +683,12 @@ Acceptance criteria
 
 ### v1.0, phase 2: collectors and engine
 
-Installable result: the app runs the engine in the background and logs a one-line summary per minute; `cargo run -p kelvo-engine --example dump` prints a Snapshot every tick.
+Installable result: the app runs the engine in the background and logs a one-line summary per minute; `cargo run -p statglass-engine --example dump` prints a Snapshot every tick.
 
-kelvo-collect
+statglass-collect
 - [x] `Collector` trait, `Probe`, `Cadence`, `SampleBuf`, `CollectorId`; every collector declares `required_entitlements()` (infra 6)
 - [x] CPU collector via sysinfo with narrow refresh kinds: `cpu.total`, `cpu.user`, `cpu.system`, `cpu.load{core}` with P and E labels from the topology, `cpu.loadavg` (done on `host_processor_info` directly: sysinfo has no user/system split)
-- [x] Vendor macmon's IOReport and SMC/HID code with its license and attribution in `kelvo-collect/src/macos/vendor/` (confirm the license permits it; unverified) (MIT, verified; D-042)
+- [x] Vendor macmon's IOReport and SMC/HID code with its license and attribution in `statglass-collect/src/macos/vendor/` (confirm the license permits it; unverified) (MIT, verified; D-042)
 - [x] IOReport subscription builder that subscribes only to channel groups the active collectors need; delta sampling against the previous sample
 - [x] Cluster frequency, active residency, per-state residency and cluster power (cluster power is a gap on macOS 27, where the PMP counters refresh about every 5 minutes; D-043)
 - [x] GPU utilization, renderer and tiler (confirm the source; if the split is unavailable, drop `gpu.render` and `gpu.tiler` from the catalog and the Overview legend), frequency and residency (split available from `IOAccelerator` `PerformanceStatistics`; D-042)
@@ -703,9 +703,9 @@ kelvo-collect
 - [x] `self.cpu` across the app process and its WebKit helper processes (find them by responsible PID or coalition; unverified which works without entitlements) (responsible PID works without entitlements)
 - [x] `thermal.state` from `NSProcessInfo`
 - [x] `linux` module behind `cfg(target_os = "linux")` that returns `Unsupported` for everything and compiles in the Linux CI job (infra 6)
-- [x] `appstore` Cargo feature and `allowed_entitlements()` filter; a test that with the feature on, IOReport, SMC, HID and NetworkStatistics collectors are dropped and report `MissingEntitlement` (infra 6) (`crates/kelvo-collect/tests/entitlements.rs`, with fakes for the private-API collectors)
+- [x] `appstore` Cargo feature and `allowed_entitlements()` filter; a test that with the feature on, IOReport, SMC, HID and NetworkStatistics collectors are dropped and report `MissingEntitlement` (infra 6) (`crates/statglass-collect/tests/entitlements.rs`, with fakes for the private-API collectors)
 
-kelvo-engine
+statglass-engine
 - [x] `Ticker` trait, GCD `DispatchSource` implementation on a utility-QoS queue with 10% leeway, and `FakeTicker` (infra 6) (start/stop/now into one engine inbox rather than a blocking `next()`; D-046)
 - [x] `PowerSignals` trait, macOS implementation (sleep and wake, display sleep, screen lock, Low Power Mode, on battery) and a fake (infra 6) (sleep/wake via `IORegisterForSystemPower` with an ack before sleep; the rest polled; D-046)
 - [x] Sampler loop on one thread: cadence multiples, `NaN` for series not sampled this tick, layout change detection publishing `Layout` before the first frame that uses it (frames also carry a held latest-value array for the Snapshot; D-047)
@@ -721,7 +721,7 @@ kelvo-engine
 - [x] `examples/dump.rs` printing the Snapshot each tick and the series count at startup
 
 Benchmarks
-- [x] `scripts/accuracy-vs-macmon.sh`: runs `kelvo-engine` dump and `macmon` side by side for 10 minutes, compares CPU and GPU utilization, cluster frequency, power components and temperatures, and fails outside ±5% or ±2 °C (written, not yet run: macmon is not installed on the dev Mac, and the script exits 2 saying so)
+- [x] `scripts/accuracy-vs-macmon.sh`: runs `statglass-engine` dump and `macmon` side by side for 10 minutes, compares CPU and GPU utilization, cluster frequency, power components and temperatures, and fails outside ±5% or ±2 °C (written, not yet run: macmon is not installed on the dev Mac, and the script exits 2 saying so)
 - [x] Engine-only overhead measured with the example binary for 10 minutes at 1 s; result in PROGRESS.md (1.39% on an M3 Max, over the proposed 0.2%; profiled and attributed, not yet reduced)
 
 Acceptance criteria
@@ -743,7 +743,7 @@ App shell
 - [x] `set_process_interest` reference-counted per window and cleared when a window hides or closes
 - [x] Each window root receives `data-performance` (D-088; was `data-power-saver`), `data-reduce-transparency` and the theme through a startup command and change events
 - [x] Launch at login with `smappservice-rs`, wired to the setting
-- [x] Logging with `tracing` to `~/Library/Logs/com.tryopendata.kelvo/` with rotation
+- [x] Logging with `tracing` to `~/Library/Logs/com.tryopendata.statglass/` with rotation
 
 Tray
 - [x] Renderer with `tiny-skia` and `ab_glyph`: combined glyph per the design-system spec and the values layout, at 1x and 2x
@@ -752,7 +752,7 @@ Tray
 - [x] Set image and template flag atomically; set the accessibility label each redraw
 - [x] Redraw on the base tick, stop on display sleep and screen lock, track the back-off interval
 - [x] Per-module menu bar modes from settings decide which elements render
-- [x] Left click toggles the popover; right click or Control-click opens the native menu (Open dashboard, Settings, Pause sampling, Quit Kelvo)
+- [x] Left click toggles the popover; right click or Control-click opens the native menu (Open dashboard, Settings, Pause sampling, Quit StatGlass)
 
 Popover panel
 - [x] `tauri-nspanel` non-activating panel, 360 × 680, created hidden at startup with the `popover` label
@@ -852,7 +852,7 @@ GPU, Memory, Network, Disk, Battery, Processes pages (4.8, 4.9, 4.11 to 4.14; no
 - [x] Disk page per 4.12 (volumes named by mount path; no boot volume or container: not in the schema)
 - [x] Battery page per 4.13, reusing the Power & Sensors battery section
 - [x] Processes page per 4.14 with search, column sets, frozen order on hover
-- [x] `process_signal` command: re-read the PID's start time and fail with `PidReused` on mismatch, refuse PID 1, `kernel_task`, `WindowServer` and Kelvo's own PIDs, use `NSRunningApplication` for apps and `kill(2)` otherwise, map `EPERM` and `ESRCH` to typed errors
+- [x] `process_signal` command: re-read the PID's start time and fail with `PidReused` on mismatch, refuse PID 1, `kernel_task`, `WindowServer` and StatGlass's own PIDs, use `NSRunningApplication` for apps and `kill(2)` otherwise, map `EPERM` and `ESRCH` to typed errors
 - [x] Quit and Force Quit row action and context menu with confirm dialogs (Force Quit warns about unsaved data), disabled state with tooltip for refused processes, toast on `PermissionDenied`
 - [x] Shared process selection and batch Quit across Processes and CPU/GPU/Memory/Disk/Power, including hidden selection review and partial results
 - [x] Tests: Rust tests that spawn a child process and quit and force-quit it, that a stale `start_time` returns `PidReused`, that each refused target is rejected without a signal sent, and that another user's PID returns `PermissionDenied`; a Vitest test that the dialog sends the command only after confirmation
@@ -879,7 +879,7 @@ Onboarding (4.16)
 States (4.17)
 - [x] Empty history overlay and header text (`isCollecting`, `CollectingNote`; wired on the Timeline)
 - [x] Gap bands with reason labels on every history chart (`gapBands`/`gapLabel` in `core/history-state.ts`; the Timeline and the module pages' live charts through `useGapBands`; the battery 24 h bars keep their hatched hours)
-- [x] Unknown chip notice and Share sensor dump sheet with Copy, Save and Open GitHub issue; `sensor_dump` command excludes serials, user and host names (Save… untested in WKWebView; issue URL assumes github.com/tryopendata/kelvo)
+- [x] Unknown chip notice and Share sensor dump sheet with Copy, Save and Open GitHub issue; `sensor_dump` command excludes serials, user and host names (Save… untested in WKWebView; issue URL assumes github.com/tryopendata/statglass)
 - [x] Paused, stale, history unavailable, sensor read failed, series disappeared (`HistoryUnavailableBanner` on the Timeline, the battery card and Settings)
 
 Acceptance criteria
@@ -958,7 +958,7 @@ Phase 1.2-C: detectors and Timeline annotations
 - [x] `thermal_state`: `thermal.state` changes level
 - [x] `sustained_process`: one process above a CPU threshold for a duration
 - [x] `power_spike`: package or ANE power above a rolling baseline, attributed to the top energy process
-- [x] Thresholds as data in `kelvo-schema` with tests against recorded fixture series (true positives and quiet periods)
+- [x] Thresholds as data in `statglass-schema` with tests against recorded fixture series (true positives and quiet periods)
 - [x] `query_events` and AnnotationRow on the Timeline with collision handling; clicking a pill moves the crosshair there
 - [x] Power by component chart annotations from `power_spike` events
 - [ ] Optimized charging annotation on the battery chart if a source is found (Should) Not built: no documented source (D-083).
@@ -994,7 +994,7 @@ Checks that work without a packaged app:
 - [ ] Calibrated CPU power checked against `powermetrics` over whole PMP windows (`live_cpu_power_calibration_matches_pmp`, D-054)
 - [ ] CSP checked in a locally built app (`bun run tauri build`): every page loads with no console CSP violations, IPC works (D-075 notes `tauri dev` applies no CSP)
 - [ ] WindowServer cost with every module in its own item, re-measured on a quiet machine (D-080; the v1.1 measurement was swamped by parallel load)
-- [ ] Alerts: switching a rule on in a locally built app shows the "Alerts are on" notification and macOS asks for Kelvo's permission (under `tauri dev` the plugin posts as Terminal, D-084)
+- [ ] Alerts: switching a rule on in a locally built app shows the "Alerts are on" notification and macOS asks for StatGlass's permission (under `tauri dev` the plugin posts as Terminal, D-084)
 - [ ] Detector review over a week of use: false annotations per day and the share of `fans_ramped` events with a process (the v1.2 proposed bars), including a cargo build and a game or video export
 - [ ] Per-process network and GPU columns against Activity Monitor under a known download and a GPU load
 
@@ -1010,7 +1010,7 @@ QA accepted by the user on 2026-10-16. Current scope: GitHub Releases with an ad
 - [x] `tauri-plugin-updater` against a `latest.json` on GitHub Releases; respects `general.check_updates`; "Check now" in Settings
 - [x] Release workflow on a `v*` tag: build, sign update artifacts, upload DMG, `.app.tar.gz`, signature and `latest.json` to a draft release
 - [ ] Native launch acceptance after update: isolated archive replacement has no quarantine attribute and passes codesign (D-113); a live restart/Gatekeeper check remains manual.
-- [ ] Deferred: personal Homebrew tap repo with a `kelvo` cask pointing at the release DMG; document `brew install --cask` and the first-launch step
+- [ ] Deferred: personal Homebrew tap repo with a `statglass` cask pointing at the release DMG; document `brew install --cask` and the first-launch step
 - [x] README install section: DMG (tap deferred), and the first-launch step for an unsigned app on current macOS (System Settings, Privacy & Security, Open Anyway, since Control-click Open does not bypass Gatekeeper on supported versions)
 - [ ] `scripts/bench-vs-stats.sh` complete: matching modules, 10-minute runs, coalition CPU, energy via `powermetrics`, footprint; output as a Markdown table
 - [ ] Run the full budget table from section 7 and architecture.md on the development Mac; results in PROGRESS.md with chip and macOS version
@@ -1042,7 +1042,7 @@ Acceptance criteria
 
 | ID | Risk | Impact | Mitigation | Check by |
 |---|---|---|---|---|
-| R1 | IOReport, SMC and HID are private interfaces and can change with a macOS release | Power & Sensors breaks on an OS update | Vendored code isolated in `kelvo-collect`; collectors report `Unsupported` instead of crashing; test on macOS betas each summer | each macOS beta |
+| R1 | IOReport, SMC and HID are private interfaces and can change with a macOS release | Power & Sensors breaks on an OS update | Vendored code isolated in `statglass-collect`; collectors report `Unsupported` instead of crashing; test on macOS betas each summer | each macOS beta |
 | R2 | The idle budget is missed because of WebKit helpers rather than our Rust code | v1 cannot claim "cheaper than Stats" | Channels stop when hidden; the dashboard is destroyed after 5 minutes hidden; measure per phase, not at the end | phase 3, 5, 6 |
 | R3 | `tauri-nspanel` or native vibrancy does not work with the pinned Tauri | Popover loses non-activating behavior or blur | Phase 0 spike; fallback is an objc2 panel or an opaque popover using the Reduce Transparency tokens | phase 0 |
 | R4 | tauri-specta is still a release candidate and changes its API | Binding regeneration breaks | Pin exact versions; the drift check catches changes | phase 0 |

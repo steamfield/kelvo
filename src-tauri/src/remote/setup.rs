@@ -1,7 +1,7 @@
 //! Setup transaction: read-only cancellation boundaries, configure, register and recover.
-//! The probe decides the path: [`mac`] installs Kelvo.app, [`linux`] the headless agent.
+//! The probe decides the path: [`mac`] installs StatGlass.app, [`linux`] the headless agent.
 use super::*;
-use kelvo_remote::agent_install::HostProbe;
+use statglass_remote::agent_install::HostProbe;
 pub(super) mod linux;
 mod mac;
 use mac::Installation;
@@ -35,7 +35,7 @@ pub(super) async fn probe_routes(
         if let Some(alias) = alias {
             attempts.spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-                let result = kelvo_remote::agent_install::probe_host(&alias, budget).await;
+                let result = statglass_remote::agent_install::probe_host(&alias, budget).await;
                 result.map(|probe| (alias, probe))
             });
         }
@@ -86,12 +86,12 @@ pub(super) fn most_actionable(errors: Vec<CommandError>) -> Option<CommandError>
 async fn wait_for_control(alias: &str, helper: &str) -> Result<ControlResponse, CommandError> {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
     loop {
-        match kelvo_remote::install::status(alias, helper).await {
+        match statglass_remote::install::status(alias, helper).await {
             Ok(response) if response.ok => return Ok(response),
             result => {
                 if tokio::time::Instant::now() >= deadline {
                     return Err(failure(format!(
-                        "Kelvo could not start. Complete any macOS approval on the other Mac and retry. {}",
+                        "StatGlass could not start. Complete any macOS approval on the other Mac and retry. {}",
                         match result {
                             Ok(r) => r.message,
                             Err(e) => e.to_string(),
@@ -134,7 +134,7 @@ pub async fn reset_remote_host_identity(
     let state = app.state::<AppState>();
     let _guard = state.remotes.operation.lock().await;
     let (alias, probe) = linux_probe(lan.clone(), tailscale.clone(), ProbeFor::Install).await?;
-    kelvo_remote::agent_install::reset_identity(&alias, &probe).await?;
+    statglass_remote::agent_install::reset_identity(&alias, &probe).await?;
     let (alias, probe) = linux_probe(lan, tailscale, ProbeFor::Install).await?;
     let saved = state.remotes.saved.lock_ok().clone();
     linux::preparation(&alias, &probe, &saved)
@@ -154,7 +154,7 @@ pub(super) async fn linux_probe(
     lan: Option<String>,
     tailscale: Option<String>,
     purpose: ProbeFor,
-) -> Result<(String, kelvo_remote::agent_install::LinuxProbe), CommandError> {
+) -> Result<(String, statglass_remote::agent_install::LinuxProbe), CommandError> {
     match probe_routes(lan, tailscale, purpose).await? {
         (alias, HostProbe::Linux(p)) => Ok((alias, *p)),
         (_, HostProbe::Mac(_)) => Err(CommandError::RemoteIdentity {
@@ -169,7 +169,7 @@ pub(super) async fn register_new(
     app: &AppHandle,
     config: RemoteHostConfig,
     record: HostRecord,
-    command: kelvo_remote::RemoteCommand,
+    command: statglass_remote::RemoteCommand,
 ) -> Result<RemoteHostRecord, CommandError> {
     let state = app.state::<AppState>();
     let id = record.id;
