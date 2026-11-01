@@ -28,7 +28,7 @@ const started = (page: Page) =>
 const sectionOpacities = (page: Page) =>
   page.evaluate(() =>
     Array.from(
-      document.querySelectorAll("main > * > *, main [data-stagger] > *")
+      document.querySelectorAll("main > div > * > *, main [data-stagger] > *")
     ).map((el) => getComputedStyle(el).opacity)
   );
 
@@ -168,7 +168,7 @@ test("live-motion validation accepts shortened reversals and rejects long transi
   await expect.poll(() => running(page), { timeout: 2000 }).toBe(0);
   await page.evaluate(async () => {
     const element = Array.from(
-      document.querySelectorAll("main > * > *, main [data-stagger] > *")
+      document.querySelectorAll("main > div > * > *, main [data-stagger] > *")
     ).find((el) => /lift/.test(getComputedStyle(el).animationName));
     if (!(element instanceof HTMLElement))
       throw new Error("No entering element");
