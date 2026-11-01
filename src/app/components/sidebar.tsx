@@ -94,11 +94,7 @@ function SidebarItem({
   return (
     <a
       href={entry.href}
-      title={
-        entry.attention
-          ? `${entry.label} · ${entry.attention.label}`
-          : entry.label
-      }
+      title={entry.label}
       aria-current={current ? "page" : undefined}
       data-sidebar-item
       onClick={onClick}
@@ -126,10 +122,15 @@ function SidebarItem({
         {entry.label}
       </span>
       {entry.attention && (
-        <span className="figures rounded-full border border-border px-1.5 font-normal text-[10px] text-fg-subtle leading-4 max-sm:hidden">
-          <span aria-hidden>{entry.attention.count}</span>
-          <span className="sr-only">{entry.attention.label}</span>
-        </span>
+        <>
+          <span className="sr-only">, {entry.attention.label}</span>
+          <span
+            aria-hidden
+            className="figures rounded-full border border-border px-1.5 font-normal text-[10px] text-fg-subtle leading-4 max-sm:absolute max-sm:top-1 max-sm:right-1 max-sm:size-1.5 max-sm:border-0 max-sm:bg-fg-subtle max-sm:p-0 max-sm:text-[0px]"
+          >
+            {entry.attention.count}
+          </span>
+        </>
       )}
       {!entry.disabled && entry.value && (
         <span className="figures min-w-9 text-right font-normal text-[11px] text-muted-foreground max-sm:hidden">

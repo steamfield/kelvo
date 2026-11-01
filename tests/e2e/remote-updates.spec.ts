@@ -30,7 +30,7 @@ for (const theme of ["dark", "light"]) {
       `/?window=dashboard&route=/dashboard/overview&scenario=hosts-outdated&theme=${theme}&ticks=0`
     );
     const notice = page
-      .getByRole("status")
+      .getByRole("region", { name: "Host updates" })
       .filter({ hasText: "4 hosts are running an older Kelvo." });
     await expect(notice).toBeVisible();
     await expect(
@@ -49,17 +49,17 @@ for (const theme of ["dark", "light"]) {
       path: `test-results/screens/hosts-versions-${theme}-${info.project.name}.png`,
     });
 
-    await page.getByRole("button", { name: "Update all (3)" }).click();
+    await page.getByRole("button", { name: "Update all (2)" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("Offline: not updated")).toBeVisible();
     await dialog.getByRole("button", { name: "Update agents" }).click();
-    await expect(dialog.getByText(/Requested on 2 of 3/)).toBeVisible();
+    await expect(dialog.getByText(/Requested on 2 of 2/)).toBeVisible();
     await dialog.getByRole("button", { name: "Done" }).click();
 
     const nav = page.getByRole("navigation", { name: "Dashboard sections" });
     await nav.getByRole("link", { name: /^Overview/ }).click();
     await page
-      .getByRole("status")
+      .getByRole("region", { name: "Host updates" })
       .filter({ hasText: "older Kelvo" })
       .getByRole("button", { name: "Dismiss" })
       .click();
@@ -86,7 +86,7 @@ test("this Mac's own update comes before the hosts'", async ({ page }) => {
     "/?window=dashboard&route=/dashboard/overview&scenario=hosts-outdated&update=available&ticks=0"
   );
   const notice = page
-    .getByRole("status")
+    .getByRole("region", { name: "Host updates" })
     .filter({ hasText: "Update this Mac first" });
   await notice.getByRole("button", { name: "Open Settings" }).click();
   await expect(

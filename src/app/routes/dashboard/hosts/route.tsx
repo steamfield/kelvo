@@ -33,7 +33,7 @@ import {
 } from "./_components/remove-host-options";
 import { SshSetupHelp } from "./_components/ssh-setup-help";
 import { UpdateAllDialog } from "./_components/update-all-dialog";
-import { pushable } from "./_components/use-agent-update";
+import { pushable, reachable } from "./_components/use-agent-update";
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Controller and presentation split tracked in architecture refactor package H.
 function HostSettings({
@@ -263,6 +263,7 @@ export default function HostsRoute() {
   const [localUpdate] = useLocalUpdateStatus();
   const localTarget = localUpdateTarget(localUpdate);
   const behind = remotes.data?.filter(pushable) ?? [];
+  const updatable = behind.filter(reachable).length;
   const [editing, setEditing] = useState<RemoteHostRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const show = (id: string) => {
@@ -286,9 +287,9 @@ export default function HostsRoute() {
         title="Hosts"
         actions={
           <div className="flex gap-2">
-            {behind.length >= 2 && (
+            {updatable >= 2 && (
               <Button variant="outline" onClick={() => setUpdatingAll(true)}>
-                Update all ({behind.length})
+                Update all ({updatable})
               </Button>
             )}
             <Button onClick={() => setAdding(true)}>Add host</Button>

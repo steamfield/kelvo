@@ -26,25 +26,29 @@ pub(super) fn register(app: &AppHandle, saved: SavedHost) -> Result<(), CommandE
     state.remotes.generations.lock_ok().insert(id, generation);
     let handle = app.clone();
     let linux = saved.is_linux();
+    // The version this callback last saw; callbacks run on every live frame, so
+    // only a change reaches the saved hosts and the disk.
+    let known = Mutex::new(saved.last_agent_version.clone());
     let cb = Arc::new(move |s: kelvo_remote::ConnectionStatus| {
         let state = handle.state::<AppState>();
         if state.remotes.generations.lock_ok().get(&id) != Some(&generation) {
             return;
         }
-        if let Some(version) = &s.remote_version {
-            remember_version(&handle, id, version);
+        let last = {
+            let mut known = known.lock_ok();
+            if let Some(version) = &s.remote_version
+                && known.as_ref() != Some(version)
+            {
+                *known = Some(version.clone());
+                remember_version(&handle, id, version);
+            }
+            known.clone()
+        };
+        let mut statuses = state.remotes.statuses.lock_ok();
+        // A host removed or re-registered meanwhile keeps its newer status.
+        if state.remotes.generations.lock_ok().get(&id) == Some(&generation) {
+            statuses.insert(id, connection_status(s, linux, last));
         }
-        let last = state
-            .remotes
-            .saved
-            .lock_ok()
-            .get(&id)
-            .and_then(|h| h.last_agent_version.clone());
-        state
-            .remotes
-            .statuses
-            .lock_ok()
-            .insert(id, connection_status(s, linux, last));
     });
     let source = RemoteSource::new(
         saved.record.clone(),

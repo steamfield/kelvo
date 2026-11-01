@@ -30,12 +30,19 @@ const openerEntries = capability.permissions.filter((p: Permission) =>
   (typeof p === "string" ? p : p.identifier).startsWith("opener:")
 );
 
+// A deny entry wins over every allow, as in Tauri's scope resolution.
 const allowed = (url: string) =>
   openerEntries.some(
     (p) =>
       typeof p !== "string" &&
       p.identifier === "opener:allow-open-url" &&
       p.allow.some((a) => globToRegExp(a.url).test(url))
+  ) &&
+  !openerEntries.some(
+    (p) =>
+      typeof p !== "string" &&
+      "deny" in p &&
+      (p.deny ?? []).some((d) => globToRegExp(d.url).test(url))
   );
 
 describe("opener capability scope", () => {
@@ -68,6 +75,7 @@ describe("opener capability scope", () => {
       "http://github.com/steamfield/kelvo/issues/new?labels=sensors&title=x",
       "https://github.com/someone/else/issues/new?labels=sensors&title=x",
       "https://github.com/steamfield/kelvo/settings",
+      "https://github.com/steamfield/kelvo/releases/tag/v1/../../../../someone/repo",
       "file:///etc/passwd",
       "mailto:someone@example.com",
     ]) {

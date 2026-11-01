@@ -49,6 +49,14 @@ export function useAgentUpdate() {
   });
 }
 
+/** Whether Update all can reach the host now; others are listed as skipped. */
+export function reachable(remote: RemoteHostRecord): boolean {
+  return (
+    remote.status.state === "connected" ||
+    remote.status.agent_update.kind === "required"
+  );
+}
+
 /** Whether an update request for this host is in flight. */
 export function useAgentUpdating(id: string): boolean {
   return useMutationState({

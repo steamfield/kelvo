@@ -7,6 +7,7 @@ import { unwrap } from "@core/transport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, X } from "lucide-react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { useLocalUpdateStatus } from "~/hooks/use-local-update-status";
 import { useRemoteHosts } from "~/hooks/use-remote-hosts";
 import { useTransport } from "~/lib/transport-context";
@@ -62,8 +63,8 @@ export function HostUpdateNoticeView({
 }) {
   const { text, action, href } = noticeText(notice);
   return (
-    <div
-      role="status"
+    <section
+      aria-label="Host updates"
       className="mb-4 flex items-start gap-2 border-border-subtle border-b pb-3"
     >
       <Info
@@ -91,7 +92,7 @@ export function HostUpdateNoticeView({
           <X aria-hidden className="size-3.5" strokeWidth={1.5} />
         </button>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -118,6 +119,7 @@ export function HostUpdateNotice() {
         key,
         error,
       });
+      toast.error("Couldn’t dismiss the notice. Try again.");
     }
   };
   return (

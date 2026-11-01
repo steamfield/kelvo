@@ -148,3 +148,39 @@ fn saved_hosts_without_a_reported_version_still_load() {
     assert!(errors.is_empty(), "{errors:?}");
     assert_eq!(saved[&id].last_agent_version, None);
 }
+
+#[test]
+fn concurrent_saves_leave_one_whole_file_with_every_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("remote-hosts.json");
+    let lock = Mutex::new(());
+    let saved = Mutex::new(BTreeMap::new());
+    std::thread::scope(|scope| {
+        for i in 0..16 {
+            let (lock, saved, path) = (&lock, &saved, &path);
+            scope.spawn(move || {
+                let id = HostId(Uuid::new_v4());
+                let mut record = kelvo_engine::host_record(id);
+                record.is_local = false;
+                let host = SavedHost {
+                    config: RemoteHostConfig {
+                        id: id.to_string(),
+                        name: format!("host-{i}"),
+                        lan: Some(format!("host-{i}")),
+                        tailscale: None,
+                        enabled: true,
+                        mirror_budget_mb: 100,
+                    },
+                    record,
+                    command: RemoteCommand::default(),
+                    last_agent_version: Some("0.3.1".into()),
+                };
+                saved.lock_ok().insert(id, host);
+                write_saved(lock, saved, path).unwrap();
+            });
+        }
+    });
+    let (hosts, errors) = parse_saved(&std::fs::read(&path).unwrap());
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(hosts.len(), 16);
+}

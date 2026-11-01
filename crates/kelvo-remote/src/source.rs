@@ -975,7 +975,6 @@ fn adapt_page_bytes(current: u32, elapsed: Duration) -> u32 {
 }
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use crate::MirrorError;
     use kelvo_proto::{SyncPage, WireLayout};

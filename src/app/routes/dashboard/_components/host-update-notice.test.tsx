@@ -15,7 +15,9 @@ describe("host update notice", () => {
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
     await waitFor(() =>
-      expect(screen.queryByRole("status")).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("region", { name: "Host updates" })
+      ).not.toBeInTheDocument()
     );
     expect(await transport.hostUpdateNoticeDismissed()).toEqual({
       status: "ok",
@@ -50,12 +52,27 @@ describe("host update notice", () => {
     ).toBeInTheDocument();
   });
 
+  it("waits for this Mac's restart while its update installs", async () => {
+    const transport = createMockTransport({
+      scenarios: ["hosts-outdated"],
+      updateStatus: { kind: "installing", version: "0.4.0" },
+    });
+    renderWithProviders(<HostUpdateNotice />, { transport });
+    expect(
+      await screen.findByText(
+        "Kelvo 0.4.0 is installing on this Mac. Update your hosts after it restarts."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("says nothing when hosts are current", async () => {
     const transport = createMockTransport({ scenarios: ["multi-host"] });
     renderWithProviders(<HostUpdateNotice />, { transport });
     await waitFor(async () =>
       expect(await transport.listRemoteHosts()).toHaveLength(1)
     );
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Host updates" })
+    ).not.toBeInTheDocument();
   });
 });

@@ -30,14 +30,18 @@ export function linuxSystemLine(linux: LinuxPreparation): string {
     .join(" · ");
 }
 
-/** Hosts this Mac can bring up to its own version (D-123). */
+/**
+ * Hosts this Mac can bring up to its own version (D-123). A host the user
+ * switched off isn't counted: nothing is asked of it until it's back on.
+ */
 export function hostsNeedingUpdate(
   remotes: readonly RemoteHostRecord[]
 ): RemoteHostRecord[] {
   return remotes.filter(
     (r) =>
-      r.status.agent_update.kind === "available" ||
-      r.status.agent_update.kind === "required"
+      r.config.enabled &&
+      (r.status.agent_update.kind === "available" ||
+        r.status.agent_update.kind === "required")
   );
 }
 

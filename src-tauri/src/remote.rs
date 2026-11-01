@@ -107,6 +107,9 @@ pub struct RemoteManager {
     generations: Mutex<BTreeMap<HostId, Uuid>>,
     watchers: Mutex<BTreeMap<HostId, tauri::async_runtime::JoinHandle<()>>>,
     pub(crate) operation: tokio::sync::Mutex<()>,
+    /// Status callbacks save reported versions outside `operation`; this keeps every
+    /// write of `remote-hosts.json` whole and in order.
+    save: Mutex<()>,
     stop: Mutex<Option<tokio::sync::watch::Sender<bool>>>,
     metrics_stop: Mutex<Option<tokio::sync::watch::Sender<bool>>>,
 }
@@ -224,8 +227,17 @@ fn saved_path(app: &AppHandle) -> Result<PathBuf, CommandError> {
 }
 fn save(app: &AppHandle) -> Result<(), CommandError> {
     let state = app.state::<AppState>();
-    let bytes = serde_json::to_vec_pretty(&*state.remotes.saved.lock_ok()).map_err(failure)?;
-    let path = saved_path(app)?;
+    write_saved(&state.remotes.save, &state.remotes.saved, &saved_path(app)?)
+}
+/// Serializes, writes and renames under `lock`, so the file on disk is always one whole
+/// snapshot and a later snapshot is never replaced by an earlier one.
+fn write_saved(
+    lock: &Mutex<()>,
+    saved: &Mutex<BTreeMap<HostId, SavedHost>>,
+    path: &std::path::Path,
+) -> Result<(), CommandError> {
+    let _writing = lock.lock_ok();
+    let bytes = serde_json::to_vec_pretty(&*saved.lock_ok()).map_err(failure)?;
     let tmp = path.with_extension("json.tmp");
     use std::io::Write;
     let mut opts = std::fs::OpenOptions::new();
