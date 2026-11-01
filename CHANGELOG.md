@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.2](https://github.com/steamfield/kelvo/compare/v0.3.1...v0.3.2) - 2026-11-01
+
+### Added
+
+- Each host on the Hosts page shows the Kelvo version it runs and, when it is
+  behind, the version this Mac can install, with a link to the release notes. An
+  offline host shows the version it last reported.
+- When hosts are behind this Mac, the Hosts sidebar entry shows a count and
+  dashboard pages show a dismissible notice linking to Hosts. If this Mac has its
+  own update pending, the notice asks to update this Mac first.
+- Update all pushes the update to every reachable Linux host in turn, after a
+  confirmation that lists them, and reports one result list.
+
+### Fixed
+
+- A host whose Kelvo version is too old to connect now shows its version and can
+  be updated from its row.
+- Dashboard pages animate in section by section again.
+
 ## [0.3.1](https://github.com/tryopendata/kelvo/compare/v0.3.0...v0.3.1) - 2026-10-30
 
 ### Fixed
