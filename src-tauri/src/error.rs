@@ -1,4 +1,4 @@
-//! The error every command returns (`.claude/rules/rust.md`, Error handling). Serialized
+//! The error every command returns (`.claude/rules/rust/error-handling.md`). Serialized
 //! with a `kind` tag so the frontend can switch on it.
 
 use kelvo_schema::{HostId, JsSafeInt};

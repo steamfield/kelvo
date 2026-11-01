@@ -103,7 +103,7 @@ class SyncTests(unittest.TestCase):
         self.generate()
         cases = [
             ("CLAUDE.md", "\nNew canonical instruction.\n", "AGENTS.md"),
-            (".claude/rules/rust.md", "\nNew Rust rule.\n", ".agents/rules/rust.md"),
+            (".claude/rules/rust/testing.md", "\nNew Rust rule.\n", ".agents/rules/rust-testing.md"),
         ]
         for source, addition, output in cases:
             with self.subTest(source=source):
@@ -142,12 +142,12 @@ class SyncTests(unittest.TestCase):
                 self.assertNotIn("globs", metadata)
 
     def test_always_on_rule_has_no_globs(self):
-        (self.root / ".claude/rules/rust.md").write_text("# Rust\n\nApplies everywhere.\n")
+        (self.root / ".claude/rules/rust/testing.md").write_text("# Rust\n\nApplies everywhere.\n")
         self.generate()
-        metadata, _ = sync.read_source(self.root / ".agents/rules/rust.md")
+        metadata, _ = sync.read_source(self.root / ".agents/rules/rust-testing.md")
         self.assertEqual(metadata["trigger"], "always_on")
         self.assertNotIn("globs", metadata)
-        self.assertIn("| All tasks | [rust.md]", (self.root / "AGENTS.md").read_text())
+        self.assertIn("| All tasks | [rust/testing.md]", (self.root / "AGENTS.md").read_text())
 
     def test_repair_broken_managed_skill_link(self):
         self.generate()
@@ -183,11 +183,11 @@ class SyncTests(unittest.TestCase):
         manual_dir.mkdir()
         (manual_dir / "SKILL.md").write_text("Hand-written skill.\n")
         manifest = self.root / "scripts/agent-config/shared.txt"
-        manifest.write_text(manifest.read_text().replace("rule:rust.md\n", "").replace(
+        manifest.write_text(manifest.read_text().replace("rule:rust/testing.md\n", "").replace(
             "skill:frontend-design-slop\n", ""))
         self.assertEqual(self.run_cli("--check").returncode, 1)
         self.generate()
-        self.assertFalse((self.root / ".agents/rules/rust.md").exists())
+        self.assertFalse((self.root / ".agents/rules/rust-testing.md").exists())
         self.assertFalse((self.root / ".agents/skills/frontend-design-slop").is_symlink())
         self.assertEqual(manual.read_text(), "# Leave this alone\n")
         self.assertTrue((manual_dir / "SKILL.md").is_file())
@@ -211,7 +211,7 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
 
     def test_invalid_frontmatter_fails_without_writes(self):
-        rule = self.root / ".claude/rules/rust.md"
+        rule = self.root / ".claude/rules/rust/testing.md"
         for text in ("---\npaths:\n  - x\n", '---\npaths: "unclosed\n---\nBody\n',
                      "---\npaths: []\n---\nBody\n", "---\npaths: [1]\n---\nBody\n",
                      "---\npaths:\n  nested: x\n---\nBody\n"):

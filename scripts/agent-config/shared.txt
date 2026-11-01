@@ -10,6 +10,10 @@ rule:frontend/react.md
 rule:frontend/styling.md
 rule:frontend/testing.md
 rule:generated-bindings.md
-rule:rust.md
+rule:rust/crates.md
+rule:rust/error-handling.md
+rule:rust/lints.md
+rule:rust/platform.md
+rule:rust/testing.md
 rule:testing.md
 rule:verification.md

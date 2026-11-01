@@ -10,12 +10,14 @@ paths:
 
 Cross-cutting testing doctrine. Stack-specific patterns live in the area rules below.
 
+Load the `ce:writing-tests` skill before writing or reviewing tests.
+
 ## Area-Specific Rules
 
 | Area     | Rule File             | What's only there                                         |
 | -------- | --------------------- | --------------------------------------------------------- |
 | Frontend | `frontend/testing.md` | Mock transport, Playwright, async waiting, render counts  |
-| Rust     | `rust.md`             | Collector fixtures, cfg gating, codec skew tests          |
+| Rust     | `rust/testing.md`     | Test placement, codec skew tests, hardware-only tests     |
 
 ## Test Commands
 

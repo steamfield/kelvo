@@ -82,8 +82,7 @@ Rules for anything new:
 Handled by token zeroing in CSS; components don't branch on it. A JS-driven tween reads
 its duration token from the root when it starts (`NumberTicker` reads `--motion-count`), so a
 0ms token covers reduced motion and Performance mode alike. Only if JS needs the preference
-itself, port opendata's `shared/hooks/use-prefers-reduced-motion.ts` to `src/app/hooks/`
-and consume it there. Don't call `window.matchMedia` in components; you'll
+itself, add a `use-prefers-reduced-motion` hook in `src/app/hooks/` and consume it there. Don't call `window.matchMedia` in components; you'll
 miss the live toggle.
 
 ## Performance

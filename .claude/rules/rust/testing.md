@@ -1,0 +1,17 @@
+---
+paths:
+  - "crates/**/*.rs"
+  - "src-tauri/**/*.rs"
+---
+
+# Rust Testing
+
+The root `testing.md` covers commands, the mocking boundaries (fake `Collector`, `Ticker`
+and `PowerSignals`, real SQLite), timing fakes and flake triage. This file covers what's
+specific to the Rust suite.
+
+- Unit tests in `#[cfg(test)] mod tests` next to the code; integration tests in
+  `crates/<crate>/tests/`.
+- Codec changes need the round-trip and version-skew test (old fixture decoded by new code
+  and the reverse).
+- Tests that need real hardware are `#[ignore]` with a reason, and run by hand.
