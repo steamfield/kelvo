@@ -47,6 +47,10 @@ struct SavedHost {
     /// helper's path as `helper_path`, which reads as [`RemoteCommand::MacHelper`].
     #[serde(default, alias = "helper_path")]
     command: RemoteCommand,
+    /// The version the host last reported, so an offline host still shows one after
+    /// this app restarts (D-123).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_agent_version: Option<String>,
 }
 impl SavedHost {
     fn endpoint(&self) -> EndpointConfig {
@@ -103,6 +107,9 @@ pub struct RemoteManager {
     generations: Mutex<BTreeMap<HostId, Uuid>>,
     watchers: Mutex<BTreeMap<HostId, tauri::async_runtime::JoinHandle<()>>>,
     pub(crate) operation: tokio::sync::Mutex<()>,
+    /// Status callbacks save reported versions outside `operation`; this keeps every
+    /// write of `remote-hosts.json` whole and in order.
+    save: Mutex<()>,
     stop: Mutex<Option<tokio::sync::watch::Sender<bool>>>,
     metrics_stop: Mutex<Option<tokio::sync::watch::Sender<bool>>>,
 }
@@ -151,7 +158,9 @@ impl From<kelvo_remote::RemoteError> for CommandError {
         match error {
             RemoteError::Authentication(_) => Self::RemoteAuth { message },
             RemoteError::HostKey(_) => Self::HostKeyUnknown { message },
-            RemoteError::Incompatible(_) => Self::RemoteIncompatible { message },
+            RemoteError::Incompatible(_) | RemoteError::IncompatiblePeer { .. } => {
+                Self::RemoteIncompatible { message }
+            }
             RemoteError::Identity(_) | RemoteError::IdentityMismatch { .. } => {
                 Self::RemoteIdentity { message }
             }
@@ -218,8 +227,17 @@ fn saved_path(app: &AppHandle) -> Result<PathBuf, CommandError> {
 }
 fn save(app: &AppHandle) -> Result<(), CommandError> {
     let state = app.state::<AppState>();
-    let bytes = serde_json::to_vec_pretty(&*state.remotes.saved.lock_ok()).map_err(failure)?;
-    let path = saved_path(app)?;
+    write_saved(&state.remotes.save, &state.remotes.saved, &saved_path(app)?)
+}
+/// Serializes, writes and renames under `lock`, so the file on disk is always one whole
+/// snapshot and a later snapshot is never replaced by an earlier one.
+fn write_saved(
+    lock: &Mutex<()>,
+    saved: &Mutex<BTreeMap<HostId, SavedHost>>,
+    path: &std::path::Path,
+) -> Result<(), CommandError> {
+    let _writing = lock.lock_ok();
+    let bytes = serde_json::to_vec_pretty(&*saved.lock_ok()).map_err(failure)?;
     let tmp = path.with_extension("json.tmp");
     use std::io::Write;
     let mut opts = std::fs::OpenOptions::new();

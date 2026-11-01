@@ -180,6 +180,7 @@ pub(super) async fn register_new(
             config: config.clone(),
             record,
             command,
+            last_agent_version: None,
         },
     )?;
     if let Err(error) = save(app) {

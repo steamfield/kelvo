@@ -44,6 +44,8 @@ export interface SidebarEntry {
   value?: string | undefined;
   /** The user switched the module off: listed dimmed, without a value. */
   disabled?: boolean;
+  /** Something here needs the user ("2 hosts need updates"); shown as a count. */
+  attention?: { count: number; label: string } | undefined;
 }
 
 export interface SidebarStatus {
@@ -119,6 +121,17 @@ function SidebarItem({
       <span className="flex-1 truncate text-[13px] max-sm:sr-only">
         {entry.label}
       </span>
+      {entry.attention && (
+        <>
+          <span className="sr-only">, {entry.attention.label}</span>
+          <span
+            aria-hidden
+            className="figures rounded-full border border-border px-1.5 font-normal text-[10px] text-fg-subtle leading-4 max-sm:absolute max-sm:top-1 max-sm:right-1 max-sm:size-1.5 max-sm:border-0 max-sm:bg-fg-subtle max-sm:p-0 max-sm:text-[0px]"
+          >
+            {entry.attention.count}
+          </span>
+        </>
+      )}
       {!entry.disabled && entry.value && (
         <span className="figures min-w-9 text-right font-normal text-[11px] text-muted-foreground max-sm:hidden">
           {entry.value}

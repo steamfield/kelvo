@@ -213,6 +213,8 @@ export const hostKeys = {
   list: () => [...hostKeys.all, "list"] as const,
   remote: () => [...hostKeys.all, "remote"] as const,
   updates: (hostId: HostId) => [...hostKeys.all, hostId, "updates"] as const,
+  /** The dashboard host-update notice the user dismissed (D-123). */
+  updateNotice: () => [...hostKeys.all, "update-notice"] as const,
   detail: (hostId: HostId) => [...hostKeys.all, hostId, "record"] as const,
   capabilities: (hostId: HostId) =>
     [...hostKeys.all, hostId, "capabilities"] as const,

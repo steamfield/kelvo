@@ -63,6 +63,9 @@ export const commands = {
 	/**  Every host, the local one first. */
 	listHosts: () => __TAURI_INVOKE<HostRecord[]>("list_hosts"),
 	listRemoteHosts: () => __TAURI_INVOKE<RemoteHostRecord[]>("list_remote_hosts"),
+	/**  The host-update notice the user last dismissed, as `{variant}:{version}` (D-123). */
+	hostUpdateNoticeDismissed: () => typedError<string | null, CommandError>(__TAURI_INVOKE("host_update_notice_dismissed")),
+	dismissHostUpdateNotice: (key: string) => typedError<null, CommandError>(__TAURI_INVOKE("dismiss_host_update_notice", { key })),
 	getRemoteUpdateStatus: (id: string) => typedError<RemoteUpdateStatus, CommandError>(__TAURI_INVOKE("get_remote_update_status", { id })),
 	setRemoteUpdatePolicy: (id: string, checkUpdates: boolean, autoInstallUpdates: boolean) => typedError<RemoteUpdateStatus, CommandError>(__TAURI_INVOKE("set_remote_update_policy", { id, checkUpdates, autoInstallUpdates })),
 	remoteSshConfigStatus: () => typedError<RemoteSshConfigStatus, CommandError>(__TAURI_INVOKE("remote_ssh_config_status")),
@@ -398,6 +401,27 @@ export const USAGE_KEEP_MS = 3610000 as const;
 export const USAGE_PROCESS_PAGE_MAX = 100 as const;
 
 /* Types */
+/**
+ *  A host's installed Kelvo against the version this Mac bundles, which is the newest
+ *  this Mac can install there (D-123).
+ */
+export type AgentUpdate =
+/**  No version was ever reported. */
+{ kind: "unknown" } | { kind: "up_to_date"; installed: string } | { kind: "available"; installed: string; target: string; via: AgentUpdateVia } |
+/**
+ *  The host's protocol is incompatible: it cannot reconnect until it is upgraded
+ *  from this Mac (D-119).
+ */
+{ kind: "required"; installed: string; target: string; via: AgentUpdateVia } |
+/**  The host is ahead; it is never downgraded. Updating this Mac catches up. */
+{ kind: "newer_than_this"; installed: string };
+
+/**
+ *  How a host gets this Mac's version: a Linux agent is pushed in place ("Update
+ *  agent"); a Mac is reinstalled from Add host.
+ */
+export type AgentUpdateVia = "push" | "add_host";
+
 /**  Why an alert fired. */
 export type AlertCause = { type: "process_cpu"; process: string; cpu_pct: number | null } | { type: "thermal_state"; state: ThermalState };
 
@@ -2409,13 +2433,10 @@ export type RemoteHostStatus = {
 	clock_offset_ms: number | null,
 	cpu_pct: number | null,
 	memory_pct: number | null,
-	/**  The version the host last reported (`Hello.app_version`). */
+	/**  The version the host last reported (`Hello.app_version`), kept across restarts. */
 	agent_version: string | null,
-	/**
-	 *  A Linux host whose agent is older than the one this build bundles; the host
-	 *  list offers "Update agent".
-	 */
-	update_available: boolean,
+	/**  How the host's Kelvo compares with the one this Mac can install (D-123). */
+	agent_update: AgentUpdate,
 	/**
 	 *  The id the host answered with when it is not the paired one. The host list
 	 *  offers "Re-pair as a new host" (D-116).

@@ -1,7 +1,8 @@
 import type { UpdateStatus } from "@core/generated/bindings";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SettingsRow } from "~/components/settings-row";
 import { Button } from "~/components/ui/button";
+import { useLocalUpdateStatus } from "~/hooks/use-local-update-status";
 import { useTransport } from "~/lib/transport-context";
 import { version } from "../../../../../../package.json";
 
@@ -40,29 +41,8 @@ function updateMessage(status: UpdateStatus): string {
 
 export function UpdateRow() {
   const transport = useTransport();
-  const [status, setStatus] = useState<UpdateStatus>({ kind: "idle" });
+  const [status, setStatus] = useLocalUpdateStatus();
   const [pending, setPending] = useState(false);
-  useEffect(() => {
-    let active = true;
-    let receivedEvent = false;
-    const stop = transport.onUpdateStatusChanged((next) => {
-      receivedEvent = true;
-      if (active) setStatus(next);
-    });
-    transport
-      .getUpdateStatus()
-      .then((next) => {
-        if (active && !receivedEvent) setStatus(next);
-      })
-      .catch((error: unknown) => {
-        if (active && !receivedEvent)
-          setStatus({ kind: "failed", message: String(error) });
-      });
-    return () => {
-      active = false;
-      stop();
-    };
-  }, [transport]);
 
   const act = async () => {
     setPending(true);

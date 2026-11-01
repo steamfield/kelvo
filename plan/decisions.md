@@ -3897,3 +3897,45 @@ A detail-only trim reports `detail_before_ms` and leaves `earliest_ts_ms` at 0, 
 history notice ("History trimmed ... It starts ...") appears only when chart history
 was cut. Usage queries already report the trimmed span as pruned through
 `usage_recording_start.retained_from_ms`. Docker history keeps its own budget.
+
+## D-123: Hosts show their Kelvo version and a notice when they fall behind
+
+Date: 2026-11-01. Extends D-113 and D-119.
+
+Each host row shows the Kelvo version the host reported and, when it is behind, the
+version this Mac can install there. That version is this Mac's own build: "Update agent"
+pushes the bundled agent, and a Mac host is reinstalled from Add host. Rust owns the
+comparison (`RemoteHostStatus.agent_update`: `unknown`, `up_to_date`, `available`,
+`required`, `newer_than_this`), using the existing fail-open `older_version`. A host
+whose handshake is incompatible keeps the version it reported
+(`RemoteError::IncompatiblePeer`) and reads as `required`, the coordinated upgrade
+D-119 asks for. The last reported version is saved with the host, so an offline host
+still shows it after a restart, marked "last reported".
+
+Hosts behind this Mac show as a count on the Hosts sidebar entry, which cannot be
+dismissed, and as a one-line notice on every dashboard page except Hosts and Settings,
+linking to Hosts. Dismissing stores `{variant}:{version}` in the app's data directory
+(not in `GeneralSettings`, which the Linux agent shares), so the notice returns only for
+a new target version; another host falling behind on the same version shows in the
+count, not the notice. A host that can't connect has no dismiss. When this Mac has its
+own newer release on the way, the notice asks to update this Mac first and links to
+Settings: pushing the current agent would be repeated after the restart. This is the
+one place the app's own update appears outside the Settings row (D-113).
+
+"Update all" pushes to the Linux hosts in turn after a confirmation that lists them,
+skips offline hosts and reports one result list. The row shows the new version once the
+host reconnects; there is no per-host SSH polling of update policy. There is no system
+notification (a macOS click cannot route to a page) and no tray or popover marker,
+which would sit on the 1 Hz and idle-CPU paths for a rare event.
+
+## D-124: Tray-only engine core allocation ceiling is 11
+
+Date: 2026-11-01. Amends D-062 and D-094.
+
+The tray-only engine core ceiling in `perf-budget.json` (`trayOnly` and
+`trayOnlyHistoryOff`) is 11 allocations per tick, from 10. No code change made the engine
+more expensive: the same engine code passed the gate on 2026-11-01 and then measured
+10.12 to 10.57 in six of seven runs that day (9.82 in the other), with about 1,230
+processes running. The engine core's count follows how many processes and series the real
+collectors report, so a ceiling of 10 left no headroom on a busy machine. The window
+modes keep 12.

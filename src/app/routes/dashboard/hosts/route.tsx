@@ -2,7 +2,7 @@ import { formatBytes } from "@core/format";
 import type { CommandError, RemoteHostRecord } from "@core/generated/bindings";
 import { hostKeys } from "@core/query-keys";
 import { remoteErrorText, sshEndpointError } from "@core/remote-errors";
-import { connectionLabel } from "@core/remote-hosts";
+import { connectionLabel, localUpdateTarget } from "@core/remote-hosts";
 import { unwrap } from "@core/transport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -17,11 +17,14 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Switch } from "~/components/ui/switch";
+import { useLocalUpdateStatus } from "~/hooks/use-local-update-status";
 import { useRemoteHosts } from "~/hooks/use-remote-hosts";
 import { useHostSelection } from "~/lib/host-selection";
 import { useTransport } from "~/lib/transport-context";
+import { version } from "../../../../../package.json";
 import { AddHostDialog, HOST_INPUT } from "./_components/add-host-dialog";
 import { HostAgentActions } from "./_components/host-agent-actions";
+import { HostVersion } from "./_components/host-version";
 import { RemoteSetupError } from "./_components/remote-setup-error";
 import { RemoteUpdateSettings } from "./_components/remote-update-settings";
 import {
@@ -29,6 +32,8 @@ import {
   RemoveHostOptions,
 } from "./_components/remove-host-options";
 import { SshSetupHelp } from "./_components/ssh-setup-help";
+import { UpdateAllDialog } from "./_components/update-all-dialog";
+import { pushable, reachable } from "./_components/use-agent-update";
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Controller and presentation split tracked in architecture refactor package H.
 function HostSettings({
@@ -254,6 +259,11 @@ export default function HostsRoute() {
   const navigate = useNavigate();
   const remotes = useRemoteHosts();
   const [adding, setAdding] = useState(false);
+  const [updatingAll, setUpdatingAll] = useState(false);
+  const [localUpdate] = useLocalUpdateStatus();
+  const localTarget = localUpdateTarget(localUpdate);
+  const behind = remotes.data?.filter(pushable) ?? [];
+  const updatable = behind.filter(reachable).length;
   const [editing, setEditing] = useState<RemoteHostRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const show = (id: string) => {
@@ -275,7 +285,16 @@ export default function HostsRoute() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Hosts"
-        actions={<Button onClick={() => setAdding(true)}>Add host</Button>}
+        actions={
+          <div className="flex gap-2">
+            {updatable >= 2 && (
+              <Button variant="outline" onClick={() => setUpdatingAll(true)}>
+                Update all ({updatable})
+              </Button>
+            )}
+            <Button onClick={() => setAdding(true)}>Add host</Button>
+          </div>
+        }
       />
       <div className="divide-y divide-border-subtle border-border-subtle border-y">
         {local && (
@@ -284,6 +303,10 @@ export default function HostsRoute() {
               <h2 className="font-[590] text-[14px]">This Mac</h2>
               <p className="text-[12px] text-muted-foreground">
                 {local.display_name} · {local.info.chip ?? local.info.model}
+              </p>
+              <p className="figures mt-1 text-[12px] text-muted-foreground">
+                Kelvo {version}
+                {localTarget && ` · ${localTarget} available in Settings`}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => show(local.id)}>
@@ -319,12 +342,7 @@ export default function HostsRoute() {
                   </p>
                 )
               )}
-              {remote.status.update_available && (
-                <p className="mt-1 text-[12px] text-muted-foreground">
-                  Agent {remote.status.agent_version} · this Kelvo includes a
-                  newer one
-                </p>
-              )}
+              <HostVersion remote={remote} localTarget={localTarget} />
             </div>
             <dl className="figures flex gap-5 text-[12px]">
               <div>
@@ -395,6 +413,9 @@ export default function HostsRoute() {
         </p>
       )}
       {adding && <AddHostDialog open onOpenChange={setAdding} />}
+      {updatingAll && (
+        <UpdateAllDialog remotes={behind} close={() => setUpdatingAll(false)} />
+      )}
       {editing && (
         <HostSettings remote={editing} close={() => setEditing(null)} />
       )}

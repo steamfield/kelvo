@@ -11,6 +11,7 @@ import { useTransport } from "~/lib/transport-context";
 import { cn } from "~/lib/utils";
 import { HostStoreProvider, useHostId } from "~/stores/host-store";
 import { useSampling } from "~/stores/live-selectors";
+import { HostUpdateNotice } from "./_components/host-update-notice";
 import { LiveSidebar } from "./_components/live-sidebar";
 
 /**
@@ -89,36 +90,42 @@ export default function DashboardLayout() {
         <main
           ref={mainRef}
           data-stale={stale || undefined}
-          className={cn(
-            "min-w-0 flex-1 overflow-y-auto px-3 pt-5 pb-6 transition-opacity duration-(--motion-crossfade) sm:px-6",
-            pageEnter,
-            stale && "opacity-50"
-          )}
+          className="min-w-0 flex-1 overflow-y-auto px-3 pt-5 pb-6 sm:px-6"
         >
-          {remote && metricPage && (
-            <div
-              role="status"
-              className="mb-4 border-border-subtle border-b pb-3 text-[12px] text-muted-foreground"
-            >
-              {remote.config.name} · {connectionLabel(remote)}
-              {remote.status.state !== "connected" &&
-                " · live readings are stale; saved history remains available"}
-              {Math.abs(remote.status.clock_offset_ms ?? 0) >= 30000 &&
-                " · chart times follow this Mac’s clock"}
-              {remote.status.error && (
-                <p className="mt-1 text-destructive">{remote.status.error}</p>
-              )}
-            </div>
-          )}
-          {!metricPage && local && local.id !== hostId ? (
-            <HostClockContext.Provider value={localNow}>
-              <HostStoreProvider hostId={local.id}>
-                <Outlet />
-              </HostStoreProvider>
-            </HostClockContext.Provider>
-          ) : (
-            <Outlet />
-          )}
+          {/* About other hosts, so it isn't dimmed with this host's stale page. */}
+          {metricPage && <HostUpdateNotice />}
+          <div
+            className={cn(
+              "transition-opacity duration-(--motion-crossfade)",
+              pageEnter,
+              stale && "opacity-50"
+            )}
+          >
+            {remote && metricPage && (
+              <div
+                role="status"
+                className="mb-4 border-border-subtle border-b pb-3 text-[12px] text-muted-foreground"
+              >
+                {remote.config.name} · {connectionLabel(remote)}
+                {remote.status.state !== "connected" &&
+                  " · live readings are stale; saved history remains available"}
+                {Math.abs(remote.status.clock_offset_ms ?? 0) >= 30000 &&
+                  " · chart times follow this Mac’s clock"}
+                {remote.status.error && (
+                  <p className="mt-1 text-destructive">{remote.status.error}</p>
+                )}
+              </div>
+            )}
+            {!metricPage && local && local.id !== hostId ? (
+              <HostClockContext.Provider value={localNow}>
+                <HostStoreProvider hostId={local.id}>
+                  <Outlet />
+                </HostStoreProvider>
+              </HostClockContext.Provider>
+            ) : (
+              <Outlet />
+            )}
+          </div>
         </main>
       </div>
     </RangeNavigationProvider>

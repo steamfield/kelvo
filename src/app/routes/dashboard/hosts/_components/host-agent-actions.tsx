@@ -1,6 +1,5 @@
 import type { CommandError, RemoteHostRecord } from "@core/generated/bindings";
 import { hostKeys } from "@core/query-keys";
-import { remoteErrorText } from "@core/remote-errors";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,6 +13,7 @@ import {
 } from "~/components/ui/dialog";
 import { useTransport } from "~/lib/transport-context";
 import { RemoteSetupError } from "./remote-setup-error";
+import { pushable, useAgentUpdate, useAgentUpdating } from "./use-agent-update";
 
 /** Re-pairs a host that answers with a new identity, after saying what happens to the old one. */
 function RepairDialog({
@@ -83,33 +83,17 @@ export function HostAgentActions({
   remote: RemoteHostRecord;
   onError: (message: string | null) => void;
 }) {
-  const transport = useTransport();
-  const cache = useQueryClient();
-  const [updating, setUpdating] = useState(false);
+  const agentUpdate = useAgentUpdate();
+  const updating = useAgentUpdating(remote.config.id);
   const [repairing, setRepairing] = useState(false);
   const update = async () => {
-    setUpdating(true);
     onError(null);
-    try {
-      const result = await transport.updateRemoteAgent(remote.config.id);
-      if (result.status === "error") onError(remoteErrorText(result.error));
-      else
-        toast.success(
-          "Update requested. The host finishes the update independently; its settings show the result."
-        );
-      await cache.invalidateQueries({ queryKey: hostKeys.remote() });
-      await cache.invalidateQueries({
-        queryKey: hostKeys.updates(remote.config.id),
-      });
-    } catch (e) {
-      console.error("[remote hosts] agent update failed", {
-        hostId: remote.config.id,
-        error: e,
-      });
-      onError(String(e));
-    } finally {
-      setUpdating(false);
-    }
+    const error = await agentUpdate.mutateAsync(remote.config.id);
+    if (error) onError(error);
+    else
+      toast.success(
+        "Update requested. The host finishes the update independently; its settings show the result."
+      );
   };
   return (
     <>
@@ -118,7 +102,7 @@ export function HostAgentActions({
           Re-pair…
         </Button>
       )}
-      {remote.status.update_available && (
+      {pushable(remote) && (
         <Button
           size="sm"
           variant="outline"

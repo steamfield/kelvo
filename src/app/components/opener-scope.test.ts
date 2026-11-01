@@ -1,3 +1,4 @@
+import { releaseUrl } from "@core/remote-hosts";
 import capability from "../../../src-tauri/capabilities/default.json";
 import { COORDINATED_UPGRADE_GUIDE } from "../routes/dashboard/hosts/_components/remote-update-settings";
 import { sensorIssueUrl } from "./sensor-dump-dialog";
@@ -29,12 +30,19 @@ const openerEntries = capability.permissions.filter((p: Permission) =>
   (typeof p === "string" ? p : p.identifier).startsWith("opener:")
 );
 
+// A deny entry wins over every allow, as in Tauri's scope resolution.
 const allowed = (url: string) =>
   openerEntries.some(
     (p) =>
       typeof p !== "string" &&
       p.identifier === "opener:allow-open-url" &&
       p.allow.some((a) => globToRegExp(a.url).test(url))
+  ) &&
+  !openerEntries.some(
+    (p) =>
+      typeof p !== "string" &&
+      "deny" in p &&
+      (p.deny ?? []).some((d) => globToRegExp(d.url).test(url))
   );
 
 describe("opener capability scope", () => {
@@ -57,12 +65,17 @@ describe("opener capability scope", () => {
     ).toBe(false);
   });
 
+  it("allows release notes for a version the hosts page links", () => {
+    expect(allowed(releaseUrl("0.3.1") ?? "")).toBe(true);
+  });
+
   it("refuses every other URL", () => {
     for (const url of [
       "https://example.com/",
       "http://github.com/steamfield/kelvo/issues/new?labels=sensors&title=x",
       "https://github.com/someone/else/issues/new?labels=sensors&title=x",
       "https://github.com/steamfield/kelvo/settings",
+      "https://github.com/steamfield/kelvo/releases/tag/v1/../../../../someone/repo",
       "file:///etc/passwd",
       "mailto:someone@example.com",
     ]) {

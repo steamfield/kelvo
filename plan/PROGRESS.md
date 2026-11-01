@@ -4,6 +4,18 @@ This file tracks where Kelvo is against the plan. Task-level checkboxes live in 
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Host versions and update notices (2026-11-01, in review)
+
+After 0.3.1 the user found no way to see a host's version or which hosts still needed
+an update. D-123: host rows show the reported Kelvo version, the installable one, a
+"What's new" link and "Update all"; the Hosts sidebar entry carries a count; dashboard
+pages show a dismissible notice linking to Hosts (or to Settings when this Mac's own
+update is pending). Incompatible hosts keep their reported version and can be updated
+from the row. Mock scenarios `hosts-outdated`, `host-incompatible`, `host-newer`.
+Not built: a row state that waits for the host to reconnect on the target version
+after a request (the 5 s host poll shows the new version), and dismissal persisting
+across reloads in the browser mock (the native app stores it on disk).
+
 ## Release 0.3.1 (2026-11-01, draft)
 
 Tagged `v0.3.1` at `57e94d5` and created the draft

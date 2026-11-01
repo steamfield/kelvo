@@ -41,6 +41,9 @@ export type ScenarioName =
   | "linux-host"
   | "linux-agent-update"
   | "linux-identity-changed"
+  | "hosts-outdated"
+  | "host-incompatible"
+  | "host-newer"
   | "popover-compact"
   | "power-disabled"
   | "default"
@@ -99,6 +102,9 @@ export const SCENARIOS: readonly ScenarioName[] = [
   "linux",
   "linux-host",
   "linux-agent-update",
+  "hosts-outdated",
+  "host-incompatible",
+  "host-newer",
   "linux-identity-changed",
   "popover-compact",
   "power-disabled",

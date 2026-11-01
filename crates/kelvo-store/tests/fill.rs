@@ -286,8 +286,9 @@ fn thirty_days_fit_the_budget() {
     assert_eq!(m250.m15_rows, 23 * 24 * 4);
     assert!(m250.bytes <= BUDGET_150, "{} bytes after close", m250.bytes);
 
-    // A cap below what 250 series need: trim oldest history first, including minutes
-    // if quarters alone cannot meet the low-water mark. The last day stays intact.
+    // A cap below what 250 series need: process detail goes first (D-122). At this cap
+    // that alone meets the low-water mark, so every chart tier keeps its 30 days. The
+    // chart-trimming second phase is covered in disk_limits.rs.
     let cap = CAP_SMALL;
     let small = fill(
         250,
@@ -299,23 +300,23 @@ fn thirty_days_fit_the_budget() {
     report(250, &small);
     let trim = small.last_trim.expect("250 series hit the smaller cap");
     assert!(trim.cap_met);
+    assert_eq!(trim.earliest_ts_ms, 0, "chart history was not trimmed");
+    assert!(
+        trim.detail_before_ms.is_some(),
+        "process detail was trimmed"
+    );
     assert!(
         small.max_after_prune <= cap,
         "{} bytes right after a prune",
         small.max_after_prune
     );
     assert!(small.bytes <= cap, "{} bytes after close", small.bytes);
+    assert_eq!(small.m1_rows, m250.m1_rows, "minutes untouched");
+    assert_eq!(small.m15_rows, m250.m15_rows, "quarters untouched");
     assert!(
-        (0..m250.m15_rows).contains(&small.m15_rows),
-        "the oldest quarters were trimmed"
+        small.snaps < m250.snaps && small.top_rows < m250.top_rows,
+        "the oldest process detail was trimmed"
     );
-    assert!(
-        (24 * 60..=m250.m1_rows).contains(&small.m1_rows),
-        "at least the recent day of minutes is preserved"
-    );
-    if small.m1_rows < m250.m1_rows {
-        assert_eq!(small.m15_rows, 0, "quarters are trimmed before minutes");
-    }
     assert_eq!(small.s10_rows, m250.s10_rows, "recent 10 s rows untouched");
 }
 

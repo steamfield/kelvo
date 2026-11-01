@@ -31,11 +31,6 @@ pub fn list_remote_hosts(state: State<'_, AppState>) -> Vec<RemoteHostRecord> {
                         .map(|used| used / h.record.info.mem_total_bytes as f64 * 100.0);
                 }
             }
-            status.update_available = h.is_linux()
-                && status
-                    .agent_version
-                    .as_deref()
-                    .is_some_and(|v| older_version(v, env!("CARGO_PKG_VERSION")));
             RemoteHostRecord {
                 config: h.config.clone(),
                 os: h.record.info.os,
@@ -43,6 +38,81 @@ pub fn list_remote_hosts(state: State<'_, AppState>) -> Vec<RemoteHostRecord> {
             }
         })
         .collect()
+}
+
+fn notice_path(app: &AppHandle) -> Result<PathBuf, CommandError> {
+    Ok(data_dir(app)?.join("host-update-notice.json"))
+}
+
+/// The host-update notice the user last dismissed, as `{variant}:{version}` (D-123).
+#[tauri::command]
+#[specta::specta]
+pub fn host_update_notice_dismissed(app: AppHandle) -> Result<Option<String>, CommandError> {
+    match std::fs::read(notice_path(&app)?) {
+        Ok(bytes) => Ok(serde_json::from_slice(&bytes).ok()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(failure(e)),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn dismiss_host_update_notice(app: AppHandle, key: String) -> Result<(), CommandError> {
+    if key.len() > 64 {
+        return Err(CommandError::InvalidArgument {
+            message: "Notice key is too long".into(),
+        });
+    }
+    let bytes = serde_json::to_vec(&key).map_err(failure)?;
+    std::fs::write(notice_path(&app)?, bytes).map_err(failure)
+}
+
+/// `installed` against this build's version, the one this Mac can put on the host.
+pub(super) fn agent_update(
+    linux: bool,
+    installed: Option<&str>,
+    incompatible: bool,
+) -> AgentUpdate {
+    agent_update_against(env!("CARGO_PKG_VERSION"), linux, installed, incompatible)
+}
+
+/// [`older_version`] is fail-open, so a malformed version is offered the update, as
+/// "Update agent" always has been; the install path keeps its own no-downgrade guard.
+pub(super) fn agent_update_against(
+    this: &str,
+    linux: bool,
+    installed: Option<&str>,
+    incompatible: bool,
+) -> AgentUpdate {
+    let Some(installed) = installed else {
+        return AgentUpdate::Unknown;
+    };
+    let installed = installed.to_string();
+    let via = if linux {
+        AgentUpdateVia::Push
+    } else {
+        AgentUpdateVia::AddHost
+    };
+    if older_version(&installed, this) {
+        let target = this.to_string();
+        if incompatible {
+            AgentUpdate::Required {
+                installed,
+                target,
+                via,
+            }
+        } else {
+            AgentUpdate::Available {
+                installed,
+                target,
+                via,
+            }
+        }
+    } else if older_version(this, &installed) {
+        AgentUpdate::NewerThanThis { installed }
+    } else {
+        AgentUpdate::UpToDate { installed }
+    }
 }
 
 /// Whether dotted version `a` is older than `b`, numerically per component. A

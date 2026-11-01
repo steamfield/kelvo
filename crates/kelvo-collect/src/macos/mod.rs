@@ -1,7 +1,7 @@
 //! macOS collectors. Public-API collectors (`host_processor_info`, `host_statistics64`,
 //! routing-socket interface counters, IOKit registry reads, libproc, NSProcessInfo) live
 //! here; private-API collectors (IOReport, SMC, HID, NetworkStatistics) live in their own
-//! modules with their FFI confined there (.claude/rules/rust.md).
+//! modules with their FFI confined there (.claude/rules/rust/platform.md).
 
 pub mod battery;
 pub mod cpu;

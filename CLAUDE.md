@@ -43,7 +43,7 @@ plan/                      planning docs (owned by the planning process; read, d
 
 **Critical rules:**
 
-- Crate dependencies follow `scripts/architecture/crate-edges.json`, checked against Cargo metadata by `make architecture-check`. See `.claude/rules/rust.md` for ownership.
+- Crate dependencies follow `scripts/architecture/crate-edges.json`, checked against Cargo metadata by `make architecture-check`. See `.claude/rules/rust/crates.md` for ownership.
 - `src/core/` has no React imports. `src/app/widgets/**` is render-only: props in, no
   transport, stores, router or `@tauri-apps/*`. Biome (`noRestrictedImports` overrides) and a write hook both enforce this.
 - Rust types are the single source of truth for IPC. Regenerate `src/core/generated/`, never edit it.
@@ -64,7 +64,11 @@ Rules in `.claude/rules/` attach automatically by path. Read one directly when y
 | `rules/frontend/motion.md` | Motion tokens, streaming-chart motion, reduced motion, idle-CPU cost |
 | `rules/frontend/error-handling.md` | Typed command results, gaps vs errors, channel failures |
 | `rules/frontend/testing.md` | Mock transport, Playwright against the dev server, render-count tests |
-| `rules/rust.md` | Crate boundaries, thiserror/anyhow, no unwrap, cfg gating, private-API isolation |
+| `rules/rust/crates.md` | Crate boundaries and ownership, zero runtime deps, series data model |
+| `rules/rust/error-handling.md` | thiserror/anyhow split, `CommandError` mapping, no unwrap, poison-safe locks, ticks never panic |
+| `rules/rust/platform.md` | Private-API isolation, unsafe FFI, cfg gating, Linux portability |
+| `rules/rust/lints.md` | fmt, clippy, function and file size limits (D-112) |
+| `rules/rust/testing.md` | Test placement, codec skew tests, hardware-only tests |
 | `rules/generated-bindings.md` | tauri-specta output is generated; how to regenerate |
 | `rules/testing.md` | Scoped-run ladder, mocking boundaries, timing fakes, flake triage |
 | `rules/verification.md` | What "done" means: suites, screenshot comparison, measured perf claims |

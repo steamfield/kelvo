@@ -43,11 +43,10 @@ pub struct RemoteHostStatus {
     pub clock_offset_ms: f64,
     pub cpu_pct: Option<f64>,
     pub memory_pct: Option<f64>,
-    /// The version the host last reported (`Hello.app_version`).
+    /// The version the host last reported (`Hello.app_version`), kept across restarts.
     pub agent_version: Option<String>,
-    /// A Linux host whose agent is older than the one this build bundles; the host
-    /// list offers "Update agent".
-    pub update_available: bool,
+    /// How the host's Kelvo compares with the one this Mac can install (D-123).
+    pub agent_update: AgentUpdate,
     /// The id the host answered with when it is not the paired one. The host list
     /// offers "Re-pair as a new host" (D-116).
     pub identity_changed: Option<String>,
@@ -64,11 +63,48 @@ impl Default for RemoteHostStatus {
             cpu_pct: None,
             memory_pct: None,
             agent_version: None,
-            update_available: false,
+            agent_update: AgentUpdate::Unknown,
             identity_changed: None,
         }
     }
 }
+/// How a host gets this Mac's version: a Linux agent is pushed in place ("Update
+/// agent"); a Mac is reinstalled from Add host.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentUpdateVia {
+    Push,
+    AddHost,
+}
+
+/// A host's installed Kelvo against the version this Mac bundles, which is the newest
+/// this Mac can install there (D-123).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AgentUpdate {
+    /// No version was ever reported.
+    Unknown,
+    UpToDate {
+        installed: String,
+    },
+    Available {
+        installed: String,
+        target: String,
+        via: AgentUpdateVia,
+    },
+    /// The host's protocol is incompatible: it cannot reconnect until it is upgraded
+    /// from this Mac (D-119).
+    Required {
+        installed: String,
+        target: String,
+        via: AgentUpdateVia,
+    },
+    /// The host is ahead; it is never downgraded. Updating this Mac catches up.
+    NewerThanThis {
+        installed: String,
+    },
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 pub struct RemoteHostRecord {
     pub config: RemoteHostConfig,
