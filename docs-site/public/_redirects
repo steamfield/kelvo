@@ -1,0 +1,4 @@
+# The embedded demo's cards are real links to app routes (/dashboard/cpu).
+# A cmd-click or "open in new tab" from the demo opens that page of the demo
+# (mock builds honor ?route=), not a 404.
+/dashboard/*  /demo/index.html?window=dashboard&route=/dashboard/:splat  302

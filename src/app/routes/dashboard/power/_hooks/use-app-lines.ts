@@ -22,7 +22,7 @@ export interface AppLine {
 }
 
 export type AppLines =
-  /** Per-app energy is kept only on the Mac Kelvo runs on (D-093). */
+  /** Per-app energy is kept only on the Mac StatGlass runs on (D-093). */
   | { kind: "remote" }
   /** The host attributes no energy to processes (a Linux agent, D-116). */
   | { kind: "unmeasured" }

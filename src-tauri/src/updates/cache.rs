@@ -46,13 +46,13 @@ pub(super) fn save(app: &AppHandle, candidate: &Candidate) -> anyhow::Result<()>
         signature: candidate.signature.clone(),
     };
     write_private(
-        &directory(app)?.join("release.json"),
+        &directory(app)?.join("statglass-release.json"),
         &serde_json::to_vec(&metadata)?,
     )
 }
 
-pub(super) fn load(app: &AppHandle) -> anyhow::Result<Option<kelvo_update::VerifiedRelease>> {
-    let path = directory(app)?.join("release.json");
+pub(super) fn load(app: &AppHandle) -> anyhow::Result<Option<statglass_update::VerifiedRelease>> {
+    let path = directory(app)?.join("statglass-release.json");
     let bytes = match read_bounded(&path, 8 * 1024 * 1024) {
         Ok(bytes) => bytes,
         Err(error)
@@ -66,7 +66,7 @@ pub(super) fn load(app: &AppHandle) -> anyhow::Result<Option<kelvo_update::Verif
     };
     let metadata: Metadata =
         serde_json::from_slice(&bytes).context("reading cached update metadata")?;
-    Ok(Some(kelvo_update::verify_manifest(
+    Ok(Some(statglass_update::verify_manifest(
         &metadata.manifest,
         &metadata.signature,
     )?))

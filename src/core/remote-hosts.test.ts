@@ -113,10 +113,10 @@ describe("localUpdateTarget", () => {
 describe("agentVersionLine", () => {
   it("shows the installed and installable versions", () => {
     expect(agentVersionLine(behind, null)?.text).toBe(
-      "Kelvo 0.3.0 → 0.3.1 available"
+      "StatGlass 0.3.0 → 0.3.1 available"
     );
     expect(agentVersionLine(current, "0.3.2")?.text).toBe(
-      "Kelvo 0.3.1 · 0.3.2 after updating this Mac"
+      "StatGlass 0.3.1 · 0.3.2 after updating this Mac"
     );
     expect(agentVersionLine(host({ kind: "unknown" }), null)).toBeNull();
   });
@@ -124,7 +124,7 @@ describe("agentVersionLine", () => {
   it("marks an offline host's version as last reported", () => {
     const offline = host({ kind: "up_to_date", installed: "0.3.1" }, "offline");
     expect(agentVersionLine(offline, null)?.text).toBe(
-      "Kelvo 0.3.1 (last reported)"
+      "StatGlass 0.3.1 (last reported)"
     );
   });
 
@@ -135,7 +135,7 @@ describe("agentVersionLine", () => {
         null
       )
     ).toEqual({
-      text: "Kelvo 0.2.0 can’t connect to this version. Update it to 0.3.1.",
+      text: "StatGlass 0.2.0 can’t connect to this version. Update it to 0.3.1.",
       tone: "destructive",
     });
   });
@@ -154,7 +154,7 @@ describe("agentVersionLine", () => {
 describe("releaseUrl", () => {
   it("links only plain versions", () => {
     expect(releaseUrl("0.3.1")).toBe(
-      "https://github.com/steamfield/kelvo/releases/tag/v0.3.1"
+      "https://github.com/steamfield/statglass/releases/tag/v0.3.1"
     );
     expect(releaseUrl("0.3.1/../../settings")).toBeNull();
   });

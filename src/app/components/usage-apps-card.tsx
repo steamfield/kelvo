@@ -257,7 +257,7 @@ function UsageBody({
     <>
       {coverage.kind === "partial" && (
         <AppsNote>
-          Kelvo started counting at{" "}
+          StatGlass started counting at{" "}
           <span className="figures">
             {formatClockSeconds(coverage.sinceMs)}
           </span>
@@ -450,7 +450,7 @@ function Unrecorded({ sinceMs }: { sinceMs: number | null }) {
         "No process data for this range"
       ) : (
         <>
-          No process data · Kelvo started counting at{" "}
+          No process data · StatGlass started counting at{" "}
           <span className="figures">{formatClockSeconds(sinceMs)}</span>
         </>
       )}

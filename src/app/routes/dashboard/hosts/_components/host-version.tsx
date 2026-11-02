@@ -3,7 +3,7 @@ import { agentVersionLine, releaseUrl } from "@core/remote-hosts";
 import { useTransport } from "~/lib/transport-context";
 import { cn } from "~/lib/utils";
 
-/** The host's Kelvo version, what this Mac can install, and that release's notes. */
+/** The host's StatGlass version, what this Mac can install, and that release's notes. */
 export function HostVersion({
   remote,
   localTarget,

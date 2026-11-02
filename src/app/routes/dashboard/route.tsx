@@ -1,5 +1,4 @@
 import type { RemoteHostRecord } from "@core/generated/bindings";
-import { connectionLabel } from "@core/remote-hosts";
 import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { RangeNavigationProvider } from "~/hooks/use-range-navigation";
@@ -11,6 +10,7 @@ import { useTransport } from "~/lib/transport-context";
 import { cn } from "~/lib/utils";
 import { HostStoreProvider, useHostId } from "~/stores/host-store";
 import { useSampling } from "~/stores/live-selectors";
+import { HostConnectionNotice } from "./_components/host-connection-notice";
 import { HostUpdateNotice } from "./_components/host-update-notice";
 import { LiveSidebar } from "./_components/live-sidebar";
 
@@ -94,6 +94,9 @@ export default function DashboardLayout() {
         >
           {/* About other hosts, so it isn't dimmed with this host's stale page. */}
           {metricPage && <HostUpdateNotice />}
+          {remote && metricPage && (
+            <HostConnectionNotice key={hostId} remote={remote} />
+          )}
           <div
             className={cn(
               "transition-opacity duration-(--motion-crossfade)",
@@ -101,21 +104,6 @@ export default function DashboardLayout() {
               stale && "opacity-50"
             )}
           >
-            {remote && metricPage && (
-              <div
-                role="status"
-                className="mb-4 border-border-subtle border-b pb-3 text-[12px] text-muted-foreground"
-              >
-                {remote.config.name} · {connectionLabel(remote)}
-                {remote.status.state !== "connected" &&
-                  " · live readings are stale; saved history remains available"}
-                {Math.abs(remote.status.clock_offset_ms ?? 0) >= 30000 &&
-                  " · chart times follow this Mac’s clock"}
-                {remote.status.error && (
-                  <p className="mt-1 text-destructive">{remote.status.error}</p>
-                )}
-              </div>
-            )}
             {!metricPage && local && local.id !== hostId ? (
               <HostClockContext.Provider value={localNow}>
                 <HostStoreProvider hostId={local.id}>

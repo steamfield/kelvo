@@ -29,10 +29,12 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::Context;
-use kelvo_engine::{BusMsg, EngineParts, HousekeepingHandle, LocalSource, identity, retention_for};
-use kelvo_schema::lock::LockExt;
-use kelvo_schema::settings::Appearance;
-use kelvo_schema::{
+use statglass_engine::{
+    BusMsg, EngineParts, HousekeepingHandle, LocalSource, identity, retention_for,
+};
+use statglass_schema::lock::LockExt;
+use statglass_schema::settings::Appearance;
+use statglass_schema::{
     HostId, HostRecord, Module, ModuleCap, PerformanceReason, Settings, UnsupportedReason,
 };
 use tauri::{AppHandle, Manager, Theme};
@@ -55,10 +57,10 @@ use crate::settings::{
 };
 
 pub struct AppState {
-    pub docker: kelvo_engine::docker::DockerHandle,
+    pub docker: statglass_engine::docker::DockerHandle,
     pub docker_streams: crate::docker::DockerStreams,
     /// On-demand disk space scans; the report lives while the dashboard does.
-    pub disk_space: Arc<kelvo_engine::disk_space::SpaceService>,
+    pub disk_space: Arc<statglass_engine::disk_space::SpaceService>,
     /// The local host's id.
     pub local: HostId,
     pub hosts: HostRegistry,
@@ -85,7 +87,7 @@ impl AppState {
             .context("resolving the app data directory")?;
         let (history, id) = open_data_dir(&data_dir, identity::machine_binding);
         let local = id.id;
-        let record = kelvo_engine::host_record(local);
+        let record = statglass_engine::host_record(local);
         tracing::info!(
             host = %local,
             id_source = ?id.source,
@@ -96,7 +98,7 @@ impl AppState {
             "local host"
         );
 
-        let mut defaults = kelvo_schema::Settings::default();
+        let mut defaults = statglass_schema::Settings::default();
         #[cfg(target_os = "macos")]
         if let Some(unit) = crate::platform::temperature::default_unit() {
             defaults.units.temperature = unit;
@@ -143,7 +145,7 @@ impl AppState {
                 },
             )
             .context("starting history housekeeping")?;
-        let docker = kelvo_engine::docker::DockerHandle::new(
+        let docker = statglass_engine::docker::DockerHandle::new(
             local,
             current.docker.clone(),
             std::env::var_os("HOME")
@@ -185,10 +187,10 @@ impl AppState {
         source.seed_alert_history(recent_alerts(
             &state.history,
             local,
-            kelvo_engine::wall_ms(),
+            statglass_engine::wall_ms(),
         ));
         // Charts opened right after launch draw the hour before it from the store.
-        warm_live_ring(&state.history, &entry, local, kelvo_engine::wall_ms());
+        warm_live_ring(&state.history, &entry, local, statglass_engine::wall_ms());
         // Managed before the source starts, so the watcher always finds the state.
         app.manage(state);
         tauri::async_runtime::spawn(async move {
@@ -223,13 +225,13 @@ impl AppState {
 
     pub fn host_now(&self, host: HostId) -> i64 {
         if host == self.local {
-            kelvo_engine::wall_ms()
+            statglass_engine::wall_ms()
         } else {
             self.remotes.now_ms(host)
         }
     }
 
-    pub fn recent_rows(&self, host: HostId, from: i64, to: i64) -> Vec<kelvo_store::BucketRow> {
+    pub fn recent_rows(&self, host: HostId, from: i64, to: i64) -> Vec<statglass_store::BucketRow> {
         if host == self.local {
             self.host(host)
                 .map_or_else(|_| Vec::new(), |h| h.recent_rows(host, from, to))
@@ -280,7 +282,7 @@ impl AppState {
             }
             let health = self
                 .history
-                .reset_and_attach(kelvo_engine::wall_ms(), |history| {
+                .reset_and_attach(statglass_engine::wall_ms(), |history| {
                     for h in &hosts {
                         h.set_store(history.register_host(&h.record()));
                     }
@@ -387,7 +389,7 @@ impl SettingsEffects for ShellEffects<'_> {
         }
         if network_history_affecting(old, new) {
             // Per-app network bytes are recorded by this Mac's engine only (D-089).
-            let on = kelvo_engine::network_history_enabled(new);
+            let on = statglass_engine::network_history_enabled(new);
             for h in self.state.hosts.all() {
                 if h.record().is_local {
                     h.set_network_history(on);
@@ -421,19 +423,19 @@ impl SettingsEffects for ShellEffects<'_> {
     }
 }
 
-/// The alert events of the last [`kelvo_engine::detect::alert_history_ms`], which the
+/// The alert events of the last [`statglass_engine::detect::alert_history_ms`], which the
 /// engine seeds its alert cooldowns from so a restart does not re-fire a rule. Empty
 /// when history is unavailable or the read fails: the rules then start with no
 /// cooldown. One small indexed query at launch.
-fn recent_alerts(history: &History, host: HostId, now: i64) -> Vec<kelvo_schema::Event> {
+fn recent_alerts(history: &History, host: HostId, now: i64) -> Vec<statglass_schema::Event> {
     if !history.is_available() {
         return Vec::new();
     }
-    let from = now - kelvo_engine::detect::alert_history_ms();
+    let from = now - statglass_engine::detect::alert_history_ms();
     match history.read(|r| r.events(host, from, now.saturating_add(1))) {
         Ok(events) => events
             .into_iter()
-            .filter(|e| matches!(e.detail, kelvo_schema::EventDetail::Alert { .. }))
+            .filter(|e| matches!(e.detail, statglass_schema::EventDetail::Alert { .. }))
             .collect(),
         Err(e) => {
             tracing::warn!("reading recent alerts, alert cooldowns start fresh: {e:?}");
@@ -449,7 +451,7 @@ fn warm_live_ring(history: &History, entry: &HostEntry, host: HostId, now: i64) 
     if !history.is_available() {
         return;
     }
-    let query = kelvo_engine::ring_history_query(host, now);
+    let query = statglass_engine::ring_history_query(host, now);
     match history.read(|r| r.history(&query)) {
         Ok(result) => {
             let rows = entry.warm_ring(&result);
@@ -470,7 +472,7 @@ fn open_data_dir(
     // The plugin writes settings.json; one from before D-074 is tightened here. The store,
     // the host id and the calibration file see to their own.
     let settings = data_dir.join(crate::settings::SETTINGS_FILE);
-    if let Err(e) = kelvo_store::restrict(&settings) {
+    if let Err(e) = statglass_store::restrict(&settings) {
         tracing::warn!("restricting {}: {e}", settings.display());
     }
     (History::from_store(history), id)
@@ -504,7 +506,7 @@ fn apply_theme(app: &AppHandle, appearance: Appearance) {
 }
 
 /// After onboarding, the login item follows the setting even if it was changed outside
-/// Kelvo (System Settings > Login Items) or the app moved.
+/// StatGlass (System Settings > Login Items) or the app moved.
 fn reconcile_login_item(wanted: bool) {
     if let Some(registered) = platform::launch_at_login_registered()
         && registered != wanted
@@ -590,8 +592,8 @@ pub(crate) fn spawn_host_watcher(
 mod tests {
     use super::*;
     use crate::error::HistoryUnavailableReason;
-    use kelvo_engine::detect::Detectors;
-    use kelvo_schema::{
+    use statglass_engine::detect::Detectors;
+    use statglass_schema::{
         AlertCause, AlertRule, AlertSettings, DetectorThresholds, Event, EventDetail, SeriesKey,
         ThermalState, Tier,
     };
@@ -604,13 +606,13 @@ mod tests {
         const NOW: i64 = 1_800_000_000_000;
         const MIN: i64 = 60_000;
         let data_dir = std::env::temp_dir().join(format!(
-            "kelvo-shell-recent-alerts-{}-{}",
+            "statglass-shell-recent-alerts-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));
         let (history, id) = open_data_dir(&data_dir, |_| None);
         let writer = history
-            .register_host(&kelvo_engine::host_record(id.id))
+            .register_host(&statglass_engine::host_record(id.id))
             .unwrap();
         let alert = |ago: i64| Event {
             ts_ms: NOW - ago,
@@ -666,18 +668,18 @@ mod tests {
     /// A source that is never started: `warm_live_ring` only needs the entry's hub.
     struct Unstarted(HostRecord);
 
-    impl kelvo_engine::Source for Unstarted {
+    impl statglass_engine::Source for Unstarted {
         fn host(&self) -> HostRecord {
             self.0.clone()
         }
-        fn capabilities(&self) -> kelvo_schema::Capabilities {
-            kelvo_schema::Capabilities::default()
+        fn capabilities(&self) -> statglass_schema::Capabilities {
+            statglass_schema::Capabilities::default()
         }
         fn start(
             self: Arc<Self>,
-            _: kelvo_engine::SourceSink,
-        ) -> Result<kelvo_engine::SourceHandle, kelvo_engine::SourceError> {
-            Err(kelvo_engine::SourceError::AlreadyStarted)
+            _: statglass_engine::SourceSink,
+        ) -> Result<statglass_engine::SourceHandle, statglass_engine::SourceError> {
+            Err(statglass_engine::SourceError::AlreadyStarted)
         }
     }
 
@@ -691,12 +693,12 @@ mod tests {
         // Launch lands between ticks, as it always does in the field.
         const LAUNCH: i64 = 1_800_000_000_000 + 4_321;
         let data_dir = std::env::temp_dir().join(format!(
-            "kelvo-shell-warm-ring-{}-{}",
+            "statglass-shell-warm-ring-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));
         let (history, id) = open_data_dir(&data_dir, |_| None);
-        let record = kelvo_engine::host_record(id.id);
+        let record = statglass_engine::host_record(id.id);
         let writer = history.register_host(&record).unwrap();
 
         // The previous run: 90 minutes of buckets, quit 20 minutes before this launch.
@@ -708,7 +710,7 @@ mod tests {
         while ts < quit {
             let v = (ts / S10 % 100) as f32;
             writer
-                .write_bucket(kelvo_store::BucketRow {
+                .write_bucket(statglass_store::BucketRow {
                     host: id.id,
                     tier: Tier::S10,
                     bucket_ts: ts,
@@ -738,7 +740,7 @@ mod tests {
         let segs = crate::live::LiveFeed::hub(&*entry).backfill(i64::MIN);
         assert_eq!(segs.len(), 1, "one contiguous run of buckets");
         let seg = &segs[0];
-        assert_eq!(seg.layout.layout_no, kelvo_engine::WARM_LAYOUT_NO);
+        assert_eq!(seg.layout.layout_no, statglass_engine::WARM_LAYOUT_NO);
         assert_eq!(seg.interval_ms, 10_000, "the 10 s tier, not merged slots");
         let keys: Vec<String> = seg.layout.series.iter().map(|k| k.to_string()).collect();
         for k in ["cpu.total", "cpu.load{core=0}", "cpu.load{core=1}"] {
@@ -749,7 +751,7 @@ mod tests {
         assert_eq!(newest, quit);
         // The oldest row is inside the ring's hour before launch.
         assert!(
-            seg.start_ms >= LAUNCH - kelvo_engine::RING_SPAN_MS,
+            seg.start_ms >= LAUNCH - statglass_engine::RING_SPAN_MS,
             "{}",
             seg.start_ms
         );
@@ -767,12 +769,12 @@ mod tests {
     #[test]
     fn the_live_ring_stays_empty_without_history() {
         let data_dir = std::env::temp_dir().join(format!(
-            "kelvo-shell-warm-empty-{}-{}",
+            "statglass-shell-warm-empty-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));
         let (history, id) = open_data_dir(&data_dir, |_| None);
-        let record = kelvo_engine::host_record(id.id);
+        let record = statglass_engine::host_record(id.id);
         history.register_host(&record).unwrap();
         let registry = HostRegistry::new();
         let entry = registry.insert(record.clone(), Arc::new(Unstarted(record)));
@@ -791,13 +793,13 @@ mod tests {
     #[test]
     fn an_unusable_data_dir_runs_live_only_with_an_in_memory_id() {
         let parent = std::env::temp_dir().join(format!(
-            "kelvo-shell-data-dir-{}-{}",
+            "statglass-shell-data-dir-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));
         std::fs::create_dir_all(&parent).unwrap();
         std::fs::write(parent.join("file"), "").unwrap();
-        let data_dir = parent.join("file").join("Kelvo");
+        let data_dir = parent.join("file").join("StatGlass");
 
         let (history, id) = open_data_dir(&data_dir, |_| None);
         assert!(!history.is_available());
@@ -825,16 +827,16 @@ mod tests {
 
     const PRIVATE_FILES: [&str; 3] = ["history.sqlite", "history.sqlite.lock", "host-id"];
 
-    /// D-074: the data directory holds usage history, so it and what Kelvo writes in it
+    /// D-074: the data directory holds usage history, so it and what StatGlass writes in it
     /// are owner-only, and a directory from before is tightened on launch.
     #[test]
     fn the_data_dir_and_its_files_are_owner_only() {
         let parent = std::env::temp_dir().join(format!(
-            "kelvo-shell-data-perms-{}-{}",
+            "statglass-shell-data-perms-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));
-        let data_dir = parent.join("Kelvo");
+        let data_dir = parent.join("StatGlass");
         let (history, id) = open_data_dir(&data_dir, |_| None);
         assert!(history.is_available() && id.persisted);
         assert_eq!(mode(&data_dir), 0o700);

@@ -134,7 +134,7 @@ mod macos {
             release: None,
             description: None,
         };
-        let name = CFString::new("Kelvo remote route notifications");
+        let name = CFString::new("StatGlass remote route notifications");
         // SAFETY: CF inputs and context stay alive throughout the registration; NULL
         // allocator is the default allocator, callback signature matches the SDK.
         let store = unsafe {
@@ -148,7 +148,7 @@ mod macos {
         // SAFETY: static NUL-terminated label; NULL attributes request a serial queue.
         let queue = unsafe {
             dispatch_queue_create(
-                c"com.tryopendata.kelvo.remote-network".as_ptr(),
+                c"com.tryopendata.statglass.remote-network".as_ptr(),
                 ptr::null_mut(),
             )
         };

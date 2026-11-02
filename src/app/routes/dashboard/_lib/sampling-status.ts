@@ -16,6 +16,8 @@ export function samplingStatus(s: {
   connection?: "connecting" | "live" | "reconnecting";
 }): StatusPillProps {
   if (s.paused) return { state: "paused", label: "Paused" };
+  if (s.connection === "connecting")
+    return { state: "stale", label: "Connecting" };
   if (s.connection === "reconnecting")
     return { state: "stale", label: "Reconnecting" };
   if (s.stale) return { state: "stale", label: "Stale" };

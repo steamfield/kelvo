@@ -2,7 +2,7 @@
 """Check the bundled Linux agent binaries before they ship (plan Milestone C).
 
 Each file must be a 64-bit little-endian ELF for the architecture its name says
-(`kelvo-agent-<triple>`), statically linked (no PT_INTERP), and every PT_LOAD segment
+(`statglass-agent-<triple>`), statically linked (no PT_INTERP), and every PT_LOAD segment
 must be aligned to at least the largest page size that architecture runs with. aarch64
 kernels use 4K, 16K (Asahi) or 64K pages; a segment aligned below the page size fails
 to load (`ELF load command address/offset not page-aligned`), so aarch64 needs 0x10000
@@ -45,7 +45,7 @@ def check(path: Path) -> list[str]:
     name, prefix, min_align = machine
 
     errors = []
-    triple = path.name.removeprefix("kelvo-agent-")
+    triple = path.name.removeprefix("statglass-agent-")
     if triple != path.name and not triple.startswith(prefix):
         errors.append(f"{path}: is {name}, but the file name says {triple}")
 

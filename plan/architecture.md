@@ -27,27 +27,27 @@ Related docs: [README](README.md), [decisions](decisions.md), [design system](de
 The repository is a Cargo workspace plus a Bun/React app. Shared collection, storage, history and remote services live in `crates/`; `src-tauri/` adapts them to macOS windows, IPC and application lifecycle. The Mac-to-Mac remote path is implemented; the headless Linux agent and WidgetKit extension remain planned.
 
 ```
-kelvo/
+statglass/
   Cargo.toml                workspace root (members: crates/*, src-tauri)
   plan/                     planning docs
   crates/
-    kelvo-schema/          metric catalog, SeriesKey, HostInfo, Capabilities, alert-rule data, typed Snapshot view
-    kelvo-proto/           framing, CBOR codec, handshake, message types
-    kelvo-collect/         Collector trait; macos/ (sysinfo, IOReport, SMC/HID, IOKit, NetworkStatistics); linux/ (v4)
-    kelvo-store/           series interning, layouts, tier tables, gaps, cursors, queries, pruning
-    kelvo-engine/          sampler loop, Ticker + PowerSignals traits, accumulators, detectors, alerts, bus
-    kelvo-remote/          SSH sessions, protocol server/client, isolated mirror synchronization
-    kelvo-remote-helper/   bundled stdio-to-local-socket bridge
-    kelvo-agent/           (future v4, not a workspace member) headless collector binary
+    statglass-schema/          metric catalog, SeriesKey, HostInfo, Capabilities, alert-rule data, typed Snapshot view
+    statglass-proto/           framing, CBOR codec, handshake, message types
+    statglass-collect/         Collector trait; macos/ (sysinfo, IOReport, SMC/HID, IOKit, NetworkStatistics); linux/ (v4)
+    statglass-store/           series interning, layouts, tier tables, gaps, cursors, queries, pruning
+    statglass-engine/          sampler loop, Ticker + PowerSignals traits, accumulators, detectors, alerts, bus
+    statglass-remote/          SSH sessions, protocol server/client, isolated mirror synchronization
+    statglass-remote-helper/   bundled stdio-to-local-socket bridge
+    statglass-agent/           (future v4, not a workspace member) headless collector binary
   src-tauri/                app shell: HostRegistry, LocalSource, settings/layout owner, tray, windows, commands
   src/
     core/                   plain TypeScript, no React
     app/                    React
-  native/KelvoWidgets/     (v2.2) Swift WidgetKit extension, Xcode project
+  native/StatGlassWidgets/     (v2.2) Swift WidgetKit extension, Xcode project
   scripts/
     perf.sh                 engine CPU gate (make perf)
     bench-coalition.sh      whole-app CPU and footprint per scenario (make bench)
-    bench-vs-stats.sh       tray-only Kelvo vs Stats (make bench-vs-stats)
+    bench-vs-stats.sh       tray-only StatGlass vs Stats (make bench-vs-stats)
 ```
 
 ## Crates and dependency direction
@@ -62,18 +62,18 @@ This diagram shows current normal dependencies, with arrows from dependency to c
 
 ```mermaid
 flowchart LR
-  schema[kelvo-schema] --> proto[kelvo-proto]
-  schema --> collect[kelvo-collect]
-  schema --> store[kelvo-store]
-  schema --> engine[kelvo-engine]
+  schema[statglass-schema] --> proto[statglass-proto]
+  schema --> collect[statglass-collect]
+  schema --> store[statglass-store]
+  schema --> engine[statglass-engine]
   collect --> engine
   store --> engine
-  schema --> remote[kelvo-remote]
+  schema --> remote[statglass-remote]
   proto --> remote
   store --> remote
   engine --> remote
-  remote --> helper[kelvo-remote-helper]
-  schema --> shell[src-tauri kelvo]
+  remote --> helper[statglass-remote-helper]
+  schema --> shell[src-tauri statglass]
   proto --> shell
   store --> shell
   engine --> shell
@@ -82,15 +82,15 @@ flowchart LR
 
 | Crate | Owns | Must not |
 |---|---|---|
-| `kelvo-schema` | Metric catalog (IDs, units, kinds), `SeriesKey`, `Labels`, `HostId`, `HostInfo`, `Capabilities`, `Entitlement`, alert rule data, the `Snapshot` view and its builder, the documented 2^53 bound on integers sent to JS | Do I/O, depend on tokio, depend on any OS API |
-| `kelvo-proto` | Length-prefixed framing, CBOR encode/decode via `ciborium`, `Message` enum, handshake and version negotiation, skew fixtures | Know about SQLite or collectors |
-| `kelvo-collect` | `Collector` trait, per-OS collector sets, IOReport delta logic (vendored from macmon), SMC/HID, sysinfo wrappers | Write to the store, hold timers, decide cadence on its own |
-| `kelvo-store` | SQLite schema and migrations, the single writer, read connections, series and layout interning, tier tables, gaps, process tables, events, cursors, pruning, budget enforcement | Sample anything, talk to the webview |
-| `kelvo-engine` | Sampler loop, `Ticker` and `PowerSignals` traits, cadence scheduling, 1s ring buffer, rollup accumulators, event detectors, alert evaluation, the bus; history housekeeping (`Housekeeping`: the prune schedule, the low-disk check, `HistoryHealth`), `HistoryStore` lifecycle and generation-safe reader/reset ownership, persisted/recent query merging, and process view shaping (`ProcessView`, `select_processes`) | Know about Tauri or windows |
-| `kelvo-remote` | SSH setup/session protocol, client/server state, `Mirror` durable cursors and transient recent rows, typed mirror failures | Depend on Tauri or windows |
-| `kelvo-remote-helper` | Bundled stdio-to-local-socket bridge for the running Mac app | Become a second collector or database writer |
+| `statglass-schema` | Metric catalog (IDs, units, kinds), `SeriesKey`, `Labels`, `HostId`, `HostInfo`, `Capabilities`, `Entitlement`, alert rule data, the `Snapshot` view and its builder, the documented 2^53 bound on integers sent to JS | Do I/O, depend on tokio, depend on any OS API |
+| `statglass-proto` | Length-prefixed framing, CBOR encode/decode via `ciborium`, `Message` enum, handshake and version negotiation, skew fixtures | Know about SQLite or collectors |
+| `statglass-collect` | `Collector` trait, per-OS collector sets, IOReport delta logic (vendored from macmon), SMC/HID, sysinfo wrappers | Write to the store, hold timers, decide cadence on its own |
+| `statglass-store` | SQLite schema and migrations, the single writer, read connections, series and layout interning, tier tables, gaps, process tables, events, cursors, pruning, budget enforcement | Sample anything, talk to the webview |
+| `statglass-engine` | Sampler loop, `Ticker` and `PowerSignals` traits, cadence scheduling, 1s ring buffer, rollup accumulators, event detectors, alert evaluation, the bus; history housekeeping (`Housekeeping`: the prune schedule, the low-disk check, `HistoryHealth`), `HistoryStore` lifecycle and generation-safe reader/reset ownership, persisted/recent query merging, and process view shaping (`ProcessView`, `select_processes`) | Know about Tauri or windows |
+| `statglass-remote` | SSH setup/session protocol, client/server state, `Mirror` durable cursors and transient recent rows, typed mirror failures | Depend on Tauri or windows |
+| `statglass-remote-helper` | Bundled stdio-to-local-socket bridge for the running Mac app | Become a second collector or database writer |
 | `src-tauri` | `HostRegistry`, `LocalSource`, settings and layout ownership, tray rendering, popover panel, window and channel lifecycle, commands and events (tauri-specta) | Contain metric logic that the agent would also need |
-| `kelvo-agent` (v4) | `serve --stdio`, install/update self, user-level launchd/systemd unit | Depend on Tauri |
+| `statglass-agent` (v4) | `serve --stdio`, install/update self, user-level launchd/systemd unit | Depend on Tauri |
 
 The shell keeps IPC conversion, installation/window actions and application lifetime;
 services own reusable behavior and are tested without a webview. `HistoryStore` in engine
@@ -120,7 +120,7 @@ The reason is that the set of things we measure changes underneath us. Disks and
 The typed `Snapshot` is a convenience view built from series. The UI and the tray consume it because `snap.cpu.total` is nicer than a lookup. It is never stored or synced. If the Snapshot shape changes, no data on disk or on the wire changes.
 
 ```rust
-// kelvo-schema
+// statglass-schema
 
 /// Dotted, stable, lowercase. Never reused for a different meaning.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -150,7 +150,7 @@ pub static CATALOG: &[MetricDef] = &[ /* ... */ ];
 ```
 
 ```rust
-// kelvo-store (interned forms; never leave the DB)
+// statglass-store (interned forms; never leave the DB)
 
 pub struct SeriesId(pub u32);
 pub struct LayoutId(pub u32);
@@ -164,7 +164,7 @@ pub struct Layout {
 ```
 
 ```rust
-// kelvo-schema: the view, built from one frame of series values
+// statglass-schema: the view, built from one frame of series values
 
 pub struct Snapshot {
     pub host: HostId,
@@ -206,7 +206,7 @@ v1 has exactly one host, so this looks like overhead. The point is that every co
 Inside SQLite the UUID is interned to a small integer (`HostRef`) to keep rows compact, the same way series are interned. `HostRef` never leaves the database.
 
 ```rust
-// kelvo-schema
+// statglass-schema
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub struct HostId(pub Uuid);
 
@@ -243,14 +243,14 @@ pub struct HostInfo {
 
 ### 3. Wire format and version skew (one-way door)
 
-`kelvo-proto` defines length-prefixed frames (u32 big-endian length, then a CBOR body via `ciborium`). A connection starts with a handshake that exchanges protocol version, host identity, DB instance UUID and capabilities. Frames carry series-model data, and a receiver ignores any `metric_id` it does not know. That combination lets a v4.3 controller talk to a v4.1 agent and the reverse.
+`statglass-proto` defines length-prefixed frames (u32 big-endian length, then a CBOR body via `ciborium`). A connection starts with a handshake that exchanges protocol version, host identity, DB instance UUID and capabilities. Frames carry series-model data, and a receiver ignores any `metric_id` it does not know. That combination lets a v4.3 controller talk to a v4.1 agent and the reverse.
 
 CBOR was picked over JSON because frames are numeric-heavy and sent every second over SSH, and over protobuf because serde derive keeps the types in one place without a codegen step. It is self-describing, so an old decoder can skip fields it does not know.
 
 The webview never sees CBOR. It gets JSON through tauri-specta. That means nothing in the normal app exercises the codec until v4, which is why a codec round-trip and skew test runs in CI from v1: fixtures encoded by the previous release are decoded by current code, and fixtures from current code are decoded by a pinned copy of the previous decoder.
 
 ```rust
-// kelvo-proto
+// statglass-proto
 
 pub const PROTO_VERSION: u16 = 1;
 pub const MIN_COMPATIBLE: u16 = 1;
@@ -336,7 +336,7 @@ The live stream is ephemeral and carries no `seq`. Timestamps come from the agen
 v1 uses none of this over a network, but v1 writes `seq` on every row and creates `db_instance_uuid` at DB creation. Adding `seq` to an existing populated table later means a backfill that has no correct answer for ordering.
 
 ```rust
-// kelvo-schema
+// statglass-schema
 pub enum Tier { Live1s, S10, M1, M15, Unknown }   // S10, M1 and M15 are persisted and synced
 
 pub struct Cursor {
@@ -344,7 +344,7 @@ pub struct Cursor {
     pub seq: i64,
 }
 
-// kelvo-proto
+// statglass-proto
 pub struct SyncRequest {
     pub tier: Tier,
     pub after: Option<Cursor>,   // None = from earliest
@@ -370,12 +370,12 @@ A `Source` is anything that produces data for one host. Sources push live frames
 This puts the abstraction at the right layer. If instead the UI queried "a source" for history, every fleet card and every Timeline scroll on a remote host would be an SSH round trip, and an offline host would show nothing. With sources as producers, an offline host still has its mirrored history, and the fleet view is a local query.
 
 `LocalSource` wraps the in-process engine. The implemented Mac `RemoteSource` speaks
-`kelvo-proto` through a bundled SSH helper to the other Mac's app and writes to an
-isolated mirror per host (D-104), not the local store. A standalone `kelvo-agent`
+`statglass-proto` through a bundled SSH helper to the other Mac's app and writes to an
+isolated mirror per host (D-104), not the local store. A standalone `statglass-agent`
 remains part of the broader v4 roadmap.
 
 ```rust
-// src-tauri (trait lives in kelvo-engine so the agent can reuse it)
+// src-tauri (trait lives in statglass-engine so the agent can reuse it)
 
 pub trait Source: Send + Sync + 'static {
     fn host(&self) -> HostRecord;
@@ -407,7 +407,7 @@ The engine never calls a timer API or a power API directly. It takes a `Ticker` 
 Collectors are `cfg(target_os)`-gated, and each declares its cadence and the entitlements it needs. The second part matters for the App Store question in v3: a sandboxed build can drop collectors at registration time and the UI shows "not available in this edition" through the normal capabilities path.
 
 ```rust
-// kelvo-engine
+// statglass-engine
 pub trait Ticker: Send + 'static {
     /// Blocks until the next tick.
     fn next(&mut self) -> Tick;
@@ -443,7 +443,7 @@ pub enum PowerEvent {
 ```
 
 ```rust
-// kelvo-collect
+// statglass-collect
 pub trait Collector: Send + 'static {
     fn id(&self) -> CollectorId;
     fn cadence(&self) -> Cadence;
@@ -480,10 +480,10 @@ pub enum Entitlement {
 
 ### 7. Alerts and detectors live in the engine
 
-Event detectors (fans ramped, thermal state change, sustained process, power spike) and alert rules evaluate series keys inside the engine, not in the UI. Rule definitions are plain serializable data in `kelvo-schema`. That way the same rule runs on the local engine in v1.2 and on a remote agent in v4, where the controller pushes rule data to the agent and the agent forwards fired alerts.
+Event detectors (fans ramped, thermal state change, sustained process, power spike) and alert rules evaluate series keys inside the engine, not in the UI. Rule definitions are plain serializable data in `statglass-schema`. That way the same rule runs on the local engine in v1.2 and on a remote agent in v4, where the controller pushes rule data to the agent and the agent forwards fired alerts.
 
 ```rust
-// kelvo-schema
+// statglass-schema
 pub struct AlertRule {
     pub id: Uuid,
     pub name: String,
@@ -543,7 +543,7 @@ Capabilities are not fixed at startup. An eGPU is unplugged, a disk is ejected, 
 | A collector exists but the chip is not recognised | The unknown-chip state with "Share sensor dump" |
 
 ```rust
-// kelvo-schema
+// statglass-schema
 #[derive(Clone, Serialize, Deserialize, specta::Type)]
 pub struct Capabilities {
     pub modules: BTreeMap<Module, ModuleCap>,
@@ -748,7 +748,7 @@ The target is at most 150 MB for 30 days on one host. Before D-076 the dominant 
 
 That fits under 150 MB with little room, and it tells us where the knobs are. If a machine produces 200 series, M1 alone goes to about 118 MB. The levers, in the order we would reach for them: drop `min` and `max` from the M1 tier for series where the UI only draws the average (saves a third), store min/max as f16 (unverified that the precision is acceptable for temperatures), cap per-core series in M1 to cluster aggregates on very wide hosts, or try a larger `page_size` to reduce slack (unverified gain). The settings page shows the real size on disk, and retention is configurable, so a user can also trade days for bytes.
 
-The synthetic fill test writes 30 days of buckets for a 150-series and a 250-series layout through the real writer, runs pruning, and asserts file size. It runs in CI. Measured with 16 KiB pages (D-057): 139.7 MB for 150 series and 203.4 MB for 250 series before any cap. With the 15-minute tier (D-076: 7 days of minutes, 23 days of 15-minute rows) the same fill measures 69.9 MB for 150 series and 95.7 MB for 250 series. With per-app network history (D-089, 25 apps per bucket) it measures 89.2 MB and 115.0 MB, neither near the cap; what remains is mostly 7 days of minutes, 24 h of 10 s buckets, 72 h of snapshots and the `proc_net_*` tables. Retention is still backed by a hard 150 MB cap including the WAL: when time-based pruning leaves the file over it, the oldest history (15-minute rows first, then minutes, on 15-minute boundaries) is trimmed to 90% of the cap, and the 10 s tier pauses while the disk is almost full. The fill test's third run puts a 111 MB cap on 250 series (92 MB before D-089) to keep that path exercised at scale. The store does the pruning and holds the low-disk guard; `kelvo-engine`'s `Housekeeping` thread decides when they run (first prune 2 min after launch, then hourly or when the retention or limit changes; a free-space check every 5 min) and turns the results into `HistoryHealth`. The app shell starts it and maps that health to its IPC type and the `history-health-changed` event; a v4 agent starts the same thing. The data directory is 0700 and every file Kelvo writes in it 0600 (D-074).
+The synthetic fill test writes 30 days of buckets for a 150-series and a 250-series layout through the real writer, runs pruning, and asserts file size. It runs in CI. Measured with 16 KiB pages (D-057): 139.7 MB for 150 series and 203.4 MB for 250 series before any cap. With the 15-minute tier (D-076: 7 days of minutes, 23 days of 15-minute rows) the same fill measures 69.9 MB for 150 series and 95.7 MB for 250 series. With per-app network history (D-089, 25 apps per bucket) it measures 89.2 MB and 115.0 MB, neither near the cap; what remains is mostly 7 days of minutes, 24 h of 10 s buckets, 72 h of snapshots and the `proc_net_*` tables. Retention is still backed by a hard 150 MB cap including the WAL: when time-based pruning leaves the file over it, the oldest history (15-minute rows first, then minutes, on 15-minute boundaries) is trimmed to 90% of the cap, and the 10 s tier pauses while the disk is almost full. The fill test's third run puts a 111 MB cap on 250 series (92 MB before D-089) to keep that path exercised at scale. The store does the pruning and holds the low-disk guard; `statglass-engine`'s `Housekeeping` thread decides when they run (first prune 2 min after launch, then hourly or when the retention or limit changes; a free-space check every 5 min) and turns the results into `HistoryHealth`. The app shell starts it and maps that health to its IPC type and the `history-health-changed` event; a v4 agent starts the same thing. The data directory is 0700 and every file StatGlass writes in it 0600 (D-074).
 
 Per-app network history (D-089) adds three tables. This is an estimate, not a measurement: it assumes about 15 apps with traffic in a typical 10 s bucket, and a full 21 rows (top 20 plus "other apps") in minute and 15-minute buckets. The blob header is about 40 B (`measured_ms` plus four u64 interface counters) and each app row 20 B.
 
@@ -772,10 +772,10 @@ sequenceDiagram
   autonumber
   participant C as Controller (RemoteSource)
   participant S as ssh
-  participant A as kelvo-agent serve --stdio
+  participant A as statglass-agent serve --stdio
   participant St as Controller store
 
-  C->>S: spawn ssh host kelvo-agent serve --stdio
+  C->>S: spawn ssh host statglass-agent serve --stdio
   S->>A: start process
   A->>C: Hello{proto 1, host, db_instance_uuid E, caps}
   C->>A: HelloAck{proto 1, features}
@@ -825,7 +825,7 @@ A `source_offline` gap is provisional. The controller only knows that it stopped
 
 ```mermaid
 flowchart TB
-  subgraph Engine["kelvo-engine (one thread)"]
+  subgraph Engine["statglass-engine (one thread)"]
     T[Ticker] --> L[Sampler loop]
     P[PowerSignals] --> L
     C[Collectors] --> L
@@ -922,7 +922,7 @@ fn set_process_interest(
     state: State<'_, AppState>,
     host: HostId,
     interested: bool,
-    view: Option<ProcessView>,               // { limit, sort[], period_ms }: top-N per key, at most every period_ms; selection is kelvo_engine::select_processes
+    view: Option<ProcessView>,               // { limit, sort[], period_ms }: top-N per key, at most every period_ms; selection is statglass_engine::select_processes
     stream: Option<u32>,                     // SubscriptionInfo.stream: the interest ends with this page load
 ) -> Result<(), CommandError>;
 
@@ -997,9 +997,9 @@ Mocks exercise browser presentation and transport contracts, not native OS behav
 
 ### Typed IPC
 
-`tauri-specta` generates TS bindings for every command, event and `kelvo-schema` type into `src/core/generated/`, and a test fails if the checked-in output differs from what the build generates. This plays the role Orval plays in opendata: Rust types are the single source of truth and the frontend never hand-writes them. The workspace pins the tauri-specta/specta versions; `make bindings-check` detects drift.
+`tauri-specta` generates TS bindings for every command, event and `statglass-schema` type into `src/core/generated/`, and a test fails if the checked-in output differs from what the build generates. This plays the role Orval plays in opendata: Rust types are the single source of truth and the frontend never hand-writes them. The workspace pins the tauri-specta/specta versions; `make bindings-check` detects drift.
 
-`seq` and timestamps cross the bridge as `i64` exported as `number`. Millisecond epochs and seq counts stay far below 2^53, and `kelvo-schema` documents that bound next to the types.
+`seq` and timestamps cross the bridge as `i64` exported as `number`. Millisecond epochs and seq counts stay far below 2^53, and `statglass-schema` documents that bound next to the types.
 
 ### Live state: one store per host
 
@@ -1079,7 +1079,7 @@ Follow opendata's rules: stable keys, one flat keyed array per list, `inert` on 
 |---|---|---|
 | Rust unit | `cargo test` | catalog, Snapshot builder, accumulators with a fake ticker, gap logic, codec round trip |
 | Rust integration | `cargo test` with temp SQLite | writer batching, pruning, cursor sync between two stores in process, synthetic fill budget test |
-| Proto skew | fixtures in `kelvo-proto/tests/fixtures/` | old frames decode with new code and the reverse |
+| Proto skew | fixtures in `statglass-proto/tests/fixtures/` | old frames decode with new code and the reverse |
 | Frontend unit | Vitest with happy-dom | formatters, chart math, store reducers, components via `renderWithProviders` with the mock transport |
 | Frontend visual | Playwright against the Vite dev server with the mock transport | screenshots per route in light and dark, contrast checks, consistency with design-system.md |
 | Packaged app | scripted manual checklist | tray, popover show/hide, channel stop on hide, sleep/wake gap, onboarding |
@@ -1087,7 +1087,7 @@ Follow opendata's rules: stable keys, one flat keyed array per list, `inert` on 
 
 There is no automated end-to-end test of the packaged app's webview. tauri-driver relies on WebDriver, and there is no WebDriver for WKWebView on macOS. Rust integration tests plus the mock-transport Playwright suite cover the two halves, and the scripted checklist covers the seam.
 
-Kelvo supports the current macOS major and the one before it (D-028; today macOS 27 and 26, `minimumSystemVersion` "26.0"). Before each release, native tests, the accuracy script and the packaged-app checklist are local checks on both; hosted CI uses Linux only. The private-interface collectors (IOReport, SMC, HID) are the part most likely to differ between the two.
+StatGlass supports the current macOS major and the one before it (D-028; today macOS 27 and 26, `minimumSystemVersion` "26.0"). Before each release, native tests, the accuracy script and the packaged-app checklist are local checks on both; hosted CI uses Linux only. The private-interface collectors (IOReport, SMC, HID) are the part most likely to differ between the two.
 
 ## Performance budget
 
@@ -1105,13 +1105,13 @@ Every version doc references this table and lists its deltas.
 | Accuracy | Within ±5% and ±2 °C of macmon / powermetrics | comparison script sampling both side by side |
 | History size | At most 150 MB for 30 days | synthetic fill test in CI |
 
-`scripts/bench-coalition.sh` (D-067) builds the packaged app with the `bench` feature under its own identifier, opens one scenario per launch through `KELVO_BENCH_SCENARIO` (tray, popover, a dashboard route), and reports CPU and `phys_footprint` per process and the app's CPU per thread. The 0.5% target is fixed in `perf-budget.json` (`coalition.target`); next to it a `baseline` holds the last measurement, and a tray-only run more than 10% over the baseline fails twice in a row. Every run prints its distance to the target. The target is a promise about the backgrounded app; the visible scenarios print their distance to `coalition.visible` and fail only once that guard is promoted to blocking (D-088). `make perf` does the same for the engine alone (`engine.perf.baseline`) and prints the engine's share of the target; it blocks locally and is advisory on hosted CI. `scripts/bench-vs-stats.sh` runs Kelvo and Stats tray-only for 10 minutes each on an idle machine with the display on and no windows open except the menu bar, then reports CPU time and footprint per coalition; it skips with a message when Stats is not installed. The in-app "kelvo 0.4% cpu" readout in the popover footer uses the same `proc_pid_rusage` method so users see the number we measure.
+`scripts/bench-coalition.sh` (D-067) builds the packaged app with the `bench` feature under its own identifier, opens one scenario per launch through `STATGLASS_BENCH_SCENARIO` (tray, popover, a dashboard route), and reports CPU and `phys_footprint` per process and the app's CPU per thread. The 0.5% target is fixed in `perf-budget.json` (`coalition.target`); next to it a `baseline` holds the last measurement, and a tray-only run more than 10% over the baseline fails twice in a row. Every run prints its distance to the target. The target is a promise about the backgrounded app; the visible scenarios print their distance to `coalition.visible` and fail only once that guard is promoted to blocking (D-088). `make perf` does the same for the engine alone (`engine.perf.baseline`) and prints the engine's share of the target; it blocks locally and is advisory on hosted CI. `scripts/bench-vs-stats.sh` runs StatGlass and Stats tray-only for 10 minutes each on an idle machine with the display on and no windows open except the menu bar, then reports CPU time and footprint per coalition; it skips with a message when Stats is not installed. The in-app "statglass 0.4% cpu" readout in the popover footer uses the same `proc_pid_rusage` method so users see the number we measure.
 
 Version deltas: v2.1 board windows each add a WebContent process, so v2.1 sets a per-display budget. v2.2 adds the WidgetFeed writer, which must stay within the existing idle budget. The v4 agent targets under 0.3% CPU and 30 MB on the monitored host.
 
 ## Platform and entitlement gating
 
-Collectors declare the entitlements they require (item 6). The app crate has a Cargo feature `appstore`, forwarded through `kelvo-engine` to `kelvo-collect` (D-065). With the feature on, the collector registry receives the set of entitlements a sandboxed build can hold (only `Entitlement::None`) and drops any collector that needs more. Dropped collectors report `Unsupported { reason: MissingEntitlement }`, which flows through `Capabilities` to the UI as "not available in this edition". No UI code checks the feature flag.
+Collectors declare the entitlements they require (item 6). The app crate has a Cargo feature `appstore`, forwarded through `statglass-engine` to `statglass-collect` (D-065). With the feature on, the collector registry receives the set of entitlements a sandboxed build can hold (only `Entitlement::None`) and drops any collector that needs more. Dropped collectors report `Unsupported { reason: MissingEntitlement }`, which flows through `Capabilities` to the UI as "not available in this edition". No UI code checks the feature flag.
 
 App-level actions are not host capabilities. The appstore edition also compiles out the undocumented responsible-PID lookup, so `self.cpu` loses WebKit helper attribution, and it cannot signal processes outside its sandbox. `process_signal` answers `unavailable`, and the `get_edition` command reports `process_signal: false` so the UI hides Quit and Force Quit (D-065). `make appstore-check` and CI keep the edition compiling and lint-clean.
 
@@ -1129,13 +1129,13 @@ pub fn allowed_entitlements() -> &'static [Entitlement] {
 
 In practice a sandboxed build would lose Power & Sensors and per-process GPU and network data. Whether that is worth shipping is an open decision evaluated in v3 (see [decisions.md](decisions.md), D-015).
 
-The WidgetKit extension in v2.2 is a separate, sandboxed target. The main Tauri app stays unsandboxed in every non-appstore build. The extension reads a file feed through a read-only, home-relative temporary-exception entitlement for `Library/Application Support/Kelvo/widget-feed/`; see Deferred below for the sink shape.
+The WidgetKit extension in v2.2 is a separate, sandboxed target. The main Tauri app stays unsandboxed in every non-appstore build. The extension reads a file feed through a read-only, home-relative temporary-exception entitlement for `Library/Application Support/StatGlass/widget-feed/`; see Deferred below for the sink shape.
 
 ## Linux cross-check CI
 
 CI runs `make rust-portable-check rust-portable-test` for the six portable libraries:
-`kelvo-schema`, `kelvo-proto`, `kelvo-store`, `kelvo-engine`, `kelvo-collect` and
-`kelvo-remote` on `ubuntu-latest` (D-111, amending D-032). `LINUX_CRATES` in Makefile
+`statglass-schema`, `statglass-proto`, `statglass-store`, `statglass-engine`, `statglass-collect` and
+`statglass-remote` on `ubuntu-latest` (D-111, amending D-032). `LINUX_CRATES` in Makefile
 selects the workspace with only the macOS app and remote helper excluded, so new
 libraries automatically enter the check. The helper receives a separate Linux
 `cargo check --all-targets`; Linux helper runtime support is not a product promise.
@@ -1147,9 +1147,9 @@ Workflow triggers do not establish branch-protection requirements. The macOS col
 
 Some infrastructure is left out of v1 because its shape would be wrong before its first consumer exists.
 
-The widget manifest arrives in v2.0. Widget definitions become data: a JSON manifest in `kelvo-schema` listing widget IDs, metric dependencies (as series selectors), supported sizes and an option schema. TS types are generated from it in v2.0 and Swift types in v2.2. View code stays per platform.
+The widget manifest arrives in v2.0. Widget definitions become data: a JSON manifest in `statglass-schema` listing widget IDs, metric dependencies (as series selectors), supported sizes and an option schema. TS types are generated from it in v2.0 and Swift types in v2.2. View code stays per platform.
 
-The WidgetFeed sink lands in v2.2 as a bus subscriber behind a `WidgetFeedSink` trait. It throttles to the cadence WidgetKit can use, builds a compact JSON document per widget kind from the manifest, and writes it atomically (write temp file, rename). There are two implementations. `FileWidgetFeed` (v2.2, dev builds) writes to `~/Library/Application Support/Kelvo/widget-feed/`, which the sandboxed extension reads through its temporary-exception entitlement. `AppGroupWidgetFeed` (v3, paid distribution) writes to the Team-ID-prefixed App Group container, which also avoids the "access data from other apps" prompt that supported versions (26+) show for the temporary exception. After a write, the sink can call `WidgetCenter.reloadAllTimelines` through a small Swift bridge; without the bridge the extension relies on its timeline policy. All of this is unverified end to end and is described as "dev build, personal use" until v3.
+The WidgetFeed sink lands in v2.2 as a bus subscriber behind a `WidgetFeedSink` trait. It throttles to the cadence WidgetKit can use, builds a compact JSON document per widget kind from the manifest, and writes it atomically (write temp file, rename). There are two implementations. `FileWidgetFeed` (v2.2, dev builds) writes to `~/Library/Application Support/StatGlass/widget-feed/`, which the sandboxed extension reads through its temporary-exception entitlement. `AppGroupWidgetFeed` (v3, paid distribution) writes to the Team-ID-prefixed App Group container, which also avoids the "access data from other apps" prompt that supported versions (26+) show for the temporary exception. After a write, the sink can call `WidgetCenter.reloadAllTimelines` through a small Swift bridge; without the bridge the extension relies on its timeline policy. All of this is unverified end to end and is described as "dev build, personal use" until v3.
 
 ```rust
 // src-tauri (v2.2)
@@ -1162,7 +1162,7 @@ pub struct FileWidgetFeed { dir: PathBuf }           // v2.2, dev builds
 pub struct AppGroupWidgetFeed { container: PathBuf } // v3, Developer ID builds
 ```
 
-The v2.2 bundling path builds the Xcode widget target from `beforeBundleCommand` with `xcodebuild`, signs the `.appex` first, embeds it at `PlugIns/KelvoWidgets.appex` through `bundle.macOS.files`, and signs the outer app with the same identity. That identity must be stable (a self-signed code-signing certificate or the Personal Team "Apple Development" certificate), not ad-hoc, because WidgetKit caches the extension by signing identity and ad-hoc cdhash churn drops the widget from the gallery after rebuilds. `CFBundleVersion` is bumped on every build to avoid stale renders from chronod, and the app has to launch once before its widgets appear in the gallery. Details live in [v2-customization-widgets.md](v2-customization-widgets.md).
+The v2.2 bundling path builds the Xcode widget target from `beforeBundleCommand` with `xcodebuild`, signs the `.appex` first, embeds it at `PlugIns/StatGlassWidgets.appex` through `bundle.macOS.files`, and signs the outer app with the same identity. That identity must be stable (a self-signed code-signing certificate or the Personal Team "Apple Development" certificate), not ad-hoc, because WidgetKit caches the extension by signing identity and ad-hoc cdhash churn drops the widget from the gallery after rebuilds. `CFBundleVersion` is bumped on every build to avoid stale renders from chronod, and the app has to launch once before its widgets appear in the gallery. Details live in [v2-customization-widgets.md](v2-customization-widgets.md).
 
 A local launchd daemon is also deferred. The in-process engine is right for v1, since launch at login covers continuity. With WidgetKit now in v2.2, widgets go stale whenever the app is not running; that is the trigger to reconsider a helper, recorded in D-014.
 
@@ -1170,8 +1170,8 @@ A local launchd daemon is also deferred. The in-process engine is right for v1, 
 ## Remote Mac milestone (D-104)
 
 The macOS milestone in [remote-macs-execution.md](remote-macs-execution.md) refines
-v4 without replacing the local collector. `kelvo-remote` depends on schema, proto,
-store and engine; `kelvo-remote-helper` depends on remote. The Tauri shell supplies
+v4 without replacing the local collector. `statglass-remote` depends on schema, proto,
+store and engine; `statglass-remote-helper` depends on remote. The Tauri shell supplies
 the existing engine/history through a `ServerProvider`. SSH carries the framed CBOR
 session over stdio to an owner-only local Unix socket; no network listener is added.
 
@@ -1199,10 +1199,10 @@ verification kept separate from noninteractive access testing. See
 
 ### Automatic release updates (D-119)
 
-`kelvo-update` authenticates release catalogs, checks version/protocol eligibility and
+`statglass-update` authenticates release catalogs, checks version/protocol eligibility and
 streams bounded artifact downloads. It has no workspace-crate dependencies; the Mac
 shell and Linux agent consume it. Tauri owns Mac bundle installation. The agent owns the
-Linux systemd transaction, with layout/unit conventions shared through `kelvo-remote`.
+Linux systemd transaction, with layout/unit conventions shared through `statglass-remote`.
 Each installation owns its preferences and update status. Controller UI accesses those
 facts over existing SSH control/status commands; update metadata does not enter metrics CBOR.
 

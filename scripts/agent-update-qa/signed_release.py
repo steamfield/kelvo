@@ -19,18 +19,18 @@ import systemd
 
 TLS = r'''
 set -eu
-mkdir -p /srv/kelvo-qa
-cd /srv/kelvo-qa
-openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout ca.key -out ca.crt -subj /CN=KelvoUpdateTestCA
+mkdir -p /srv/statglass-qa
+cd /srv/statglass-qa
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout ca.key -out ca.crt -subj /CN=StatGlassUpdateTestCA
 openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj /CN=github.com
 printf 'subjectAltName=DNS:github.com\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n' > server.ext
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 1 -extfile server.ext
-cp ca.crt /usr/local/share/ca-certificates/kelvo-update-qa.crt
+cp ca.crt /usr/local/share/ca-certificates/statglass-update-qa.crt
 update-ca-certificates
 printf '\n127.0.0.1 github.com\n' >> /etc/hosts
 '''
 SERVER = '''import http.server, ssl, os
-os.chdir('/srv/kelvo-qa')
+os.chdir('/srv/statglass-qa')
 server=http.server.HTTPServer(('127.0.0.1',443),http.server.SimpleHTTPRequestHandler)
 context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 context.load_cert_chain('server.crt','server.key')
@@ -45,15 +45,15 @@ def write(host, path, text):
 
 def catalog(host, binary, version, key):
     target = "linux-aarch64" if architecture(binary) == "arm64" else "linux-x86_64"
-    artifact = f"/tryopendata/kelvo/releases/download/v{version}/kelvo-agent"
-    host.root("mkdir", "-p", str(Path("/srv/kelvo-qa" + artifact).parent))
-    run("docker", "cp", str(binary), f"{host.name}:/srv/kelvo-qa{artifact}")
+    artifact = f"/steamfield/statglass/releases/download/v{version}/statglass-agent"
+    host.root("mkdir", "-p", str(Path("/srv/statglass-qa" + artifact).parent))
+    run("docker", "cp", str(binary), f"{host.name}:/srv/statglass-qa{artifact}")
     release = {"schema_version": 1, "version": version, "notes": "Isolated systemd acceptance", "protocol": {"min": 1, "max": 1}, "artifacts": {target: {"url": f"https://github.com{artifact}", "size": binary.stat().st_size, "sha256": hashlib.file_digest(binary.open("rb"), "sha256").hexdigest()}}}
-    with tempfile.TemporaryDirectory(prefix="kelvo-qa-manifest-") as directory:
-        manifest = Path(directory) / "release.json"
+    with tempfile.TemporaryDirectory(prefix="statglass-qa-manifest-") as directory:
+        manifest = Path(directory) / "statglass-release.json"
         manifest.write_text(json.dumps(release))
         run("bun", "tauri", "signer", "sign", "--private-key-path", str(key), "--password", "", str(manifest))
-        destination = "/srv/kelvo-qa/tryopendata/kelvo/releases/latest/download"
+        destination = "/srv/statglass-qa/steamfield/statglass/releases/latest/download"
         host.root("mkdir", "-p", destination)
         for path in [manifest, manifest.with_suffix(".json.sig")]:
             run("docker", "cp", str(path), f"{host.name}:{destination}/{path.name}")
@@ -65,11 +65,11 @@ def kill_updater_at(host, phase):
     # public service resumes. No production fault-injection hooks are involved.
     code = r'''import json, os, pathlib, signal, subprocess, sys, time
 unit=['systemctl']+json.loads(sys.argv[1]); journal=pathlib.Path(sys.argv[2]); phase=sys.argv[3]
-subprocess.run(unit+['start','--no-block','kelvo-agent-update.service'],check=True)
+subprocess.run(unit+['start','--no-block','statglass-agent-update.service'],check=True)
 end=time.monotonic()+60; pid=None
 while time.monotonic()<end:
     if pid is None:
-        value=subprocess.check_output(unit+['show','-p','MainPID','--value','kelvo-agent-update.service'],text=True).strip()
+        value=subprocess.check_output(unit+['show','-p','MainPID','--value','statglass-agent-update.service'],text=True).strip()
         if value and value != '0': pid=int(value)
     try:
         current=json.loads(journal.read_text())
@@ -81,19 +81,19 @@ while time.monotonic()<end:
 raise RuntimeError('did not catch journal phase '+phase)
 '''
     host.exec("python3", "-c", code, json.dumps([] if host.flags else ["--user"]), f"{host.data}/update/transaction.json", phase)
-    host.wait(lambda: host.systemctl("is-active", "--quiet", "kelvo-agent-update.service", check=False).returncode != 0)
+    host.wait(lambda: host.systemctl("is-active", "--quiet", "statglass-agent-update.service", check=False).returncode != 0)
 
 
 def assert_trial_constraints(host):
     host.agent("update", "--request")
-    host.wait(lambda: host.systemctl("is-active", "--quiet", "kelvo-agent-trial.service", check=False).returncode == 0)
-    result = host.systemctl("show", "kelvo-agent-trial.service", "-p", "NoNewPrivileges", "-p", "MemoryHigh", "-p", "MemoryMax", "-p", "MemorySwapMax", "-p", "ProtectSystem", "-p", "ProtectHome").stdout
+    host.wait(lambda: host.systemctl("is-active", "--quiet", "statglass-agent-trial.service", check=False).returncode == 0)
+    result = host.systemctl("show", "statglass-agent-trial.service", "-p", "NoNewPrivileges", "-p", "MemoryHigh", "-p", "MemoryMax", "-p", "MemorySwapMax", "-p", "ProtectSystem", "-p", "ProtectHome").stdout
     properties = dict(line.split("=", 1) for line in result.splitlines())
     assert properties["NoNewPrivileges"] == "yes", properties
     assert properties["MemoryHigh"] == "134217728" and properties["MemoryMax"] == "268435456" and properties["MemorySwapMax"] == "0", properties
     if host.layout == "system":
         assert properties["ProtectSystem"] == "strict" and properties["ProtectHome"] == "read-only", properties
-    host.wait(lambda: host.systemctl("is-active", "--quiet", "kelvo-agent-update.service", check=False).returncode != 0)
+    host.wait(lambda: host.systemctl("is-active", "--quiet", "statglass-agent-update.service", check=False).returncode != 0)
 
 
 def fault_trials(host, before):
@@ -102,12 +102,12 @@ def fault_trials(host, before):
         if fault == "qa-shutdown":
             assert_trial_constraints(host)
         else:
-            assert host.systemctl("start", "kelvo-agent-update.service", check=False).returncode != 0
+            assert host.systemctl("start", "statglass-agent-update.service", check=False).returncode != 0
         restored = host.ready()
         assert restored["daemon_version"] == before["daemon_version"] and restored["epoch"] == before["epoch"], restored
         result = json.loads(host.agent("update-status", "--json").stdout)
         assert result["status"] == "failed", result
-        assert host.systemctl("is-active", "--quiet", "kelvo-agent-trial.service", check=False).returncode != 0
+        assert host.systemctl("is-active", "--quiet", "statglass-agent-trial.service", check=False).returncode != 0
         host.exec("rm", f"{host.data}/{fault}")
         host.exec("rm", "-f", f"{host.data}/update/failed-version")
 
@@ -116,18 +116,18 @@ def exercise(old, new, version, key, layout, faults):
     host = Host(old, layout)
     try:
         host.root("sh", "-c", TLS)
-        write(host, "/srv/kelvo-qa/server.py", SERVER)
-        host.root("systemd-run", "--unit", "kelvo-qa-https", "python3", "/srv/kelvo-qa/server.py")
+        write(host, "/srv/statglass-qa/server.py", SERVER)
+        host.root("systemd-run", "--unit", "statglass-qa-https", "python3", "/srv/statglass-qa/server.py")
         host.exec("chmod", "0750", host.binary)
         host.agent("install-unit")
         host.configure(False)
         host.systemctl("daemon-reload")
-        host.systemctl("enable", "--now", "kelvo-agent.service", "kelvo-agent-update.timer")
+        host.systemctl("enable", "--now", "statglass-agent.service", "statglass-agent-update.timer")
         before = host.ready()
         catalog(host, new, version, key)
         # Check-only reports availability without changing or restarting the daemon.
         host.agent("configure", '{"general":{"check_updates":true,"auto_install_updates":false}}')
-        host.systemctl("start", "kelvo-agent-update.service")
+        host.systemctl("start", "statglass-agent-update.service")
         check = json.loads(host.agent("update-status", "--json").stdout)
         assert check["status"] == "waiting" and check["version"] == version, check
         assert host.status()["daemon_version"] == before["daemon_version"]
@@ -153,12 +153,12 @@ def exercise(old, new, version, key, layout, faults):
         # A correctly signed manifest that relabels an executable must fail private
         # daemon health, roll back, and hold the candidate on the next scheduled run.
         catalog(host, new, "99.0.0", key)
-        assert host.systemctl("start", "kelvo-agent-update.service", check=False).returncode != 0
+        assert host.systemctl("start", "statglass-agent-update.service", check=False).returncode != 0
         restored = host.ready()
         assert restored["daemon_version"] == version and restored["host_id"] == before["host_id"] and restored["epoch"] == before["epoch"]
         failed = json.loads(host.agent("update-status", "--json").stdout)
         assert failed["status"] == "failed" and failed["version"] == "99.0.0", failed
-        host.systemctl("start", "kelvo-agent-update.service")
+        host.systemctl("start", "statglass-agent-update.service")
         held = json.loads(host.agent("update-status", "--json").stdout)
         assert held["status"] == "failed" and "retry" in held["message"], held
         failures = ", sandbox + post-health shutdown failure rollback" if faults else ""

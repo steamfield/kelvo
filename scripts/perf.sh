@@ -45,7 +45,7 @@ fi
 
 # Held awake for the run; dump fails a run that spans a sleep anyway.
 caffeinate -i -w $$ &
-cargo build --quiet --release -p kelvo-engine --example dump
+cargo build --quiet --release -p statglass-engine --example dump
 BIN="$ROOT/target/release/examples/dump"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

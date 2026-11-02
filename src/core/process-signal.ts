@@ -39,11 +39,11 @@ const REFUSAL_TEXT: Record<SignalRefusal, string> = {
   launchd: "launchd starts every other process; quitting it would stop macOS.",
   window_server: "Quitting WindowServer logs you out and closes every app.",
   login_window: "Quitting loginwindow logs you out and closes every app.",
-  kelvo: "This is Kelvo. Quit it from the menu bar instead.",
+  statglass: "This is StatGlass. Quit it from the menu bar instead.",
 };
 
 /**
- * Why Kelvo will not signal this process, or `null` when it may. The text is
+ * Why StatGlass will not signal this process, or `null` when it may. The text is
  * the tooltip on the disabled action and the toast of a refused signal.
  */
 export function refusalReason(p: Pick<LiveProcess, "refusal">): string | null {
@@ -76,7 +76,7 @@ export function signalOutcome(
     case "permission_denied":
       return {
         tone: "error",
-        message: "Kelvo can't quit processes owned by another user",
+        message: "StatGlass can't quit processes owned by another user",
       };
     case "not_found":
       return { tone: "info", message: `${who} has already exited` };
@@ -90,7 +90,7 @@ export function signalOutcome(
     case "remote_host":
       return {
         tone: "error",
-        message: "Kelvo can only quit processes on this Mac",
+        message: "StatGlass can only quit processes on this Mac",
       };
     case "unknown_host":
       return { tone: "error", message: `Couldn't quit ${who} (unknown host)` };
@@ -99,7 +99,8 @@ export function signalOutcome(
     case "unavailable":
       return {
         tone: "error",
-        message: "Quitting processes isn't available in this edition of Kelvo",
+        message:
+          "Quitting processes isn't available in this edition of StatGlass",
       };
     default: {
       const unhandled: never = e;

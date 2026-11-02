@@ -21,7 +21,7 @@ Glossary:
 
 | Term | Meaning |
 |---|---|
-| Engine | One local Docker daemon (OrbStack, Docker Desktop, Colima). Kelvo monitors one at a time. |
+| Engine | One local Docker daemon (OrbStack, Docker Desktop, Colima). StatGlass monitors one at a time. |
 | Snapshot | The live `DockerSnapshot` pushed by `transport.dockerSubscribe` (about 1 Hz while visible). |
 | Bucket | One history row: 10 s (`docker_10s`), or a 1 min / 15 min rollup (`docker_1m`, `docker_15m`). |
 | Weight | `weight_ms` on a stored metric: how many milliseconds of the bucket were measured. |
@@ -54,7 +54,7 @@ All paths in this document are relative to the repository root. Route files live
 ### 1.1 Confirmed history bugs (measured on the owner's real database)
 
 Method: a read-only `.backup` copy of
-`~/Library/Application Support/com.tryopendata.kelvo/history.sqlite`, covering about 5 hours
+`~/Library/Application Support/com.tryopendata.statglass/history.sqlite`, covering about 5 hours
 of OrbStack history (07:45 to 12:52 local, 2026-10-13), queried with the scripts in
 Appendix A.
 
@@ -65,7 +65,7 @@ page looks fragmented because of two bugs that hide or mislabel saved data.
 
 **Bug 1: a strict coverage check drops about half of the points.**
 
-- `point()` in `crates/kelvo-engine/src/docker/persistence.rs:1802-1838` sets
+- `point()` in `crates/statglass-engine/src/docker/persistence.rs:1802-1838` sets
   `covered = measured > 0 && measured >= expected`. `measured` is the smaller of the CPU and
   memory weights; `expected` is the full bucket (10,000 ms).
 - `observe()` (`persistence.rs:1399`) accumulates weight from each container's reported
@@ -79,11 +79,11 @@ page looks fragmented because of two bugs that hide or mislabel saved data.
 
 **Bug 2: the Docker write queue overflows between commits and leaves false loss records.**
 
-- `Writer::write_docker` (`crates/kelvo-store/src/writer/docker.rs:70-110`) admits a batch
-  only while `pending_writes < MAX_PENDING_WRITES` (128, `crates/kelvo-store/src/docker/mod.rs:32`).
+- `Writer::write_docker` (`crates/statglass-store/src/writer/docker.rs:70-110`) admits a batch
+  only while `pending_writes < MAX_PENDING_WRITES` (128, `crates/statglass-store/src/docker/mod.rs:32`).
 - A successfully applied batch frees its slot only when the transaction commits
   (`finish_docker(.., Persisted)`, `writer/txn.rs:119-121`). Commits happen every
-  `DEFAULT_COMMIT_INTERVAL` = 300 s (`crates/kelvo-store/src/lib.rs:79`).
+  `DEFAULT_COMMIT_INTERVAL` = 300 s (`crates/statglass-store/src/lib.rs:79`).
 - So about 3 minutes after each commit the queue is full, and every batch is rejected for
   about 2 minutes until the next commit.
 - Each rejection calls `Admission::lose`. The next commit then writes an engine-wide
@@ -98,7 +98,7 @@ page looks fragmented because of two bugs that hide or mislabel saved data.
   never removed, so the UI reports failures that did not happen.
 - Host (non-Docker) history has no `write_failed` gaps in the same window. Only the Docker
   path is affected.
-- Nothing is logged. `~/Library/Logs/com.tryopendata.kelvo/kelvo.2026-10-13.log` has no
+- Nothing is logged. `~/Library/Logs/com.tryopendata.statglass/statglass.2026-10-13.log` has no
   WARN or ERROR lines.
 - Secondary defect: the allowance check in `handle_docker` (`writer/docker.rs:150-163`) adds
   `pending_bytes` (which still includes batches already applied to the open transaction) to
@@ -536,7 +536,7 @@ explicit owner request on 2026-10-13.
 |---|---|---|
 | 1 | `snapshot.status` is `unavailable`, `permission_denied` or `incompatible` | `{engine} unavailable · last reading {time}` with `Retry`. `{time}` is the latest `observed_ms` across containers in the last snapshot. |
 | 2 | `snapshot.status` is `paused` or `idle_suspended` | `Monitoring paused` with `Resume` (the existing resume action) |
-| 3 | `persistence.status == "write_failed"` | `Recent history is not being saved. Kelvo will retry.` |
+| 3 | `persistence.status == "write_failed"` | `Recent history is not being saved. StatGlass will retry.` |
 | 4 | Any non-event coverage record in range for the selected metric, or with no metric | `{CPU|Memory} history missing for {k} intervals` |
 | 5 | `aggregate.partial`, or `aggregate.expected < aggregate.running` | `Monitoring {expected} of {running} running containers` with `Monitoring…` (opens R-40) |
 | 6 | Coverage records with `events_disconnected` or `event_replay_uncertain` | `Some container events may be missing` |
@@ -565,7 +565,7 @@ explicit owner request on 2026-10-13.
 | `writer_disconnected` | `History writer stopped` |
 | `events_disconnected` | `Lost connection to Docker events` |
 | `event_replay_uncertain` | `Some events may be missing after reconnecting` |
-| `app_not_running` | `Kelvo was not running` |
+| `app_not_running` | `StatGlass was not running` |
 | any other | the raw code |
 
 **R-43. Gaps on the chart.**
@@ -621,7 +621,7 @@ Engine side:
 
 **R-46. Fix Bug 1 and publish per-metric quality.**
 
-Change `DockerHistoryPoint` (`crates/kelvo-schema/src/docker.rs:199`):
+Change `DockerHistoryPoint` (`crates/statglass-schema/src/docker.rs:199`):
 - Remove `measured_ms` and `covered`.
 - Add `cpu_measured_ms: u32`, `memory_measured_ms: u32`, `cpu_covered: bool` and
   `memory_covered: bool`.
@@ -648,7 +648,7 @@ Then:
 - Delete the slice A helper (R-12a) and switch the chart to R-11 and R-12.
 
 **R-47. Clean up existing false records.** Add schema migration V7: append to `MIGRATIONS`
-in `crates/kelvo-store/src/db.rs` and set `SCHEMA_VERSION = 7`. It runs:
+in `crates/statglass-store/src/db.rs` and set `SCHEMA_VERSION = 7`. It runs:
 
 ```sql
 DELETE FROM docker_coverage
@@ -674,7 +674,7 @@ Interface:
 - Add Tauri command `docker_container_action` in `src-tauri/src/docker.rs`. It takes
   `{engine_id: String, container_id: String, action: DockerContainerAction}` and returns
   `DockerStorageOperation`.
-- Define `enum DockerContainerAction { Start, Stop }` in `crates/kelvo-schema`.
+- Define `enum DockerContainerAction { Start, Stop }` in `crates/statglass-schema`.
 - Reuse the `DockerStorageOperation` type and `dockerStorageOperation` polling.
 
 Engine implementation:
@@ -687,7 +687,7 @@ Engine implementation:
 - Dispatch through the same one-operation-per-engine runner D-107 uses:
   - Stop calls `stop_container` with `t: Some(30)`, as in `docker_storage.rs:463-472`.
   - Start calls `start_container`, which is new, next to it in
-    `crates/kelvo-collect/src/docker_storage.rs`.
+    `crates/statglass-collect/src/docker_storage.rs`.
 - Never retry. Report success, skipped, failed or outcome unknown, as D-107 does.
 
 Frontend:
@@ -877,8 +877,8 @@ Requirements: R-44 to R-47.
 
 Tasks:
 
-1. R-44, in `crates/kelvo-store/src/writer/docker.rs` and `writer/txn.rs`.
-   - Regression test in `crates/kelvo-store`, using real SQLite: with `commit_interval` at
+1. R-44, in `crates/statglass-store/src/writer/docker.rs` and `writer/txn.rs`.
+   - Regression test in `crates/statglass-store`, using real SQLite: with `commit_interval` at
      300 s, enqueue 400 small Docker batches over a simulated 299 s with no commit. All are
      admitted, and all receive `Persisted` after the commit.
    - Revert-verify: the test fails on the current code.
@@ -899,10 +899,10 @@ Done criteria:
 - `cargo test --workspace` and `cargo clippy --workspace --all-targets -- -D warnings` pass.
 - `make bindings` leaves no diff afterwards.
 - `bun run check` passes, then `make check` once.
-- `cargo test -p kelvo-engine --test perf_gates -- --nocapture` passes with no budget raised.
+- `cargo test -p statglass-engine --test perf_gates -- --nocapture` passes with no budget raised.
 - Real-engine check:
   1. Install the build with `scripts/install.sh`.
-  2. Keep Kelvo running with OrbStack for 30 minutes with the five containers up.
+  2. Keep StatGlass running with OrbStack for 30 minutes with the five containers up.
   3. Copy the database per Appendix A and run both scripts.
   - Pass when zero `docker_coverage` rows with reason `write_failed` were created after
     install, and for every running container at least 99% of stored 10 s buckets in the
@@ -919,7 +919,7 @@ Tasks:
 2. `docker_container_action` (R-49).
    - Rust tests use the existing storage adapter test fakes.
    - Extend the `#[ignore]` disposable-fixture test pattern (`docker_storage.rs:1600`) with
-     `KELVO_DOCKER_TEST_START_ID`.
+     `STATGLASS_DOCKER_TEST_START_ID`.
 3. Row and detail actions (R-37 to R-39), with component tests.
 4. `docker_comparison` (R-50), with store tests covering removed containers, a recreated
    same-name container, ties, nulls and the 6-series bound.
@@ -983,7 +983,7 @@ None blocking. Deferred:
 Run these against a copy, never the live file. The scripts only read.
 
 ```bash
-DB="$HOME/Library/Application Support/com.tryopendata.kelvo/history.sqlite"
+DB="$HOME/Library/Application Support/com.tryopendata.statglass/history.sqlite"
 OUT="$SCRATCH/history-copy.sqlite"          # any scratch directory
 sqlite3 "file:$DB?mode=ro" ".backup $OUT"
 ```

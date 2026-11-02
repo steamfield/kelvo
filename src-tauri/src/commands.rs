@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use kelvo_schema::{Capabilities, Event, HostId, HostRecord, Module, SeriesSelector};
+use statglass_schema::{Capabilities, Event, HostId, HostRecord, Module, SeriesSelector};
 use tauri::{AppHandle, Manager, State};
 
 use crate::error::CommandError;
@@ -148,8 +148,8 @@ pub async fn query_history(
 #[specta::specta]
 pub async fn query_disk_io(
     app: AppHandle,
-    request: kelvo_schema::disk_io::DiskIoRequest,
-) -> Result<kelvo_schema::disk_io::DiskIoPage, CommandError> {
+    request: statglass_schema::disk_io::DiskIoRequest,
+) -> Result<statglass_schema::disk_io::DiskIoPage, CommandError> {
     blocking(app, move |state| {
         state.host(request.host)?;
         let host = request.host;
@@ -168,7 +168,7 @@ pub async fn query_disk_io(
 pub async fn list_disk_io_devices(
     app: AppHandle,
     host: HostId,
-) -> Result<kelvo_schema::disk_io::DiskIoDevices, CommandError> {
+) -> Result<statglass_schema::disk_io::DiskIoDevices, CommandError> {
     blocking(app, move |state| {
         state.local_host(host)?;
         Ok(disk_devices())
@@ -176,12 +176,12 @@ pub async fn list_disk_io_devices(
     .await
 }
 #[cfg(target_os = "macos")]
-fn disk_devices() -> kelvo_schema::disk_io::DiskIoDevices {
-    kelvo_engine::macos::io_devices()
+fn disk_devices() -> statglass_schema::disk_io::DiskIoDevices {
+    statglass_engine::macos::io_devices()
 }
 #[cfg(not(target_os = "macos"))]
-fn disk_devices() -> kelvo_schema::disk_io::DiskIoDevices {
-    kelvo_schema::disk_io::DiskIoDevices {
+fn disk_devices() -> statglass_schema::disk_io::DiskIoDevices {
+    statglass_schema::disk_io::DiskIoDevices {
         devices: Vec::new(),
         default_device: None,
     }
@@ -213,7 +213,7 @@ pub async fn battery_hours(
 /// Where the engine's recent rows a read starting at `from_ms` needs begin: the read
 /// widens to the bucket holding `from_ms`, up to a 15-minute one.
 fn recent_from(from_ms: i64) -> i64 {
-    from_ms.saturating_sub(kelvo_schema::Tier::M15.bucket_ms().unwrap_or(0))
+    from_ms.saturating_sub(statglass_schema::Tier::M15.bucket_ms().unwrap_or(0))
 }
 
 /// Events (detector findings and fired alerts) with `from_ms <= ts < to_ms`, oldest
@@ -427,7 +427,7 @@ pub fn get_network_addresses(
 }
 
 /// This Mac's public address, from an outside service over HTTPS (D-093). The one
-/// request Kelvo makes on its own; only the Network page asks, and only while shown.
+/// request StatGlass makes on its own; only the Network page asks, and only while shown.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_public_ip() -> Result<String, CommandError> {
@@ -543,7 +543,7 @@ pub async fn history_growth(
         let now = state.host_now(host);
         let growth = state
             .history_for(host)?
-            .read(|r| r.history_growth(now, &kelvo_store::Retention::default()))?;
+            .read(|r| r.history_growth(now, &statglass_store::Retention::default()))?;
         Ok(growth.map(HistoryGrowth::from))
     })
     .await
@@ -569,7 +569,7 @@ pub async fn clear_history(app: AppHandle, host: HostId) -> Result<ByteCount, Co
             None
         };
         entry.forget_recent_rows();
-        let cleared = writer.clear_host(host, kelvo_engine::wall_ms());
+        let cleared = writer.clear_host(host, statglass_engine::wall_ms());
         if let Some(generation) = docker_generation {
             if cleared.is_ok() {
                 let reset = state.docker.recorder.reset(generation);
@@ -609,8 +609,8 @@ pub async fn history_health(app: AppHandle, host: HostId) -> Result<HistoryHealt
 
 /// Moves the history database aside (it stays next to the new one as
 /// `history-reset-<ms>.sqlite`, for diagnosis) and starts an empty one: the way out when
-/// history is unavailable because the file is corrupt or from a newer Kelvo. Sampling
-/// continues throughout. `store_busy` when another Kelvo process has the database open.
+/// history is unavailable because the file is corrupt or from a newer StatGlass. Sampling
+/// continues throughout. `store_busy` when another StatGlass process has the database open.
 /// Returns the new size on disk; `history-health-changed` follows.
 #[tauri::command]
 #[specta::specta]
@@ -659,7 +659,7 @@ pub fn report_popover_paint(app: AppHandle, token: u32) {
 pub fn sensor_dump(state: State<'_, AppState>, host: HostId) -> Result<SensorDump, CommandError> {
     let entry = state.host(host)?;
     let record = entry.record();
-    let catalog = kelvo_schema::Catalog::builtin();
+    let catalog = statglass_schema::Catalog::builtin();
     let sensors = entry
         .latest_frame()
         .map(|f| {

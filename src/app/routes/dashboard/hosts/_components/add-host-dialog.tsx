@@ -152,8 +152,8 @@ export function AddHostDialog({
       >
         <DialogTitle>Add host</DialogTitle>
         <DialogDescription>
-          Connect to another Mac or a Linux server through SSH. Kelvo prefers
-          LAN and falls back to Tailscale when both are configured.
+          Connect to another Mac or a Linux server through SSH. StatGlass
+          prefers LAN and falls back to Tailscale when both are configured.
         </DialogDescription>
         <AddHostFields
           busy={busy}

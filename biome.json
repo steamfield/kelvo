@@ -17,7 +17,8 @@
       "!**/plan",
       "!**/coverage",
       "!**/playwright-report",
-      "!**/test-results"
+      "!**/test-results",
+      "!**/docs-site"
     ]
   },
   "formatter": {

@@ -177,7 +177,7 @@ describe("stored history in the ring (LiveHub::warm)", () => {
     expect(at(50)).toBe(2);
     expect(at(55)).toBe(3);
     expect(at(60)).toBe(3);
-    // Kelvo was not running between 60 and 100 s: a hole, not a line.
+    // StatGlass was not running between 60 and 100 s: a hole, not a line.
     expect(at(70)).toBeNull();
     expect(at(99)).toBeNull();
     expect(at(100)).toBe(100);

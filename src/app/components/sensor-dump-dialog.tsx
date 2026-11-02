@@ -21,7 +21,7 @@ import { useHostId } from "~/stores/host-store";
  * project is public; no doc names it yet.
  */
 export const SENSOR_ISSUE_URL =
-  "https://github.com/steamfield/kelvo/issues/new?labels=sensors&title=Sensor+map+for+";
+  "https://github.com/steamfield/statglass/issues/new?labels=sensors&title=Sensor+map+for+";
 
 /** Issue link with the model in the title, so reports group by chip. */
 export function sensorIssueUrl(model: string | null): string {
@@ -29,7 +29,7 @@ export function sensorIssueUrl(model: string | null): string {
 }
 
 /**
- * Share sensor dump sheet (plan 4.17): the JSON Kelvo collected, for the
+ * Share sensor dump sheet (plan 4.17): the JSON StatGlass collected, for the
  * user to review before sharing, with Copy, Save… and Open GitHub issue.
  * `sensor_dump` leaves out serials, user, host and network names.
  */
@@ -66,7 +66,7 @@ export function SensorDumpDialog({
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `kelvo-sensor-dump-${data?.model ?? "mac"}.json`;
+    a.download = `statglass-sensor-dump-${data?.model ?? "mac"}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -77,9 +77,9 @@ export function SensorDumpDialog({
         <DialogHeader>
           <DialogTitle>Share sensor dump</DialogTitle>
           <DialogDescription>
-            What Kelvo read from this Mac's sensors. It has no serial numbers,
-            user, host or network names. Review it, then paste it into the
-            GitHub issue.
+            What StatGlass read from this Mac's sensors. It has no serial
+            numbers, user, host or network names. Review it, then paste it into
+            the GitHub issue.
           </DialogDescription>
         </DialogHeader>
         <pre

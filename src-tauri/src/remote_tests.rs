@@ -111,12 +111,12 @@ fn agent_update_states_compare_with_this_build() {
 
 #[test]
 fn offline_hosts_keep_their_last_reported_version() {
-    let offline = kelvo_remote::ConnectionStatus::default();
+    let offline = statglass_remote::ConnectionStatus::default();
     let status = registration::connection_status(offline, true, Some("0.0.1".into()));
     assert_eq!(status.agent_version.as_deref(), Some("0.0.1"));
     assert!(matches!(status.agent_update, AgentUpdate::Available { .. }));
 
-    let incompatible = kelvo_remote::ConnectionStatus {
+    let incompatible = statglass_remote::ConnectionStatus {
         remote_version: Some("0.0.2".into()),
         incompatible: true,
         error: Some("incompatible remote".into()),
@@ -136,7 +136,7 @@ fn offline_hosts_keep_their_last_reported_version() {
 #[test]
 fn saved_hosts_without_a_reported_version_still_load() {
     let id = HostId(Uuid::new_v4());
-    let mut record = kelvo_engine::host_record(id);
+    let mut record = statglass_engine::host_record(id);
     record.is_local = false;
     let host = serde_json::json!({
         "config": {"id": id.to_string(), "name": "Box", "lan": "box", "tailscale": null,
@@ -160,7 +160,7 @@ fn concurrent_saves_leave_one_whole_file_with_every_host() {
             let (lock, saved, path) = (&lock, &saved, &path);
             scope.spawn(move || {
                 let id = HostId(Uuid::new_v4());
-                let mut record = kelvo_engine::host_record(id);
+                let mut record = statglass_engine::host_record(id);
                 record.is_local = false;
                 let host = SavedHost {
                     config: RemoteHostConfig {

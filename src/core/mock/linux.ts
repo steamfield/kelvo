@@ -2,7 +2,7 @@
  * The `linux` scenario: the mock speaks for a headless Linux agent (D-116),
  * modelled on linux-tailscale, a Mac mini (M1, 2020) running Fedora Asahi
  * Remix 41 Server. Its host facts, capabilities, series and processes are
- * what `kelvo-collect/src/linux/` and `host_info/linux.rs` publish there:
+ * what `statglass-collect/src/linux/` and `host_info/linux.rs` publish there:
  * E/P clusters from cpufreq policies, PSI, hwmon sensors named by their
  * kernel label, three block devices, cgroup v2 services and containers, and
  * no GPU or battery.
@@ -394,7 +394,7 @@ const NAMED: LiveProcess[] = [
   proc(1023, "sshd", 0.1, 0.01e9, 1, 0, "root"),
   proc(1104, "firewalld", 0.2, 0.04e9, 2, 0, "root"),
   proc(1150, "NetworkManager", 0.1, 0.02e9, 3, 0, "root"),
-  proc(1302, "kelvo-agent", 0.1, 0.018e9, 4, 0.01e6, "root"),
+  proc(1302, "statglass-agent", 0.1, 0.018e9, 4, 0.01e6, "root"),
   proc(1488, "chronyd", 0, 0.004e9, 1, 0, "chrony"),
   proc(2290, "redis-server", 0.5, 0.03e9, 6, 0.02e6, "redis"),
 ];

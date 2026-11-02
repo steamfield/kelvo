@@ -51,12 +51,12 @@ describe("useExportCsv", () => {
     expect(req.from_ms).toBe(FROM);
     expect(req.to_ms).toBe(TO);
     expect(req.tier).toBe("auto");
-    expect(req.file_name).toBe("kelvo-2026-10-04-0800-24h.csv");
+    expect(req.file_name).toBe("statglass-2026-10-04-0800-24h.csv");
     expect(req.selectors.map((s) => s.metric)).toEqual(
       LANES.flatMap((l) => l.metrics.map((m) => m.metric))
     );
     expect(String(success.mock.calls[0]?.[0])).toMatch(
-      /^Exported [\d,]+ rows.* to \/Users\/mock\/Downloads\/kelvo-2026-10-04-0800-24h\.csv$/
+      /^Exported [\d,]+ rows.* to \/Users\/mock\/Downloads\/statglass-2026-10-04-0800-24h\.csv$/
     );
   });
 

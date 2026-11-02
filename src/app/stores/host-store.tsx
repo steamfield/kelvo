@@ -173,6 +173,8 @@ function useLiveSubscription(
       // Frames come every frame period: the interval, or the multiple of it
       // a minimum period thins them to.
       const period = Math.max(status.frame_period_ms, status.interval_ms);
+      // A remote that has never connected reports zero until its first status.
+      if (!Number.isFinite(period) || period <= 0) return;
       staleTimer = setTimeout(() => {
         if (isHidden()) return;
         store.getState().setStale(true);

@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-LINE = re.compile(r"^(\S+Z)\s+.*\bkelvo_lib::(popover(?:::\w+)*|state): (.*)$")
+LINE = re.compile(r"^(\S+Z)\s+.*\bstatglass_lib::(popover(?:::\w+)*|state): (.*)$")
 PAUSED = re.compile(r"^sampling paused state host=(\S+) paused=(true|false)\b")
 OCCLUSION = re.compile(r"\bpopover occlusion visible=(true|false)\b")
 
@@ -20,7 +20,7 @@ def validate(logs: Path, launch: float, start: float, end: float) -> None:
     if not launch <= start < end:
         raise ValueError("invalid launch or measurement window")
     events = []
-    for path in sorted(glob.glob(str(logs / "kelvo.*.log"))):
+    for path in sorted(glob.glob(str(logs / "statglass.*.log"))):
         with open(path, errors="replace") as lines:
             for line in lines:
                 match = LINE.match(line)

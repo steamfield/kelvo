@@ -2,11 +2,11 @@
 
 Status: Implemented and installed, 2026-10-13. Counter validation, native workflows, responsive/theme checks, automated suites and CE review passed. Matched native whole-app CPU measurement remains unverified because the benchmark requires an active display; see [verification evidence](PROGRESS.md#2026-10-13-disk-io-implementation).
 
-Extend **Disk** to answer “Is storage slowing this Mac down, and which process was doing the work?” Keep network traffic in **Network**, and make **Processes** the place to inspect one process across resources. CPU remains focused on compute. This follows the resource organization already used by Kelvo and avoids putting disk activity behind a CPU label.
+Extend **Disk** to answer “Is storage slowing this Mac down, and which process was doing the work?” Keep network traffic in **Network**, and make **Processes** the place to inspect one process across resources. CPU remains focused on compute. This follows the resource organization already used by StatGlass and avoids putting disk activity behind a CPU label.
 
 ## Problem and outcome
 
-When a build, import, database, or desktop application feels slow, the user wants to distinguish CPU work from waiting for data. Today Kelvo's Disk page already shows live read/write throughput, history and byte totals, and process attribution for a selected interval. Processes already has read/write rate columns. These show activity, but do not establish whether storage is the bottleneck. The attribution table also sits below volume capacity, interrupting the diagnostic flow.
+When a build, import, database, or desktop application feels slow, the user wants to distinguish CPU work from waiting for data. Today StatGlass's Disk page already shows live read/write throughput, history and byte totals, and process attribution for a selected interval. Processes already has read/write rate columns. These show activity, but do not establish whether storage is the bottleneck. The attribution table also sits below volume capacity, interrupting the diagnostic flow.
 
 The working hypothesis is that a shared time window for storage response time, workload, and process attribution will let the user investigate an I/O slowdown without switching tools. The evidence is the user's report and the existing data paths; task-based acceptance below will test the hypothesis.
 
@@ -14,7 +14,7 @@ High MB/s is not proof of saturation. Small random requests can create long wait
 
 ## Existing conventions
 
-| Product | Pattern | Implication for Kelvo |
+| Product | Pattern | Implication for StatGlass |
 | --- | --- | --- |
 | [Apple Activity Monitor](https://support.apple.com/en-ca/guide/activity-monitor/actmntr1005/mac) | Disk separates transfer amounts from accesses and charts reads/writes. | Keep storage under Disk and label units explicitly. |
 | [iStat Menus](https://bjango.com/mac/istatmenus/) | Disk usage/activity and network monitoring have separate destinations. | Preserve familiar resource navigation. |

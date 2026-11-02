@@ -227,7 +227,7 @@ export class MockQueries {
         const rows = Math.ceil(span / tierMs);
         return ok({
           kind: "saved",
-          path: `/Users/mock/Downloads/${request.file_name ?? "kelvo-history.csv"}`,
+          path: `/Users/mock/Downloads/${request.file_name ?? "statglass-history.csv"}`,
           rows,
           gap_rows: gapRows,
           bytes: 64 + rows * 24 * (1 + request.selectors.length * 3),
@@ -287,14 +287,14 @@ export class MockQueries {
   };
   readonly resetHistory: MockTransport["resetHistory"] = async () => {
     this.commands.record("reset_history");
-    // Another Kelvo process holds the lock: a reset cannot take it.
+    // Another StatGlass process holds the lock: a reset cannot take it.
     if (
       this.store.unavailable?.kind === "history_unavailable" &&
       this.store.unavailable.reason?.kind === "locked"
     ) {
       return err({
         kind: "store_busy",
-        message: "history.sqlite is locked by another Kelvo process",
+        message: "history.sqlite is locked by another StatGlass process",
       });
     }
     this.store.unavailable = null;

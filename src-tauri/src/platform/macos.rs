@@ -1,6 +1,6 @@
 //! macOS pieces of the shell: the login item and the Reduce Transparency setting. Every
 //! `unsafe` block here has a `SAFETY:` comment. The local host record is
-//! `kelvo_engine::host_record`.
+//! `statglass_engine::host_record`.
 
 use std::ptr::NonNull;
 
@@ -17,7 +17,7 @@ fn in_app_bundle() -> bool {
         .is_some_and(|p| p.to_string_lossy().contains(".app/Contents/MacOS/"))
 }
 
-/// Registers or unregisters Kelvo as a login item. Outside an app bundle (development) it
+/// Registers or unregisters StatGlass as a login item. Outside an app bundle (development) it
 /// does nothing and says so in the log.
 pub fn set_launch_at_login(enabled: bool) -> Result<(), String> {
     if !in_app_bundle() {

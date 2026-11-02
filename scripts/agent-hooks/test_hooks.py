@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class HookTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="kelvo-hook-tests-")
+        self.temp = tempfile.TemporaryDirectory(prefix="statglass-hook-tests-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.hooks = self.root / ".claude/hooks"
@@ -68,7 +68,7 @@ class HookTests(unittest.TestCase):
             "env A='two words' timeout --signal=TERM 120 command bun run test",
             "env -S 'bun run test'", "env --split-string='bun run test'",
             "xargs --max-args=1 --max-procs 2 bun run test",
-            "timeout 30 rm -f /tmp/kelvo-build.json", "env", "env A=1", "time", "xargs -0",
+            "timeout 30 rm -f /tmp/statglass-build.json", "env", "env A=1", "time", "xargs -0",
         ]
         for command in commands:
             with self.subTest(command=command):
@@ -92,8 +92,8 @@ class HookTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertNotEqual(self.decision("auto-approve.sh", command).get("permissionDecision"), "allow")
         for command in [
-            "rm -rf build dist", "rm -f src/stale.ts", "rm -rf /tmp/kelvo-x", "rm -rf /private/tmp/kelvo-x",
-            "bash -c 'rm -rf build dist'", "timeout 30 rm -f /tmp/kelvo-build.json", "git push origin main",
+            "rm -rf build dist", "rm -f src/stale.ts", "rm -rf /tmp/statglass-x", "rm -rf /private/tmp/statglass-x",
+            "bash -c 'rm -rf build dist'", "timeout 30 rm -f /tmp/statglass-build.json", "git push origin main",
             "git push --force-with-lease origin feature", "git --no-pager log -1",
         ]:
             with self.subTest(command=command):
@@ -190,7 +190,7 @@ class HookTests(unittest.TestCase):
 class HookEnvironmentTests(unittest.TestCase):
     def test_fixture_does_not_reinitialize_the_hook_callers_repository(self):
         clean = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        with tempfile.TemporaryDirectory(prefix="kelvo-hook-caller-") as directory:
+        with tempfile.TemporaryDirectory(prefix="statglass-hook-caller-") as directory:
             caller = Path(directory)
             subprocess.run(["git", "init", "-q", directory], env=clean, check=True)
             config = caller / ".git/config"

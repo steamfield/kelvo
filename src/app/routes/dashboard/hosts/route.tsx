@@ -116,7 +116,7 @@ function HostSettings({
           {removing
             ? linux
               ? "This disconnects the server. Unless you uninstall it, the agent keeps running and recording history there."
-              : "This disconnects the Mac. Kelvo on that Mac keeps running and its start-at-login setting stays the same."
+              : "This disconnects the Mac. StatGlass on that Mac keeps running and its start-at-login setting stays the same."
             : "Connection and mirrored history are saved on this Mac. Update preferences save immediately on the host."}
         </DialogDescription>
         {removing ? (
@@ -305,7 +305,7 @@ export default function HostsRoute() {
                 {local.display_name} · {local.info.chip ?? local.info.model}
               </p>
               <p className="figures mt-1 text-[12px] text-muted-foreground">
-                Kelvo {version}
+                StatGlass {version}
                 {localTarget && ` · ${localTarget} available in Settings`}
               </p>
             </div>

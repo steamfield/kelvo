@@ -153,7 +153,7 @@ describe("PowerDrawCard app lines (D-093)", () => {
     act(() => transport.tick());
     expect(
       await screen.findByText(
-        "Per-app power appears after Kelvo has sampled processes for a while."
+        "Per-app power appears after StatGlass has sampled processes for a while."
       )
     ).toBeInTheDocument();
     expect(container.querySelector('[data-series^="app:"]')).toBeNull();

@@ -17,7 +17,7 @@ export function matches(key: SeriesKey, sel: SeriesSelector): boolean {
 /**
  * How long a sample taken every `periodMs` stays current: `HOLD_FACTOR`
  * times its period in integer milliseconds, the engine's `hold_ms`
- * (`kelvo-engine/src/engine.rs`, D-047, D-090).
+ * (`statglass-engine/src/engine.rs`, D-047, D-090).
  */
 export function holdMs(periodMs: number): number {
   return Math.floor((periodMs * HOLD_FACTOR.num) / HOLD_FACTOR.den);

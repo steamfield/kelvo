@@ -6,14 +6,14 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
-use kelvo_engine::{
+use statglass_engine::{
     Bus, LiveFrame, LiveHub, RecentNet, Source, SourceControl, SourceError, SourceHandle,
     SourceSink,
 };
-use kelvo_remote::InterestSet;
-use kelvo_schema::lock::{LockExt, RwLockExt};
-use kelvo_schema::{Capabilities, HostId, HostRecord, SeriesKey, Settings};
-use kelvo_store::{BucketRow, Writer};
+use statglass_remote::InterestSet;
+use statglass_schema::lock::{LockExt, RwLockExt};
+use statglass_schema::{Capabilities, HostId, HostRecord, SeriesKey, Settings};
+use statglass_store::{BucketRow, Writer};
 
 use crate::error::CommandError;
 use crate::live::LiveFeed;
@@ -74,7 +74,7 @@ impl HostEntry {
 
     /// Fills the hub's ring from stored history before the source's first frame
     /// ([`LiveHub::warm`]). Returns the rows added.
-    pub fn warm_ring(&self, history: &kelvo_store::HistoryResult) -> usize {
+    pub fn warm_ring(&self, history: &statglass_store::HistoryResult) -> usize {
         self.live.warm(history)
     }
 
@@ -123,9 +123,9 @@ impl HostEntry {
         &self,
         from_ms: i64,
         to_ms: i64,
-        by: kelvo_schema::usage::UsageKey,
+        by: statglass_schema::usage::UsageKey,
         limit: usize,
-    ) -> kelvo_schema::usage::UsageByApp {
+    ) -> statglass_schema::usage::UsageByApp {
         self.live.usage_by_app(from_ms, to_ms, by, limit)
     }
 
@@ -133,7 +133,7 @@ impl HostEntry {
         &self,
         from_ms: i64,
         to_ms: i64,
-    ) -> Vec<kelvo_store::usage::UsageBucket> {
+    ) -> Vec<statglass_store::usage::UsageBucket> {
         self.live.recent_usage_apps(from_ms, to_ms)
     }
 
@@ -142,7 +142,7 @@ impl HostEntry {
         from_ms: i64,
         to_ms: i64,
         app_name: &str,
-    ) -> Vec<kelvo_store::usage::UsageBucket> {
+    ) -> Vec<statglass_store::usage::UsageBucket> {
         self.live.recent_usage_processes(from_ms, to_ms, app_name)
     }
 
@@ -150,9 +150,9 @@ impl HostEntry {
         &self,
         from_ms: i64,
         to_ms: i64,
-        by: kelvo_schema::usage::UsageKey,
+        by: statglass_schema::usage::UsageKey,
         limit: usize,
-    ) -> kelvo_engine::UsageSeries {
+    ) -> statglass_engine::UsageSeries {
         self.live.usage_series(from_ms, to_ms, by, limit)
     }
 
@@ -198,6 +198,10 @@ impl LiveFeed for HostEntry {
         self.record.read_ok().id
     }
 
+    fn is_local(&self) -> bool {
+        self.record.read_ok().is_local
+    }
+
     fn hub(&self) -> &LiveHub {
         &self.live
     }
@@ -229,7 +233,7 @@ impl LiveFeed for HostEntry {
 
 /// What the metrics server reads when this host is shared (only the local one is). Not
 /// imported, so its `hub` and `capabilities` never clash with [`LiveFeed`]'s.
-impl kelvo_remote::ServedHost for HostEntry {
+impl statglass_remote::ServedHost for HostEntry {
     fn record(&self) -> HostRecord {
         HostEntry::record(self)
     }
@@ -242,7 +246,7 @@ impl kelvo_remote::ServedHost for HostEntry {
         &self.live
     }
 
-    fn set_remote_interest(&self, session: u64, interest: kelvo_proto::RemoteInterest) {
+    fn set_remote_interest(&self, session: u64, interest: statglass_proto::RemoteInterest) {
         self.change_interest(|all| all.set_remote(session, interest));
     }
 }

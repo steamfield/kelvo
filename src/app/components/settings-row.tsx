@@ -2,7 +2,7 @@ import { type ReactNode, useId } from "react";
 
 export interface SettingsRowProps {
   label: string;
-  /** A fact the label lacks ("Kelvo uses about 0.4% CPU at 1s"), or nothing. */
+  /** A fact the label lacks ("StatGlass uses about 0.4% CPU at 1s"), or nothing. */
   sub?: ReactNode;
   /** Id of the control the label names, when it is a form element. */
   htmlFor?: string;

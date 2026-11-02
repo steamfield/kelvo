@@ -116,6 +116,7 @@ See [README](README.md) for the roadmap and [architecture.md](architecture.md) f
 | D-117 | Remote queries: one request/reply call on the session, for per-app usage and space reports | Accepted |
 | D-119 | Independent signed automatic updates with isolated Linux trials | Implemented; login-session acceptance pending |
 | D-120 | Durable interval usage keeps facts before ranking | Accepted |
+| D-125 | Rename Kelvo to StatGlass with fresh installation identities | Accepted |
 
 ---
 
@@ -3939,3 +3940,32 @@ more expensive: the same engine code passed the gate on 2026-11-01 and then meas
 processes running. The engine core's count follows how many processes and series the real
 collectors report, so a ceiling of 10 left no headroom on a busy machine. The window
 modes keep 12.
+
+## D-125: Rename Kelvo to StatGlass with fresh installation identities
+
+Date: 2026-11-01. Supersedes D-027's product naming.
+
+The product is StatGlass, with `statglass` package, executable and path names,
+`STATGLASS` environment variables and the GitHub repository `steamfield/statglass`.
+The user chose a fresh installation over migration: the bundle identifiers are
+`com.tryopendata.statglass` and `com.tryopendata.statglass.dev`; app and agent data
+directories, service units, sockets and host-binding hash prefixes use the new
+name. Existing Kelvo data stays where it is. The identity algorithm, storage
+schemas, metric IDs and CBOR protocol versions do not change. Hosts must be set up
+again under the new identities.
+
+StatGlass uses `statglass-latest.json` and `statglass-release.json` with its detached
+signature, so a later release does not advertise a fresh installation as an
+automatic Kelvo update. Catalog artifacts come only from
+`https://github.com/steamfield/statglass/releases/download/`. Historical releases,
+source provenance and production-signed fixtures keep their original bytes or
+names. Production signing keys and their existing local backup path remain
+unchanged. The heat-grid mark stays; the outlined wordmarks now read StatGlass.
+
+This task changes source and the repository name. Version bumps, publication and
+committing or pushing other work are separate actions.
+
+The user later requested a one-off copy of this Mac's release and development
+data into the new namespaces. That copy preserves the source data, SQLite host
+UUIDs and history, and rebinds the copied host IDs using the new prefix. It does
+not introduce automatic migration or alter remote installations.

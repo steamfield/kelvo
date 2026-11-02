@@ -4,23 +4,23 @@
 
 use std::collections::BTreeMap;
 
-use kelvo_engine::{
+use serde::Serialize;
+use statglass_engine::{
     EngineStatus, PerformanceSlowdown, PowerState, background_interval_ms, effective_interval_ms,
     performance_period,
 };
-use kelvo_schema::settings::{
+use statglass_schema::settings::{
     HistorySettings, ItemMode, Readout, SETTINGS_MODULES, SamplingSettings,
 };
-use kelvo_schema::{MetricKind, Module, PerformanceReason, Tier, Unit};
-use kelvo_store::{FILL_MINUTES, FILL_ROLLED, FillMeasurement, Retention};
-use serde::Serialize;
+use statglass_schema::{MetricKind, Module, PerformanceReason, Tier, Unit};
+use statglass_store::{FILL_MINUTES, FILL_ROLLED, FillMeasurement, Retention};
 
 use crate::live::{effective_min_period_ms, frame_period_ms};
 use crate::tray::model::Pacer;
 
 /// Every catalog metric's kind, by metric id.
 pub fn metric_kinds() -> BTreeMap<&'static str, MetricKind> {
-    kelvo_schema::Catalog::builtin()
+    statglass_schema::Catalog::builtin()
         .defs()
         .iter()
         .map(|d| (d.id.as_str(), d.kind))
@@ -29,7 +29,7 @@ pub fn metric_kinds() -> BTreeMap<&'static str, MetricKind> {
 
 /// Every catalog metric's unit, by metric id.
 pub fn metric_units() -> BTreeMap<&'static str, Unit> {
-    kelvo_schema::Catalog::builtin()
+    statglass_schema::Catalog::builtin()
         .defs()
         .iter()
         .map(|d| (d.id.as_str(), d.unit))
@@ -39,7 +39,7 @@ pub fn metric_units() -> BTreeMap<&'static str, Unit> {
 /// Every catalog metric's module, by metric id: which gaps apply to it (the mock's
 /// `query_series_stats` leaves out the module's own gaps, as `history.rs` does).
 pub fn metric_modules() -> BTreeMap<&'static str, &'static str> {
-    kelvo_schema::Catalog::builtin()
+    statglass_schema::Catalog::builtin()
         .defs()
         .iter()
         .map(|d| (d.id.as_str(), d.module.as_str()))
@@ -49,7 +49,7 @@ pub fn metric_modules() -> BTreeMap<&'static str, &'static str> {
 /// Every catalog metric's nominal minimum sampling period in ms (`MetricDef::period_s`),
 /// by metric id: the mock samples `self.cpu` at it, as the engine does.
 pub fn metric_periods_ms() -> BTreeMap<&'static str, u32> {
-    kelvo_schema::Catalog::builtin()
+    statglass_schema::Catalog::builtin()
         .defs()
         .iter()
         .map(|d| (d.id.as_str(), u32::from(d.period_s) * 1_000))
@@ -65,15 +65,15 @@ pub struct HoldFactor {
 
 pub fn hold_factor() -> HoldFactor {
     HoldFactor {
-        num: kelvo_engine::STALE_NUM as i32,
-        den: kelvo_engine::STALE_DEN as i32,
+        num: statglass_engine::STALE_NUM as i32,
+        den: statglass_engine::STALE_DEN as i32,
     }
 }
 
-/// How often the store's writer commits, ms (`kelvo_store::DEFAULT_COMMIT_INTERVAL`,
+/// How often the store's writer commits, ms (`statglass_store::DEFAULT_COMMIT_INTERVAL`,
 /// D-070). Stored rows newer than this may not be readable yet.
 pub fn history_commit_ms() -> i64 {
-    i64::try_from(kelvo_store::DEFAULT_COMMIT_INTERVAL.as_millis()).unwrap_or(i64::MAX)
+    i64::try_from(statglass_store::DEFAULT_COMMIT_INTERVAL.as_millis()).unwrap_or(i64::MAX)
 }
 
 /// The own-item modes each settings module offers (`ItemMode::allowed_for`, D-102).
@@ -249,16 +249,16 @@ fn figures(
         // Only Performance mode slows them with a window open.
         window_idle_processes_ms: performance_period(
             performance.then_some(PerformanceSlowdown::IdleProcesses),
-            kelvo_engine::IDLE_MS,
+            statglass_engine::IDLE_MS,
         )
         .max(tick_ms),
         background_processes_ms: background(
             PerformanceSlowdown::IdleProcesses,
-            kelvo_engine::IDLE_MS,
+            statglass_engine::IDLE_MS,
         ),
         background_temperatures_ms: background(
             PerformanceSlowdown::IdleTemperatures,
-            kelvo_engine::TEMPERATURE_PERIOD_MS,
+            statglass_engine::TEMPERATURE_PERIOD_MS,
         ),
     }
 }
@@ -314,35 +314,35 @@ pub fn register(builder: tauri_specta::Builder<tauri::Wry>) -> tauri_specta::Bui
         .constant("METRIC_UNITS", metric_units())
         .constant("METRIC_MODULES", metric_modules())
         .constant("METRIC_PERIODS_MS", metric_periods_ms())
-        .constant("METRIC_CODES", kelvo_schema::metric_codes())
-        .constant("RING_SPAN_MS", kelvo_engine::RING_SPAN_MS)
+        .constant("METRIC_CODES", statglass_schema::metric_codes())
+        .constant("RING_SPAN_MS", statglass_engine::RING_SPAN_MS)
         .constant("HISTORY_COMMIT_MS", history_commit_ms())
         // How far back `query_history` answers with history unavailable (live-only).
-        .constant("HISTORY_RECENT_MS", kelvo_engine::RECENT_ROWS_MS)
-        .constant("RING_MAX_ROWS", kelvo_engine::RING_MAX_ROWS)
+        .constant("HISTORY_RECENT_MS", statglass_engine::RECENT_ROWS_MS)
+        .constant("RING_MAX_ROWS", statglass_engine::RING_MAX_ROWS)
         .constant("HOLD_FACTOR", hold_factor())
-        .constant("PERFORMANCE_VISIBLE_MS", kelvo_engine::PERFORMANCE_VISIBLE_MS)
-        .constant("NET_BUCKET_MS", kelvo_engine::NET_BUCKET_MS)
-        .constant("USAGE_BUCKET_MS", kelvo_engine::USAGE_BUCKET_MS)
+        .constant("PERFORMANCE_VISIBLE_MS", statglass_engine::PERFORMANCE_VISIBLE_MS)
+        .constant("NET_BUCKET_MS", statglass_engine::NET_BUCKET_MS)
+        .constant("USAGE_BUCKET_MS", statglass_engine::USAGE_BUCKET_MS)
         // The longest range `query_usage_series` answers.
-        .constant("USAGE_KEEP_MS", kelvo_engine::USAGE_KEEP_MS)
-        .constant("USAGE_HISTORY_MAX_RANGE_MS", kelvo_schema::durable_usage::USAGE_HISTORY_MAX_RANGE_MS)
-        .constant("USAGE_PROCESS_PAGE_MAX", kelvo_schema::durable_usage::USAGE_PROCESS_PAGE_MAX)
-        .constant("HEADER_BYTES_PER_PACKET", kelvo_engine::HEADER_BYTES_PER_PACKET)
-        .constant("CLAMP_SLACK_BYTES", kelvo_engine::CLAMP_SLACK_BYTES)
+        .constant("USAGE_KEEP_MS", statglass_engine::USAGE_KEEP_MS)
+        .constant("USAGE_HISTORY_MAX_RANGE_MS", statglass_schema::durable_usage::USAGE_HISTORY_MAX_RANGE_MS)
+        .constant("USAGE_PROCESS_PAGE_MAX", statglass_schema::durable_usage::USAGE_PROCESS_PAGE_MAX)
+        .constant("HEADER_BYTES_PER_PACKET", statglass_engine::HEADER_BYTES_PER_PACKET)
+        .constant("CLAMP_SLACK_BYTES", statglass_engine::CLAMP_SLACK_BYTES)
         .constant("MAX_NET_SPAN_MS", crate::history::MAX_NET_SPAN_MS)
         .constant("SAMPLING_INTERVALS_MS", SAMPLING_INTERVALS_MS)
         .constant("RETENTION_DAYS", RETENTION_DAYS)
         .constant("SIZE_LIMITS_MB", SIZE_LIMITS_MB)
-        .constant("DEFAULT_SIZE_LIMIT_MB", kelvo_schema::settings::HistorySettings::DEFAULT_SIZE_LIMIT_MB)
-        .constant("SETTINGS_MODULES", kelvo_schema::settings::SETTINGS_MODULES)
+        .constant("DEFAULT_SIZE_LIMIT_MB", statglass_schema::settings::HistorySettings::DEFAULT_SIZE_LIMIT_MB)
+        .constant("SETTINGS_MODULES", statglass_schema::settings::SETTINGS_MODULES)
         .constant("ITEM_MODES", item_modes())
         .constant("READOUTS", READOUTS)
         .constant("HISTORY_TIERS", history_tiers())
         .constant("HISTORY_PROJECTION", history_projection())
         .constant("SAMPLING_PLANS", sampling_plans())
         .typ::<SamplingPlan>()
-        .typ::<kelvo_schema::Readout>()
+        .typ::<statglass_schema::Readout>()
 }
 
 #[cfg(test)]

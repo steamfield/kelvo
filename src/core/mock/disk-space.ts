@@ -392,7 +392,7 @@ export function createMockDiskSpace(
         const spec = mockVolumes(scenarios).find(
           (v) => v.volume.mount === mount
         );
-        if (!spec) return fail(`${mount} is not a volume Kelvo can scan`);
+        if (!spec) return fail(`${mount} is not a volume StatGlass can scan`);
         const skipped = spec.volume.protected.filter(
           (p) => !include.includes(p.key)
         );

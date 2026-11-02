@@ -1,5 +1,5 @@
 //! Verify and install the real updater archive into an isolated temporary bundle.
-//! Never launches Kelvo or touches an installed app or its data.
+//! Never launches StatGlass or touches an installed app or its data.
 use std::{path::PathBuf, process::Command};
 
 use anyhow::{Context, bail, ensure};
@@ -23,8 +23,8 @@ fn main() -> anyhow::Result<()> {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .build(context)?;
     let temporary = tempfile::tempdir()?;
-    let bundle = temporary.path().join("Kelvo.app");
-    let executable = bundle.join("Contents/MacOS/kelvo");
+    let bundle = temporary.path().join("StatGlass.app");
+    let executable = bundle.join("Contents/MacOS/statglass");
     std::fs::create_dir_all(executable.parent().context("executable parent")?)?;
     std::fs::write(&executable, b"old version placeholder")?;
     let updater = app.updater_builder()
@@ -37,7 +37,7 @@ fn main() -> anyhow::Result<()> {
     let update = updater
         .restore_update(metadata)?
         .context("missing release")?;
-    let archive = std::fs::read(assets.join("Kelvo.app.tar.gz"))?;
+    let archive = std::fs::read(assets.join("StatGlass.app.tar.gz"))?;
     update
         .verify(&archive)
         .context("release signature or signed version mismatch")?;
@@ -59,7 +59,9 @@ fn main() -> anyhow::Result<()> {
         .install(archive)
         .context("installing into temporary bundle")?;
     ensure!(
-        bundle.join("Contents/MacOS/kelvo-remote-helper").is_file(),
+        bundle
+            .join("Contents/MacOS/statglass-remote-helper")
+            .is_file(),
         "remote helper missing"
     );
     verify_agents(&catalog, &bundle.join("Contents/Resources/agent"))?;
@@ -83,10 +85,10 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn verify_catalog(assets: &std::path::Path) -> anyhow::Result<kelvo_update::VerifiedRelease> {
-    let catalog = kelvo_update::verify_manifest(
-        &std::fs::read(assets.join("release.json"))?,
-        &std::fs::read_to_string(assets.join("release.json.sig"))?,
+fn verify_catalog(assets: &std::path::Path) -> anyhow::Result<statglass_update::VerifiedRelease> {
+    let catalog = statglass_update::verify_manifest(
+        &std::fs::read(assets.join("statglass-release.json"))?,
+        &std::fs::read_to_string(assets.join("statglass-release.json.sig"))?,
     )?;
     ensure!(
         catalog.release().version == env!("CARGO_PKG_VERSION"),
@@ -94,9 +96,9 @@ fn verify_catalog(assets: &std::path::Path) -> anyhow::Result<kelvo_update::Veri
     );
     ensure!(
         catalog.release().protocol
-            == kelvo_update::ProtocolRange {
-                min: kelvo_proto::MIN_COMPATIBLE,
-                max: kelvo_proto::PROTO_VERSION,
+            == statglass_update::ProtocolRange {
+                min: statglass_proto::MIN_COMPATIBLE,
+                max: statglass_proto::PROTO_VERSION,
             },
         "catalog protocol mismatch"
     );
@@ -105,26 +107,29 @@ fn verify_catalog(assets: &std::path::Path) -> anyhow::Result<kelvo_update::Veri
         "catalog must advertise exactly the three shipped targets"
     );
     for (target, filename) in [
-        ("darwin-aarch64", "Kelvo.app.tar.gz"),
-        ("linux-aarch64", "kelvo-agent-aarch64-unknown-linux-musl"),
-        ("linux-x86_64", "kelvo-agent-x86_64-unknown-linux-musl"),
+        ("darwin-aarch64", "StatGlass.app.tar.gz"),
+        (
+            "linux-aarch64",
+            "statglass-agent-aarch64-unknown-linux-musl",
+        ),
+        ("linux-x86_64", "statglass-agent-x86_64-unknown-linux-musl"),
     ] {
         let artifact = catalog
             .release()
             .artifacts
             .get(target)
             .context("missing release target")?;
-        kelvo_update::verify_artifact(artifact, &assets.join(filename))?;
+        statglass_update::verify_artifact(artifact, &assets.join(filename))?;
     }
     Ok(catalog)
 }
 
 fn legacy_metadata(
     assets: &std::path::Path,
-    catalog: &kelvo_update::VerifiedRelease,
+    catalog: &statglass_update::VerifiedRelease,
 ) -> anyhow::Result<serde_json::Value> {
     let metadata: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(assets.join("latest.json"))?)?;
+        serde_json::from_slice(&std::fs::read(assets.join("statglass-latest.json"))?)?;
     let artifact = catalog
         .release()
         .artifacts
@@ -141,19 +146,22 @@ fn legacy_metadata(
 }
 
 fn verify_agents(
-    catalog: &kelvo_update::VerifiedRelease,
+    catalog: &statglass_update::VerifiedRelease,
     directory: &std::path::Path,
 ) -> anyhow::Result<()> {
     for (target, filename) in [
-        ("linux-aarch64", "kelvo-agent-aarch64-unknown-linux-musl"),
-        ("linux-x86_64", "kelvo-agent-x86_64-unknown-linux-musl"),
+        (
+            "linux-aarch64",
+            "statglass-agent-aarch64-unknown-linux-musl",
+        ),
+        ("linux-x86_64", "statglass-agent-x86_64-unknown-linux-musl"),
     ] {
         let artifact = catalog
             .release()
             .artifacts
             .get(target)
             .context("missing agent target")?;
-        kelvo_update::verify_artifact(artifact, &directory.join(filename))
+        statglass_update::verify_artifact(artifact, &directory.join(filename))
             .context("bundled agent differs from the signed standalone release")?;
     }
     Ok(())

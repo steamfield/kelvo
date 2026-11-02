@@ -12,7 +12,7 @@
 //! ([`alerts_on`]) right away: the permission prompt then appears while the user is in
 //! Settings, not with the first real alert, which may be hours later.
 
-use kelvo_schema::{
+use statglass_schema::{
     AlertCause, AlertRule, AlertSettings, Condition, Event, EventDetail, ThermalState,
 };
 use tauri::AppHandle;
@@ -134,7 +134,7 @@ pub fn text(event: &Event) -> Option<(String, String)> {
             };
             (
                 format!("{process} is using {cpu_pct:.0}% CPU"),
-                format!("{held}{also} Open Kelvo's Timeline to see what else was running."),
+                format!("{held}{also} Open StatGlass's Timeline to see what else was running."),
             )
         }
         AlertCause::ThermalState { state } => (
@@ -194,7 +194,7 @@ mod tests {
         assert_eq!(t, "ffmpeg is using 251% CPU");
         assert_eq!(
             b,
-            "Above 200% for 5 minutes. Open Kelvo's Timeline to see what else was running."
+            "Above 200% for 5 minutes. Open StatGlass's Timeline to see what else was running."
         );
         let (t, _) = text(&alert(AlertCause::ThermalState {
             state: ThermalState::Critical,
@@ -225,7 +225,7 @@ mod tests {
             b,
             format!(
                 "Above {percent_of_core:.0}% for 5 minutes. Also above {percent_of_core:.0}%: \
-                 x264. Open Kelvo's Timeline to see what else was running."
+                 x264. Open StatGlass's Timeline to see what else was running."
             )
         );
         let (_, b) = text(&hot(&["ffmpeg"], Uuid::from_u128(99))).unwrap();

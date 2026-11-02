@@ -48,7 +48,7 @@ export const POPOVER_METRICS = [
   "battery.time_remaining",
   "battery.health",
   "battery.cycles",
-  // Footer: Kelvo's own CPU.
+  // Footer: StatGlass's own CPU.
   "self.cpu",
 ] as const;
 

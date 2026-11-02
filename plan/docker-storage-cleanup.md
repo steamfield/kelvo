@@ -55,7 +55,7 @@ never add overlapping image/cache values into a purported exact total.
   ceiling. Keep finite row/request admission bounded; mark incomplete inventory and
   unknown categories. Failed scans retain the previous completed snapshot timestamp.
   Incomplete reference evidence cannot establish deletion eligibility.
-- Dedicated scan/action lanes protect Kelvo's monitoring pool; daemon-side scan cost
+- Dedicated scan/action lanes protect StatGlass's monitoring pool; daemon-side scan cost
   is measured and disclosed, not claimed to be eliminated.
 
 ## Actions, confirmation and lifecycle

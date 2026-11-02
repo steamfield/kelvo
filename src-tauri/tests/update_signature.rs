@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)] // Test fixture setup should fail immediately on invalid input.
-//! Exercise the real updater with Kelvo's committed public key and an inert signed
+//! Exercise the real updater with StatGlass's committed public key and an inert signed
 //! fixture. No network, installed app, or user data is touched.
 use tauri_plugin_updater::UpdaterExt;
 
@@ -19,7 +19,7 @@ fn updater() -> tauri_plugin_updater::Updater {
         .unwrap();
     app.updater_builder()
         .target("darwin-aarch64")
-        .executable_path("/Applications/Kelvo.app/Contents/MacOS/kelvo")
+        .executable_path("/Applications/StatGlass.app/Contents/MacOS/statglass")
         .build()
         .unwrap()
 }
@@ -28,7 +28,7 @@ fn manifest(version: &str) -> serde_json::Value {
     serde_json::json!({
         "version": version,
         "platforms": { "darwin-aarch64": {
-            "url": "https://example.invalid/Kelvo.app.tar.gz",
+            "url": "https://example.invalid/StatGlass.app.tar.gz",
             "signature": include_str!("fixtures/update-payload.sig").trim(),
         } }
     })
@@ -60,7 +60,7 @@ fn release_config_requires_a_signed_version_and_https() {
     assert_eq!(
         config["plugins"]["updater"]["endpoints"],
         serde_json::json!([
-            "https://github.com/steamfield/kelvo/releases/latest/download/latest.json"
+            "https://github.com/steamfield/statglass/releases/latest/download/statglass-latest.json"
         ])
     );
 }

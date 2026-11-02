@@ -23,7 +23,7 @@ const layout: LiveMsg = {
   series: SERIES,
   kinds: [],
 };
-const status = (paused = false): LiveMsg => ({
+const status = (paused = false): Extract<LiveMsg, { kind: "status" }> => ({
   kind: "status",
   interval_ms: 1000,
   frame_period_ms: 1000,
@@ -36,6 +36,15 @@ const status = (paused = false): LiveMsg => ({
 });
 
 describe("reduceLive", () => {
+  it("renders an empty chart before a remote has reported its sampling interval", () => {
+    const state = apply([{ ...status(), interval_ms: 0, frame_period_ms: 0 }]);
+    const chart = seriesWindow(state, "cpu.total", 60_000);
+    expect(chart.values).toHaveLength(60);
+    expect(chart.values.every((value) => value === null)).toBe(true);
+    expect(chart.tEndMs).toBe(0);
+    expect(state.status?.interval_ms).toBe(0);
+  });
+
   it("indexes the layout by display key and metric", () => {
     const s = apply([layout]);
     expect(s.layoutNo).toBe(1);

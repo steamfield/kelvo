@@ -12,7 +12,7 @@ SCRIPT = Path(__file__).resolve().parents[1] / "pre-push-check.sh"
 
 class PrePushTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="kelvo verification ")
+        self.temp = tempfile.TemporaryDirectory(prefix="statglass verification ")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}

@@ -1,3 +1,4 @@
+import type { Connection } from "@core/live-state";
 import { Pause } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -7,7 +8,7 @@ import {
   useLayoutEffect,
   useRef,
 } from "react";
-import { KelvoMark } from "~/components/kelvo-mark";
+import { StatGlassMark } from "~/components/statglass-mark";
 import { cn } from "~/lib/utils";
 
 /** Icon paths (24 x 24, 1.5 px stroke). */
@@ -55,6 +56,7 @@ export interface SidebarStatus {
   onBattery: boolean;
   /** No frame for three intervals while not paused (plan 4.17). */
   stale?: boolean;
+  connection?: Connection;
 }
 
 export interface SidebarProps {
@@ -250,14 +252,20 @@ export function Sidebar({
                 Paused
               </span>
             </>
-          ) : status.stale ? (
+          ) : status.stale ||
+            status.connection === "connecting" ||
+            status.connection === "reconnecting" ? (
             <>
               <span
                 aria-hidden
                 className="size-1.5 rounded-full border border-muted-foreground"
               />
               <span className="min-w-0 truncate font-normal text-[11px] text-muted-foreground">
-                Stale · no new data
+                {status.connection === "connecting"
+                  ? "Connecting…"
+                  : status.connection === "reconnecting"
+                    ? "Reconnecting…"
+                    : "Stale · no new data"}
               </span>
             </>
           ) : (
@@ -290,9 +298,9 @@ const SidebarBrand = memo(function SidebarBrand() {
         data-tauri-drag-region
         className="mb-2 flex shrink-0 items-center gap-2.5 border-border-subtle border-b px-2 pt-0.5 pb-3"
       >
-        <KelvoMark className="pointer-events-none size-5" />
+        <StatGlassMark className="pointer-events-none size-5" />
         <span className="pointer-events-none font-[620] text-[18px] leading-none tracking-[-0.02em] max-sm:sr-only">
-          Kelvo
+          StatGlass
         </span>
       </div>
     </>

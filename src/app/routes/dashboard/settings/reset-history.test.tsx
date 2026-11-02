@@ -57,11 +57,11 @@ describe("Settings: history unavailable and Reset history (D-064)", () => {
     expect(screen.getByText(/The history file is damaged/)).toBeInTheDocument();
   });
 
-  it("names a newer Kelvo's format and offers the reset", async () => {
+  it("names a newer StatGlass's format and offers the reset", async () => {
     renderSettings(["history-too-new"]);
     expect(
       await screen.findByText(
-        /written by a newer version of Kelvo \(format 4; this version reads up to 2\)/
+        /written by a newer version of StatGlass \(format 4; this version reads up to 2\)/
       )
     ).toBeInTheDocument();
     expect(
@@ -69,10 +69,12 @@ describe("Settings: history unavailable and Reset history (D-064)", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not offer a reset while another Kelvo holds the file", async () => {
+  it("does not offer a reset while another StatGlass holds the file", async () => {
     renderSettings(["history-locked"]);
     expect(
-      await screen.findByText(/another copy of Kelvo has the history file open/)
+      await screen.findByText(
+        /another copy of StatGlass has the history file open/
+      )
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reset history" })).toBeNull();
   });

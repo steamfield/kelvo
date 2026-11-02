@@ -4,10 +4,10 @@
 
 # All library crates are portable by default. New workspace crates enter this gate
 # automatically; only the macOS shell and separately checked helper are excluded.
-LINUX_CRATES := --workspace --exclude kelvo --exclude kelvo-remote-helper
+LINUX_CRATES := --workspace --exclude statglass --exclude statglass-remote-helper
 
 help:
-	@echo "Kelvo Development Commands"
+	@echo "StatGlass Development Commands"
 	@echo ""
 	@echo "Setup:"
 	@echo "  make install       Install JS deps and git hooks"
@@ -47,7 +47,7 @@ help:
 	@echo "  make perf          Release engine CPU, 120 s tray-only at 1 s (then a 30 s run); fails over perf-budget.json's baseline (D-062, D-067, D-075)"
 	@echo "  make bench         Whole app + WebKit helpers: tray, popover, Overview, Processes; distance to the 0.5% target (D-067)"
 	@echo "  make bench-perf-mode  Performance mode off vs on in pairs: tray, tray on battery, Overview (D-088)"
-	@echo "  make bench-vs-stats  Tray-only Kelvo vs Stats.app for 10 minutes each (skips if Stats is not installed)"
+	@echo "  make bench-vs-stats  Tray-only StatGlass vs Stats.app for 10 minutes each (skips if Stats is not installed)"
 
 install:
 	bun install
@@ -95,11 +95,11 @@ test-e2e:
 
 # Ignored in `cargo test` because it writes ~1 GB through SQLite. CI runs it on Linux.
 test-fill:
-	cargo test --release -p kelvo-store --test fill -- --ignored --nocapture
+	cargo test --release -p statglass-store --test fill -- --ignored --nocapture
 
 # The 30-day read budget alone (perf-budget.json `store`): Timeline 30d, heatmap, CSV export.
 test-read-perf:
-	cargo test --release -p kelvo-store --test fill thirty_day_reads -- --ignored --nocapture
+	cargo test --release -p statglass-store --test fill thirty_day_reads -- --ignored --nocapture
 
 lint: stub-dist
 	bun run lint
@@ -137,8 +137,8 @@ rust-test: stub-dist
 # private-API collectors at registration, compiles out the responsible-PID lookup and
 # turns process signals off (D-065).
 appstore-check: stub-dist
-	cargo check -p kelvo --features appstore --all-targets
-	cargo clippy -p kelvo -p kelvo-engine -p kelvo-collect --features kelvo/appstore --all-targets -- -D warnings
+	cargo check -p statglass --features appstore --all-targets
+	cargo clippy -p statglass -p statglass-engine -p statglass-collect --features statglass/appstore --all-targets -- -D warnings
 
 rust-portable-check:
 	cargo check --all-targets $(LINUX_CRATES)
@@ -155,13 +155,13 @@ rust-linux-check:
 # rust-toolchain.toml version, installed on first run) live in named volumes, so reruns
 # are incremental and the host's macOS target/ is untouched.
 rust-linux-test:
-	docker run --rm -e HOST_UID="$$(id -u)" -e HOST_GID="$$(id -g)" -e HOME=/tmp -v "$(PWD)":/w -w /w -v kelvo-linux-cargo:/usr/local/cargo -v kelvo-linux-rustup:/usr/local/rustup -e CARGO_TARGET_DIR=/usr/local/cargo/target-linux rust:1.99-bookworm scripts/linux-test-entry.sh cargo test $(LINUX_CRATES)
+	docker run --rm -e HOST_UID="$$(id -u)" -e HOST_GID="$$(id -g)" -e HOME=/tmp -v "$(PWD)":/w -w /w -v statglass-linux-cargo:/usr/local/cargo -v statglass-linux-rustup:/usr/local/rustup -e CARGO_TARGET_DIR=/usr/local/cargo/target-linux rust:1.99-bookworm scripts/linux-test-entry.sh cargo test $(LINUX_CRATES)
 
 # The Linux agent's install, update and uninstall scripts (D-116) under dash
 # (debian:bookworm-slim) and busybox ash, as root and as a user, with stub systemd.
 # `cargo test` runs the same lifecycle under this machine's /bin/sh.
 remote-scripts-test:
-	cargo test -p kelvo-remote --lib agent_install::tests -- --ignored
+	cargo test -p statglass-remote --lib agent_install::tests -- --ignored
 
 # The Linux agent (D-116), bundled as app resources and uploaded to hosts by Add host.
 # cargo-zigbuild links the static musl targets from the macOS host with zig, so both
@@ -187,14 +187,14 @@ agent-linux: agent-linux-tools
 	@mkdir -p $(AGENT_DIR)
 	@set -e; for t in $(AGENT_TARGETS); do \
 		echo "agent-linux: building $$t"; \
-		cargo zigbuild --release --locked -p kelvo-agent --target $$t; \
-		out="$${CARGO_TARGET_DIR:-target}/$$t/release/kelvo-agent"; \
-		cmp -s "$$out" $(AGENT_DIR)/kelvo-agent-$$t || cp "$$out" $(AGENT_DIR)/kelvo-agent-$$t; \
+		cargo zigbuild --release --locked -p statglass-agent --target $$t; \
+		out="$${CARGO_TARGET_DIR:-target}/$$t/release/statglass-agent"; \
+		cmp -s "$$out" $(AGENT_DIR)/statglass-agent-$$t || cp "$$out" $(AGENT_DIR)/statglass-agent-$$t; \
 	done
-	python3 scripts/check-elf-align.py $(foreach t,$(AGENT_TARGETS),$(AGENT_DIR)/kelvo-agent-$(t))
-	@cd $(AGENT_DIR) && shasum -a 256 $(foreach t,$(AGENT_TARGETS),kelvo-agent-$(t))
+	python3 scripts/check-elf-align.py $(foreach t,$(AGENT_TARGETS),$(AGENT_DIR)/statglass-agent-$(t))
+	@cd $(AGENT_DIR) && shasum -a 256 $(foreach t,$(AGENT_TARGETS),statglass-agent-$(t))
 
-# Kelvo installs nothing and requires nothing (D-058): every linked library must come
+# StatGlass installs nothing and requires nothing (D-058): every linked library must come
 # with macOS. Checks the debug binary; build it first (bun tauri build --debug).
 check-deps:
 	scripts/check-deps.sh
@@ -235,7 +235,7 @@ stub-dist:
 # Writes src/core/generated/bindings.ts from the tauri-specta builder in a debug
 # build of the app shell, without launching the app. The pre-push hook diffs the result.
 bindings: stub-dist
-	cargo run --quiet -p kelvo --example export_bindings
+	cargo run --quiet -p statglass --example export_bindings
 
 # Main-thread and long-task budgets (perf-budget.json `frontend`), measured with
 # production React on macOS Chromium in CI and the pre-push hook (D-060).

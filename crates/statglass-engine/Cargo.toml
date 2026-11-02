@@ -1,0 +1,57 @@
+[package]
+name = "statglass-engine"
+description = "Sampler loop, rollups, detectors and the bus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Sandboxed (Mac App Store) edition: forwarded to statglass-collect, which drops the
+# private-API collectors, compiles out the responsible-PID lookup and makes process
+# signals unavailable (D-065).
+appstore = ["statglass-collect/appstore"]
+
+[dependencies]
+statglass-collect.workspace = true
+statglass-schema.workspace = true
+statglass-store.workspace = true
+# The bus is a tokio broadcast channel (architecture.md, Engine). Only the sync
+# primitives are used; the engine thread itself is a plain std thread.
+tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
+# Already in the graph through Tauri. One channel carries ticks, power events, device
+# hints and commands into the engine thread.
+crossbeam-channel = "0.5.17"
+thiserror.workspace = true
+futures-util = "0.3"
+sha2 = "0.10"
+serde_json.workspace = true
+tracing.workspace = true
+# The app shell exports ProcessView, ProcessSort and UsageKey over IPC as they are
+# (D-100). Both already in the graph through statglass-schema.
+serde.workspace = true
+specta = { workspace = true, features = ["derive"] }
+libc = "0.2.190"
+# Host ids are random v4 UUIDs (identity.rs).
+uuid = { workspace = true, features = ["v4"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+core-foundation-sys = "0.8.7"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo"] }
+
+[dev-dependencies]
+# Docker interval/backoff regressions use Tokio's paused clock.
+tokio = { workspace = true, features = ["test-util"] }
+anyhow.workspace = true
+# Per-tick OS call counts for the perf gates (tests/perf_gates.rs, D-062). A
+# dev-dependency feature, so normal builds never count.
+statglass-collect = { workspace = true, features = ["call-counters"] }
+# Commits and WAL frames for the store write-volume gate, same arrangement.
+statglass-store = { workspace = true, features = ["write-stats"] }
+# Reads row counts and payload sizes for the store write-volume gate.
+rusqlite.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

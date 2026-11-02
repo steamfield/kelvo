@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Coalition benchmark (architecture.md, Performance budget; D-067). Builds the packaged
-# app with the `bench` feature under its own identifier (com.tryopendata.kelvo.bench, so the
+# app with the `bench` feature under its own identifier (com.tryopendata.statglass.bench, so the
 # user's history and settings are never touched), launches it once per scenario, and
 # sums CPU time over the app plus every process macOS holds it responsible for (its
 # WebKit helpers), with the same membership rule as the `self.cpu` collector
-# (crates/kelvo-collect/examples/coalition.rs).
+# (crates/statglass-collect/examples/coalition.rs).
 #
-# Scenarios (KELVO_BENCH_SCENARIO, src-tauri/src/bench.rs):
+# Scenarios (STATGLASS_BENCH_SCENARIO, src-tauri/src/bench.rs):
 #   tray       nothing open, the app's resting state; the budget's number
 #   popover    the popover shown
 #   overview   the dashboard on /dashboard/overview
@@ -30,14 +30,14 @@
 #   SCENARIOS="tray popover"   only these
 #   NO_BUILD=1                 reuse the last bench build
 #   DIST=/abs/path/dist        bundle this prebuilt frontend instead of building src/
-#   APP=/abs/path/Kelvo.app    measure this bench bundle (with NO_BUILD=1), e.g. a copy
+#   APP=/abs/path/StatGlass.app    measure this bench bundle (with NO_BUILD=1), e.g. a copy
 #                              of a previous build; one bench app runs at a time
 #   OUT=dir                    keep the JSON there (default: a temp dir)
 #   KEEP_SETTINGS=1            use the bench identity's settings.json; by default each
 #                              launch starts from shipped defaults held in memory
-#                              (KELVO_BENCH_DEFAULTS), so a setting left in the file
+#                              (STATGLASS_BENCH_DEFAULTS), so a setting left in the file
 #                              cannot spoil the run (D-073)
-#   MENU_BAR="items.cpu=graph" menu bar choices on top of the defaults (KELVO_BENCH_MENU_BAR, D-102)
+#   MENU_BAR="items.cpu=graph" menu bar choices on top of the defaults (STATGLASS_BENCH_MENU_BAR, D-102)
 #   POPOVER_DENSITY=mixed      expanded, compact, or CPU expanded with the rest compact;
 #                              applies to in-memory defaults (without KEEP_SETTINGS)
 #   NO_MOTION=1                zero popover motion tokens; sampling periods stay unchanged
@@ -57,9 +57,9 @@ SECS="${1:-120}"
 WARMUP="${WARMUP:-30}"
 SCENARIOS="${SCENARIOS:-tray popover overview processes}"
 BUDGET="$ROOT/perf-budget.json"
-APP="${APP:-$ROOT/target/release/bundle/macos/Kelvo.app}"
-BIN="$APP/Contents/MacOS/kelvo"
-ID="com.tryopendata.kelvo.bench"
+APP="${APP:-$ROOT/target/release/bundle/macos/StatGlass.app}"
+BIN="$APP/Contents/MacOS/statglass"
+ID="com.tryopendata.statglass.bench"
 OUT="${OUT:-$(mktemp -d)}"
 mkdir -p "$OUT"
 LOGS="$HOME/Library/Logs/$ID"
@@ -87,7 +87,7 @@ if [ -z "${NO_BUILD:-}" ]; then
   (cd "$ROOT" && bun run build:app --bundles app --features bench --config "$config")
 fi
 caffeinate -di -w $$ &
-(cd "$ROOT" && cargo build --quiet --release -p kelvo-collect --example coalition)
+(cd "$ROOT" && cargo build --quiet --release -p statglass-collect --example coalition)
 MEASURE="$ROOT/target/release/examples/coalition"
 [ -x "$BIN" ] || { echo "bench-coalition: no app at $APP" >&2; exit 2; }
 bundle_id="$(plutil -extract CFBundleIdentifier raw -o - "$APP/Contents/Info.plist")"
@@ -129,11 +129,11 @@ run_scenario() {
   local name="$1" pid t0 launch measure_start measure_end
   stop_app
   launch="$(python3 -c 'import time; print(time.time())')"
-  open -n --env "KELVO_BENCH_SCENARIO=$(route_of "$name")" \
-    --env "KELVO_BENCH_DEFAULTS=$defaults" --env "KELVO_BENCH_MENU_BAR=${MENU_BAR:-}" \
-    --env "KELVO_BENCH_POPOVER=${POPOVER_DENSITY:-}" --env "KELVO_BENCH_NO_MOTION=${NO_MOTION:-0}" \
-    --env "KELVO_BENCH_DOCKER_SOCKET=${DOCKER_SOCKET:-}" \
-    --env "RUST_LOG=info,kelvo_lib::tray=debug,kelvo_lib::popover=debug" --env "KELVO_BENCH_TRAY_COUNTERS_MS=5000" \
+  open -n --env "STATGLASS_BENCH_SCENARIO=$(route_of "$name")" \
+    --env "STATGLASS_BENCH_DEFAULTS=$defaults" --env "STATGLASS_BENCH_MENU_BAR=${MENU_BAR:-}" \
+    --env "STATGLASS_BENCH_POPOVER=${POPOVER_DENSITY:-}" --env "STATGLASS_BENCH_NO_MOTION=${NO_MOTION:-0}" \
+    --env "STATGLASS_BENCH_DOCKER_SOCKET=${DOCKER_SOCKET:-}" \
+    --env "RUST_LOG=info,statglass_lib::tray=debug,statglass_lib::popover=debug" --env "STATGLASS_BENCH_TRAY_COUNTERS_MS=5000" \
     "$APP"
   for _ in $(seq 1 50); do
     pid="$(app_pid)"
@@ -165,7 +165,7 @@ for n, v in sorted(d["app_threads"].items(), key=lambda kv: -kv[1]):
 fpm = d.get("frames_per_min")
 if fpm:
     main = d["app_threads"].get("main", 0.0)
-    app = d["processes"].get("kelvo", {}).get("cpu_pct", 0.0)
+    app = d["processes"].get("statglass", {}).get("cpu_pct", 0.0)
     print(f"         tray: {fpm:.1f} frames/min; per frame {main * 600 / fpm:.1f} ms main thread,"
           f" {app * 600 / fpm:.1f} ms whole app process")
 else:

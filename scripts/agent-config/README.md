@@ -55,11 +55,11 @@ skills use the same pattern at home: `~/.agents/skills/<name>` points to
 `~/.claude/plugins/marketplaces/claude-essentials/plugins/ce/skills/<name>`.
 The whole directory is linked so its `references/` resolve without copied files.
 `architecting-systems` and `planning-products` are the two planning skills used
-by Kelvo; their Claude plugin aliases are `ce:architecting-systems` and
+by StatGlass; their Claude plugin aliases are `ce:architecting-systems` and
 `ce:planning-products`.
 
 This follows OpenData's `scripts/agent-config/setup-home.sh` pattern, but that
-script only enumerates personal `~/.claude/skills/*`, not plugin skills. Kelvo's
+script only enumerates personal `~/.claude/skills/*`, not plugin skills. StatGlass's
 synchronizer deliberately does not change home configuration. Create each personal
 link only when its source `SKILL.md` exists and its destination is absent; leave
 collisions untouched. Prefer the marketplace path over a versioned cache path.

@@ -66,7 +66,7 @@ export const BOOT_TREE: SpaceSpec = d("Macintosh HD", [
           l(".git", 3.4, ["pack-91ad.pack", "pack-11c0.pack"]),
           s(0.3, 214),
         ]),
-        d("kelvo", [
+        d("statglass", [
           l("target", 17.2, ["debug", "release", "deps"]),
           l("node_modules", 1.4),
           s(0.1, 380),

@@ -135,7 +135,8 @@ export function SshSetupHelp({
             <p className="mt-1">
               If your key has a passphrase, unlock it with{" "}
               <span className="select-text">ssh-add ~/.ssh/id_ed25519</span>{" "}
-              (use your key’s path). Kelvo connects without password prompts.
+              (use your key’s path). StatGlass connects without password
+              prompts.
             </p>
           </li>
           <li>
@@ -186,7 +187,7 @@ export function SshSetupHelp({
                 <p>
                   This command can prompt for a password or key passphrase.
                   After verifying the host, run the separate test below to check
-                  the access Kelvo needs without prompts.
+                  the access StatGlass needs without prompts.
                 </p>
               </div>
             )}

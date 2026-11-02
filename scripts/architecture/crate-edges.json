@@ -1,38 +1,46 @@
 {
-  "kelvo-schema": { "normal": [], "dev": [] },
-  "kelvo-proto": { "normal": ["kelvo-schema"], "dev": [] },
-  "kelvo-collect": { "normal": ["kelvo-schema"], "dev": [] },
-  "kelvo-store": { "normal": ["kelvo-schema"], "dev": ["kelvo-proto"] },
-  "kelvo-engine": {
-    "normal": ["kelvo-schema", "kelvo-collect", "kelvo-store"],
-    "dev": ["kelvo-collect", "kelvo-store"]
+  "statglass-schema": { "normal": [], "dev": [] },
+  "statglass-proto": { "normal": ["statglass-schema"], "dev": [] },
+  "statglass-collect": { "normal": ["statglass-schema"], "dev": [] },
+  "statglass-store": {
+    "normal": ["statglass-schema"],
+    "dev": ["statglass-proto"]
   },
-  "kelvo-remote": {
-    "normal": ["kelvo-schema", "kelvo-proto", "kelvo-store", "kelvo-engine"],
-    "dev": []
+  "statglass-engine": {
+    "normal": ["statglass-schema", "statglass-collect", "statglass-store"],
+    "dev": ["statglass-collect", "statglass-store"]
   },
-  "kelvo-remote-helper": { "normal": ["kelvo-remote"], "dev": [] },
-  "kelvo-agent": {
+  "statglass-remote": {
     "normal": [
-      "kelvo-schema",
-      "kelvo-proto",
-      "kelvo-store",
-      "kelvo-engine",
-      "kelvo-remote",
-      "kelvo-update"
+      "statglass-schema",
+      "statglass-proto",
+      "statglass-store",
+      "statglass-engine"
     ],
     "dev": []
   },
-  "kelvo": {
+  "statglass-remote-helper": { "normal": ["statglass-remote"], "dev": [] },
+  "statglass-agent": {
     "normal": [
-      "kelvo-schema",
-      "kelvo-proto",
-      "kelvo-store",
-      "kelvo-engine",
-      "kelvo-remote",
-      "kelvo-update"
+      "statglass-schema",
+      "statglass-proto",
+      "statglass-store",
+      "statglass-engine",
+      "statglass-remote",
+      "statglass-update"
     ],
     "dev": []
   },
-  "kelvo-update": { "normal": [], "dev": [] }
+  "statglass": {
+    "normal": [
+      "statglass-schema",
+      "statglass-proto",
+      "statglass-store",
+      "statglass-engine",
+      "statglass-remote",
+      "statglass-update"
+    ],
+    "dev": []
+  },
+  "statglass-update": { "normal": [], "dev": [] }
 }

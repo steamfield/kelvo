@@ -72,10 +72,10 @@ describe("opener capability scope", () => {
   it("refuses every other URL", () => {
     for (const url of [
       "https://example.com/",
-      "http://github.com/steamfield/kelvo/issues/new?labels=sensors&title=x",
+      "http://github.com/steamfield/statglass/issues/new?labels=sensors&title=x",
       "https://github.com/someone/else/issues/new?labels=sensors&title=x",
-      "https://github.com/steamfield/kelvo/settings",
-      "https://github.com/steamfield/kelvo/releases/tag/v1/../../../../someone/repo",
+      "https://github.com/steamfield/statglass/settings",
+      "https://github.com/steamfield/statglass/releases/tag/v1/../../../../someone/repo",
       "file:///etc/passwd",
       "mailto:someone@example.com",
     ]) {

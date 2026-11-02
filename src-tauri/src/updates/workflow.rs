@@ -1,6 +1,6 @@
 use anyhow::{Context, anyhow};
-use kelvo_schema::lock::LockExt;
-use kelvo_update::{Client, ProtocolRange, VerifiedRelease};
+use statglass_schema::lock::LockExt;
+use statglass_update::{Client, ProtocolRange, VerifiedRelease};
 use std::{fs, time::Duration};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::UpdaterExt;
@@ -12,8 +12,8 @@ const TARGET: &str = "darwin-aarch64";
 
 fn candidate(app: &AppHandle, release: &VerifiedRelease) -> anyhow::Result<Option<Candidate>> {
     let protocol = ProtocolRange {
-        min: kelvo_proto::MIN_COMPATIBLE,
-        max: kelvo_proto::PROTO_VERSION,
+        min: statglass_proto::MIN_COMPATIBLE,
+        max: statglass_proto::PROTO_VERSION,
     };
     let Some(artifact) = release.candidate(env!("CARGO_PKG_VERSION"), protocol, TARGET)? else {
         return Ok(None);
@@ -59,12 +59,12 @@ impl Updates {
             Err(error) => {
                 *self.candidate.lock_ok() = None;
                 if matches!(
-                    error.downcast_ref::<kelvo_update::Error>(),
-                    Some(kelvo_update::Error::Incompatible { .. })
+                    error.downcast_ref::<statglass_update::Error>(),
+                    Some(statglass_update::Error::Incompatible { .. })
                 ) {
                     return Ok(self.set(app, UpdateStatus::CompatibilityBlocked {
                         version: release.release().version.clone(),
-                        message: "This release drops an SSH protocol version. Upgrade connected controllers first, then quit Kelvo and install the newer release from its DMG.".into(),
+                        message: "This release drops an SSH protocol version. Upgrade connected controllers first, then quit StatGlass and install the newer release from its DMG.".into(),
                     }));
                 }
                 return Err(self.failed(app, error));
@@ -205,7 +205,7 @@ impl Updates {
         // Avoid rereading a large cached archive every minute while an interactive
         // window remains open. Eligibility is checked again under the gate below.
         if automatic && (!gate::automatic_allowed(app) || gate::interactive_window_open(app)) {
-            self.set(app, UpdateStatus::Waiting { version, reason: "Waiting until automatic installation is enabled and Kelvo windows are closed.".into() });
+            self.set(app, UpdateStatus::Waiting { version, reason: "Waiting until automatic installation is enabled and StatGlass windows are closed.".into() });
             return Ok(());
         }
         // Reverify on the worker before taking the gate, then recheck mutable policy

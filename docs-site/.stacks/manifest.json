@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "projectId": "065a35b5-a2cc-4087-93f0-c93b9abbff6c",
+  "createdAt": "2026-11-02T01:29:31.084Z",
+  "cli": "0.6.0",
+  "mode": "new",
+  "name": "statglass-site",
+  "preset": "sandbox",
+  "agents": [
+    "claude"
+  ],
+  "stack": {
+    "id": "astro-blog",
+    "origin": "bundled",
+    "trusted": true
+  },
+  "fragments": [
+    {
+      "id": "posthog",
+      "origin": "bundled",
+      "trusted": true
+    }
+  ],
+  "env": {
+    "PORT_WEB": "4321"
+  },
+  "commands": {
+    "install": "Install dependencies (frozen lockfile when CI is set)",
+    "dev": "Astro dev server on PORT_WEB",
+    "lint": "Fail if Prettier would change any file",
+    "check": "Type-check and validate content (astro check)",
+    "test": "Unit and component tests",
+    "coverage": "Tests with coverage",
+    "build": "Static production build into dist/",
+    "preview": "Serve the production build",
+    "new-article": "Scaffold a draft post from SLUG and TITLE",
+    "format": "Format with Prettier",
+    "clean": "Remove build output and Astro caches"
+  },
+  "verify": [
+    {
+      "name": "install",
+      "run": "make install",
+      "phase": "setup",
+      "tags": [],
+      "layer": "install",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    },
+    {
+      "name": "lint",
+      "run": "make lint",
+      "phase": "check",
+      "tags": [],
+      "layer": "lint",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    },
+    {
+      "name": "check",
+      "run": "make check",
+      "phase": "check",
+      "tags": [],
+      "layer": "typecheck",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    },
+    {
+      "name": "test",
+      "run": "make test",
+      "phase": "check",
+      "tags": [],
+      "layer": "test",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    },
+    {
+      "name": "build",
+      "run": "make build",
+      "phase": "check",
+      "tags": [],
+      "layer": "build",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    },
+    {
+      "name": "web",
+      "run": "make dev",
+      "phase": "serve",
+      "tags": [],
+      "expect": {
+        "http": "http://localhost:${PORT_WEB}/",
+        "within": "60s"
+      },
+      "layer": "serve",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    },
+    {
+      "name": "readme-filled",
+      "run": "test -s README.md && ! grep -n 'stacks:fill' README.md",
+      "phase": "check",
+      "tags": [],
+      "layer": "check",
+      "timeout": "10m",
+      "owner": "astro-blog",
+      "skipByDefault": false
+    }
+  ],
+  "verifyDigest": "sha256:83de0828eb23190e399c6654199dd6a5c70b7ce62db2222315e3c8cc50aef5ac",
+  "briefWords": 1222,
+  "handoff": {
+    "kind": "inside-agent",
+    "agent": "claude",
+    "at": "2026-11-02T01:30:08.234Z"
+  },
+  "fingerprint": "sha256:38cbfe86a76f03bf0d2b3b76760469581b344964e15d7e2746bcfa050c1aebc1"
+}

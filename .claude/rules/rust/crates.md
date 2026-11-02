@@ -23,15 +23,15 @@ also prevents an otherwise valid dependency from crossing an ownership boundary.
 Current normal dependencies (left side depends on the right):
 
 ```
-kelvo-schema        -> none
-kelvo-proto         -> schema
-kelvo-collect       -> schema
-kelvo-store         -> schema
-kelvo-engine        -> schema, collect, store
-kelvo-remote        -> schema, proto, store, engine
-kelvo-remote-helper -> remote
-kelvo-agent         -> schema, proto, store, engine, remote
-kelvo (src-tauri)   -> schema, proto, store, engine, remote
+statglass-schema        -> none
+statglass-proto         -> schema
+statglass-collect       -> schema
+statglass-store         -> schema
+statglass-engine        -> schema, collect, store
+statglass-remote        -> schema, proto, store, engine
+statglass-remote-helper -> remote
+statglass-agent         -> schema, proto, store, engine, remote
+statglass (src-tauri)   -> schema, proto, store, engine, remote
 ```
 
 The policy records dev edges separately (including store's protocol fixtures). Do not
@@ -39,23 +39,23 @@ copy a new dependency into the policy simply to silence a failure: explain the o
 change in the implementation/decision record and test the boundary. Authorized refactors
 can proceed autonomously within their agreed scope.
 
-- `kelvo-schema` is pure data: metric catalog, series keys (`metric_id` + labels), HostInfo,
+- `statglass-schema` is pure data: metric catalog, series keys (`metric_id` + labels), HostInfo,
   Capabilities, alert-rule data, the typed `Snapshot` view. No I/O, no platform code.
-  The one non-data module is `kelvo_schema::lock` (`LockExt`/`RwLockExt`, poison-recovering
+  The one non-data module is `statglass_schema::lock` (`LockExt`/`RwLockExt`, poison-recovering
   lock access, std only): every crate already depends on schema, so it lives here rather
   than adding a crate edge.
-- `kelvo-proto` is framing, codec (CBOR via `ciborium`), handshake and message types. It
+- `statglass-proto` is framing, codec (CBOR via `ciborium`), handshake and message types. It
   never touches the store or collectors.
-- `kelvo-collect` reads the OS. It knows nothing about storage or the UI.
-- `kelvo-store` knows SQLite and series layouts. It knows nothing about collectors.
-- `kelvo-engine` wires collectors to the store and bus through the `Ticker` and
+- `statglass-collect` reads the OS. It knows nothing about storage or the UI.
+- `statglass-store` knows SQLite and series layouts. It knows nothing about collectors.
+- `statglass-engine` wires collectors to the store and bus through the `Ticker` and
   `PowerSignals` traits. It also owns `HistoryStore` lifecycle, generation-safe reader
   checkout/reset and persisted/recent history query merging.
-- `kelvo-remote` owns SSH/session orchestration and `Mirror` storage synchronization;
-  `kelvo-remote-helper` is the bundled stdio-to-local-socket bridge, not a collector agent.
-- `kelvo-agent` is the headless collector for hosts without the app (D-116): the engine,
+- `statglass-remote` owns SSH/session orchestration and `Mirror` storage synchronization;
+  `statglass-remote-helper` is the bundled stdio-to-local-socket bridge, not a collector agent.
+- `statglass-agent` is the headless collector for hosts without the app (D-116): the engine,
   its own history and the metrics socket, plus the one-shot commands the controller runs
-  over SSH. Install paths and unit text live in `kelvo_remote::agent_layout`, shared
+  over SSH. Install paths and unit text live in `statglass_remote::agent_layout`, shared
   with the controller.
 - `src-tauri` is a thin shell: commands, windows, tray, settings ownership. Business logic
   that isn't Tauri-specific belongs in a crate, where it is testable without a webview.
@@ -74,4 +74,4 @@ Series storage and explicit gaps are in CLAUDE.md and `data-boundary.md`. On top
 - `host_id` (a persisted UUID) threads through every store call, command and channel.
 - Exactly one process writes a given SQLite file.
 - `seq` and millisecond timestamps are `i64` and stay below 2^53 (documented in
-  `kelvo-schema`) so they cross to TS as `number`.
+  `statglass-schema`) so they cross to TS as `number`.

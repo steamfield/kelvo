@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* StatGlass's own tokens (colors, module accents, motion, card glow), so the
+   site and the real widgets it renders share one design system. Defines the
+   `.dark` variant too. */
+@import "@statglass/tokens.css";
+/* Code blocks only; the rest of the site is the system face, as in the app. */
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "./motion.css";
+
+/* Tailwind only scans this project by default; the widgets live in the app. */
+@source "../../../src/app/widgets";
+@source "../../../src/app/lib";
+
+/* Site-only tokens for docs code blocks, built from the app's module inks so
+   they follow light and dark with the rest of the theme. */
+:root {
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-code-background: var(--color-well);
+  --color-code-foreground: var(--color-foreground);
+  --color-code-function: var(--color-cpu-ink);
+  --color-code-keyword: var(--color-gpu-ink);
+  --color-code-string: var(--color-net-ink);
+  --color-code-constant: var(--color-power-ink);
+  --color-code-parameter: var(--color-mem-ink);
+  --color-code-comment: var(--color-muted-foreground);
+  --color-code-punctuation: var(--color-secondary-foreground);
+}
+
+/* Same page base as the app (src/app/styles/base.css), minus its
+   window-specific rules. */
+html,
+body {
+  @apply bg-background text-foreground;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-weight: 510;
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}

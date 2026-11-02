@@ -42,7 +42,7 @@ const CARDS: Record<
 };
 
 /**
- * Footer with Kelvo's own CPU averaged over the last 60 s. Its own component
+ * Footer with StatGlass's own CPU averaged over the last 60 s. Its own component
  * because it re-renders on every appended row; the cards must not.
  */
 function LiveFooter() {

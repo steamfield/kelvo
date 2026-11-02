@@ -12,8 +12,8 @@
 #                        each other and stop streaming, D-036), alternating which goes
 #                        first.
 # tray-battery has the engine see the Mac on battery with the slowdown on
-# (KELVO_BENCH_BATTERY), so the backed-off case measures on AC. Neither run touches the
-# bench identities' settings files: KELVO_BENCH_PERFORMANCE is applied in memory.
+# (STATGLASS_BENCH_BATTERY), so the backed-off case measures on AC. Neither run touches the
+# bench identities' settings files: STATGLASS_BENCH_PERFORMANCE is applied in memory.
 #
 # Only overview runs by default. With no window open the background already holds the
 # 2 s tick, 30 s processes, 10 s temperatures and the 4 s tray redraw (D-094), so the
@@ -36,10 +36,10 @@ CASES="${CASES:-overview}"
 BUDGET="$ROOT/perf-budget.json"
 OUT="${OUT:-$(mktemp -d)}"
 mkdir -p "$OUT"
-ID_A="com.tryopendata.kelvo.bench"
-ID_B="com.tryopendata.kelvo.bench2"
-APP_A="$ROOT/target/release/bundle/macos/Kelvo.app"
-APP_B="$ROOT/target/release/bundle/macos/Kelvo-bench2.app"
+ID_A="com.tryopendata.statglass.bench"
+ID_B="com.tryopendata.statglass.bench2"
+APP_A="$ROOT/target/release/bundle/macos/StatGlass.app"
+APP_B="$ROOT/target/release/bundle/macos/StatGlass-bench2.app"
 
 if [ "$(uname -s)" != "Darwin" ]; then
   echo "bench-perf-mode: macOS only" >&2
@@ -89,17 +89,17 @@ if [ -z "${NO_BUILD:-}" ]; then
 fi
 # Held awake for the run: a dark display stops tray redraws and the dashboard's stream.
 caffeinate -di -w $$ &
-(cd "$ROOT" && cargo build --quiet --release -p kelvo-collect --example coalition)
+(cd "$ROOT" && cargo build --quiet --release -p statglass-collect --example coalition)
 MEASURE="$ROOT/target/release/examples/coalition"
 for app in "$APP_A" ${parallel:+"$APP_B"}; do
-  [ -x "$app/Contents/MacOS/kelvo" ] || { echo "bench-perf-mode: no app at $app" >&2; exit 2; }
+  [ -x "$app/Contents/MacOS/statglass" ] || { echo "bench-perf-mode: no app at $app" >&2; exit 2; }
 done
-if [ -n "$parallel" ] && ! grep -aq "$ID_B" "$APP_B/Contents/MacOS/kelvo"; then
+if [ -n "$parallel" ] && ! grep -aq "$ID_B" "$APP_B/Contents/MacOS/statglass"; then
   echo "bench-perf-mode: $APP_B was not built as $ID_B; rebuild without NO_BUILD" >&2
   exit 2
 fi
 
-pid_of() { pgrep -f "^$1/Contents/MacOS/kelvo" | head -1 || true; }
+pid_of() { pgrep -f "^$1/Contents/MacOS/statglass" | head -1 || true; }
 
 stop() {
   local pid
@@ -119,8 +119,8 @@ trap stop_all EXIT
 launch() {
   local app="$1" pid
   # Shipped defaults in memory: the two identities' settings files cannot differ.
-  open -n --env "KELVO_BENCH_SCENARIO=$2" --env "KELVO_BENCH_PERFORMANCE=$3" \
-    --env "KELVO_BENCH_BATTERY=$4" --env "KELVO_BENCH_DEFAULTS=1" "$app"
+  open -n --env "STATGLASS_BENCH_SCENARIO=$2" --env "STATGLASS_BENCH_PERFORMANCE=$3" \
+    --env "STATGLASS_BENCH_BATTERY=$4" --env "STATGLASS_BENCH_DEFAULTS=1" "$app"
   for _ in $(seq 1 50); do
     pid="$(pid_of "$app")"
     [ -n "$pid" ] && { echo "$pid"; return 0; }

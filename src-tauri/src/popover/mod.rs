@@ -20,7 +20,7 @@ use std::collections::VecDeque;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use kelvo_schema::lock::LockExt;
+use statglass_schema::lock::LockExt;
 
 pub const LABEL: &str = "popover";
 /// The page the panel loads; the frontend maps it to its `/popover` route.

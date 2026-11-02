@@ -18,7 +18,7 @@ describe("app updates", () => {
       screen.getByRole("button", { name: "Install and restart" })
     );
     expect(
-      await screen.findByText("Update installed. Restarting Kelvo…")
+      await screen.findByText("Update installed. Restarting StatGlass…")
     ).toBeVisible();
   });
 
@@ -77,7 +77,7 @@ describe("app updates", () => {
       transport.calls.find((call) => call.command === "install_update")?.args
     ).toEqual(["0.2.0"]);
     expect(
-      await screen.findByText("Update installed. Restarting Kelvo…")
+      await screen.findByText("Update installed. Restarting StatGlass…")
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Please wait…" })).toBeDisabled();
   });

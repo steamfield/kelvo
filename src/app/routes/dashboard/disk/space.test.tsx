@@ -348,7 +348,7 @@ describe("Disk › Space on a remote Linux host (D-117)", () => {
     expect(local.status === "ok" && local.data.phase).toBe("idle");
   });
 
-  it("says when the host's Kelvo is too old to answer", async () => {
+  it("says when the host's StatGlass is too old to answer", async () => {
     const transport = createMockTransport({
       autoTick: false,
       scenarios: ["linux-host"],
@@ -357,7 +357,7 @@ describe("Disk › Space on a remote Linux host (D-117)", () => {
       status: "error",
       error: {
         kind: "remote_incompatible",
-        message: "this host's Kelvo is too old to answer; update it",
+        message: "this host's StatGlass is too old to answer; update it",
       },
     } as const;
     transport.diskSpaceVolumes = async () => old;
@@ -370,7 +370,7 @@ describe("Disk › Space on a remote Linux host (D-117)", () => {
     );
     expect(
       await screen.findByText(
-        "This host's Kelvo is too old to share space reports. Update Kelvo on it, then try again."
+        "This host's StatGlass is too old to share space reports. Update StatGlass on it, then try again."
       )
     ).toBeVisible();
     expect(

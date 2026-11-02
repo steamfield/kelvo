@@ -2,7 +2,7 @@
 # PreToolUse hook: block manual edits/writes to generated files.
 #
 # src/core/generated/ holds the TypeScript bindings tauri-specta generates from
-# the Rust commands, events and kelvo-schema types. Rust is the source of
+# the Rust commands, events and statglass-schema types. Rust is the source of
 # truth; a hand edit drifts silently until the next regen wipes it. Making the
 # files un-editable converts that churn into "can't happen": change the Rust
 # side and regenerate.

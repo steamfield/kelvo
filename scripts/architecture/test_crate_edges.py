@@ -23,18 +23,18 @@ class CrateEdges(unittest.TestCase):
         self.assertEqual(self.check_graph(packages).returncode, 0)
 
     def test_reverse_edge_fails(self):
-        result = self.check_graph([{"name": "kelvo-schema", "dependencies": [
-            {"name": "kelvo-engine", "kind": None, "path": "/engine"}
+        result = self.check_graph([{"name": "statglass-schema", "dependencies": [
+            {"name": "statglass-engine", "kind": None, "path": "/engine"}
         ]}])
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("forbidden normal edge: kelvo-schema -> kelvo-engine", result.stderr)
+        self.assertIn("forbidden normal edge: statglass-schema -> statglass-engine", result.stderr)
 
     def test_new_member_requires_review(self):
-        self.assertNotEqual(self.check_graph([{"name": "kelvo-new", "dependencies": []}]).returncode, 0)
+        self.assertNotEqual(self.check_graph([{"name": "statglass-new", "dependencies": []}]).returncode, 0)
 
     def test_test_only_edge_cannot_be_used_in_production(self):
-        self.assertNotEqual(self.check_graph([{"name": "kelvo-store", "dependencies": [
-            {"name": "kelvo-proto", "kind": None, "path": "/proto"}
+        self.assertNotEqual(self.check_graph([{"name": "statglass-store", "dependencies": [
+            {"name": "statglass-proto", "kind": None, "path": "/proto"}
         ]}]).returncode, 0)
 
 

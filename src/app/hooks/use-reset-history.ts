@@ -10,7 +10,7 @@ import { useHostId } from "~/stores/host-store";
  * `reset_history` (D-064): moves the history file aside and starts an empty
  * one. On success every history query, the size on disk and the health are
  * refetched, so the banner clears without waiting for the health event. A
- * failure is a toast; `store_busy` names the other Kelvo holding the file.
+ * failure is a toast; `store_busy` names the other StatGlass holding the file.
  * Resolves true when the store was reset.
  */
 export function useResetHistory() {

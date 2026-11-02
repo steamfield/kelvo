@@ -1,7 +1,7 @@
 //! Update policy is read from its owning host, never cached in the controller's settings.
 use super::*;
-use kelvo_remote::agent_install::HostProbe;
-use kelvo_remote::control::{self, RemoteUpdateStatus};
+use statglass_remote::agent_install::HostProbe;
+use statglass_remote::control::{self, RemoteUpdateStatus};
 
 pub(super) fn local_status(app: &AppHandle) -> RemoteUpdateStatus {
     let settings = app.state::<AppState>().settings.settings();
@@ -51,7 +51,7 @@ async fn read_or_write(
         HostProbe::Linux(probe) => {
             let existing = probe
                 .existing()
-                .ok_or_else(|| failure("No Kelvo agent is installed on this host"))?;
+                .ok_or_else(|| failure("No StatGlass agent is installed on this host"))?;
             if existing.status.as_ref().and_then(|s| s.host_id) != Some(saved.record.id) {
                 return Err(CommandError::RemoteIdentity {
                     message:
@@ -82,7 +82,7 @@ async fn read_or_write(
             let helper = probe
                 .helper_path
                 .ok_or_else(|| failure("The remote helper is missing"))?;
-            let snapshot = kelvo_remote::install::status(&alias, &helper).await?;
+            let snapshot = statglass_remote::install::status(&alias, &helper).await?;
             if snapshot.host.as_ref().map(|h| h.id) != Some(saved.record.id) {
                 return Err(CommandError::RemoteIdentity {
                     message:
@@ -94,7 +94,7 @@ async fn read_or_write(
                 return Ok(RemoteUpdateStatus::unsupported());
             }
             let response = if let Some((check_updates, auto_install_updates)) = policy {
-                kelvo_remote::install::configure(
+                statglass_remote::install::configure(
                     &alias,
                     &helper,
                     &ControlRequest::UpdatePolicy {

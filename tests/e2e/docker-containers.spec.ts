@@ -524,13 +524,13 @@ test("chart keyboard table alternative preserves real gaps and partial readings"
 for (const [scenario, notice, detailText] of [
   [
     "docker-save-failed",
-    "Recent history is not being saved. Kelvo will retry.",
+    "Recent history is not being saved. StatGlass will retry.",
     "Measurements could not be saved",
   ],
   [
     "docker-history-gap",
     "CPU history missing for 1 interval",
-    "Kelvo was not running",
+    "StatGlass was not running",
   ],
   [
     "docker-events-gap",

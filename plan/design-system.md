@@ -1,12 +1,12 @@
 # Design system
 
-Kelvo uses opendata's visual language ([`DESIGN.md`](https://github.com/tryopendata/opendata/blob/main/DESIGN.md)), adapted for a desktop app that redraws itself once a second. This doc says what carries over from opendata, what is new, and how each screen maps to a route, a window, a set of components and the version that ships it. This doc and the app as built are the visual reference (D-095).
+StatGlass uses opendata's visual language ([`DESIGN.md`](https://github.com/tryopendata/opendata/blob/main/DESIGN.md)), adapted for a desktop app that redraws itself once a second. This doc says what carries over from opendata, what is new, and how each screen maps to a route, a window, a set of components and the version that ships it. This doc and the app as built are the visual reference (D-095).
 
 Token values live in `src/app/styles/theme.css`. This doc refers to tokens by name and only repeats a value when the rule depends on it.
 
 ## Sources
 
-| Source | Path | What it gives Kelvo |
+| Source | Path | What it gives StatGlass |
 |---|---|---|
 | opendata design spec | [`DESIGN.md`](https://github.com/tryopendata/opendata/blob/main/DESIGN.md) | Surfaces, type rules, radius scale, motion (§10) |
 | opendata tokens | [`shared/styles/theme.css`](https://github.com/tryopendata/opendata/blob/main/shared/styles/theme.css) | `@theme` structure, shadcn token names, dark custom variant |
@@ -16,15 +16,15 @@ Token values live in `src/app/styles/theme.css`. This doc refers to tokens by na
 
 ## Ported from opendata
 
-| Item | opendata file | Kelvo file | Change on the way in |
+| Item | opendata file | StatGlass file | Change on the way in |
 |---|---|---|---|
-| `@custom-variant dark (&:where(.dark, .dark *))` and the `@theme static` block | `shared/styles/theme.css` | `src/app/styles/theme.css` | Provider colors, `--od-*` aliases, Satoshi and Source Serif dropped. Kelvo tokens added |
+| `@custom-variant dark (&:where(.dark, .dark *))` and the `@theme static` block | `shared/styles/theme.css` | `src/app/styles/theme.css` | Provider colors, `--od-*` aliases, Satoshi and Source Serif dropped. StatGlass tokens added |
 | shadcn token names (`background`, `card`, `popover`, `primary`, `border`, `input`, `ring`, `muted-foreground`, `destructive`) | `shared/styles/theme.css` | same | Dark `muted-foreground` changes to `#8a8f98`, light `surface-raised` becomes `--color-raised: #e4e4e7` |
 | `.ask-accent` corner glow, `--quiet` variant, accent tile | `shared/styles/tool-cards.css` | `src/app/widgets/card.module.css` as `.card` with `data-variant="chart"` (`@property --g` stays global in `src/app/styles/cards.css`) | Origin becomes a variable (`--o`), hover raises the tint to 22%, `@property --g` registered so the tint can transition |
 | `.data-mono` | `shared/styles/effects.css` | `src/app/styles/effects.css` | Replaced by `.figures` and `.figures-display` (D-101) |
-| Motion tokens (150 ms, 300 ms, `cubic-bezier(0.16,1,0.3,1)`) and the reduced-motion wrapper rule | `DESIGN.md` §10, `tool-cards.css` | `src/app/styles/motion.css` as `--motion-fast`, `--motion-entry`, `--ease-out` | The 500 ms word fade is not ported; Kelvo has no streaming prose |
+| Motion tokens (150 ms, 300 ms, `cubic-bezier(0.16,1,0.3,1)`) and the reduced-motion wrapper rule | `DESIGN.md` §10, `tool-cards.css` | `src/app/styles/motion.css` as `--motion-fast`, `--motion-entry`, `--ease-out` | The 500 ms word fade is not ported; StatGlass has no streaming prose |
 | Radius scale (2, 4, 6, 8, 12, 22, full) | `DESIGN.md` §5 | `theme.css` `--radius-*` | 1 px added for dense heatmap cells |
-| Type rules: weights 400/510/590, never 700 | `DESIGN.md` §3 | `theme.css`, `html` rule | The face is SF Pro, not Inter (D-101). Sizes follow Kelvo's app scale, not opendata's marketing scale |
+| Type rules: weights 400/510/590, never 700 | `DESIGN.md` §3 | `theme.css`, `html` rule | The face is SF Pro, not Inter (D-101). Sizes follow StatGlass's app scale, not opendata's marketing scale |
 | Luminance stepping for depth, no drop shadows on dark | `DESIGN.md` §6 | applies everywhere | Unchanged |
 | Stable keys, one flat keyed array, `inert` on collapsed regions | `DESIGN.md` §10 | React rendering rules | Unchanged |
 
@@ -100,14 +100,14 @@ SF Pro, the macOS system face, on every element (`--font-sans`: `-apple-system`)
 
 | Role | Family | Size | Weight | Tracking | Example in mocks |
 |---|---|---|---|---|---|
-| Onboarding title | SF Pro | 28 px | 590 | -0.022em | "Set up Kelvo" (11) |
+| Onboarding title | SF Pro | 28 px | 590 | -0.022em | "Set up StatGlass" (11) |
 | Page title | SF Pro | 22 px | 590 | -0.022em | "Overview", "CPU", "Timeline" (04, 06, 07, 08, 13) |
 | Machine name | SF Pro | 20 px | 590 | -0.022em | "MacBook Pro 14-inch (M4 Pro, 2024)" (04) |
 | Hero figure | SF Pro Rounded, tabular | 32 px | 400 | -0.022em | CPU total "18%" (07) |
 | Large figure | SF Pro Rounded, tabular | 16 to 18 px | 400 | -0.01em to -0.02em | Lane "now" values (06), cluster GHz rings (07) |
 | Card figure | SF Pro Rounded, tabular | 15 px | 400 | normal | Popover card headline values (14), CPU stat strip (07) |
 | Ring center value | SF Pro Rounded, tabular | 14 px (Overview), 17 px (Power rings) | 400 | -0.02em | "18%", "14.8" (04, 08) |
-| Composer title, popover app title | SF Pro | 16 px, 13 px | 590 | -0.01em | "Widgets" (09), "Kelvo" (14) |
+| Composer title, popover app title | SF Pro | 16 px, 13 px | 590 | -0.01em | "Widgets" (09), "StatGlass" (14) |
 | Card title | SF Pro | 13 px (dashboard), 12 px (popover) | 590 | normal | "CPU", "Per-core load, last 10 minutes" |
 | Body and row text | SF Pro | 12 to 13 px | 400 or 510 | normal | Process names, settings rows |
 | Secondary text | SF Pro | 11 to 12 px | 400 | normal | Card subtitles ("10P + 4E"), page subtitles, `--color-muted-foreground` |
@@ -256,7 +256,7 @@ tooltip rows and placement stay stable while hover updates their values.
 - Every chart is `role="img"` with an `aria-label` that states what it shows and the current value, for example ("CPU, last 60 seconds", "Upload above the line, download below, last 48 seconds"). The label is updated at most every 10 s so screen readers are not flooded.
 - Each Timeline lane has a "Show as table" alternative: a `<table>` of bucket time, min, avg, max for the visible range.
 - Up and down, P and E, and segment names are always text, not only color or position.
-- The status item carries an accessibility label with all values it shows, for example ("Kelvo: CPU 18%, GPU 36%, memory 42%, 61 degrees").
+- The status item carries an accessibility label with all values it shows, for example ("StatGlass: CPU 18%, GPU 36%, memory 42%, 61 degrees").
 - The 30-day heatmap is a `role="grid"` with arrow-key navigation, and each cell's name is its date, hour and value or "no samples".
 - Focus rings use `--color-ring` at 2 px with 2 px offset, on every interactive element including heatmap cells and table headers.
 - Text contrast: `--color-muted-foreground` passes 4.5:1 in both themes; `--color-fg-faint` does not and is only used for non-essential repeat labels and disabled controls.
@@ -292,13 +292,13 @@ The tray image is rendered in Rust (`tiny-skia` for shapes, `ab_glyph` for text)
 | Graphs | v1.1 | CPU line sparkline, memory fill gauge with value, network up and down rates stacked | Sparkline 20 samples wide; rates in two lines at 8 px |
 | Cores + histogram | v1.1 | Per-core strip (P cores, a 3 pt gap, then E cores; 2 pt bars, 1 pt gap, 16 pt tall) plus a GPU usage histogram of the last 9 samples | As in the content column |
 
-Redraw runs at most every 2 s, or 4 s when backed off on battery, doubled again in Performance mode (D-077, D-088), and stops during display sleep. Values are quantized (bars to the pixel, temperature to 1 °C, percentages to 1%) and the rendered frame is hashed; an unchanged frame is not sent to the status item. The original tray mock specified a "150 ms tween". Kelvo does not tween the tray icon: a tween means 5 to 10 extra image sets per second, each of which costs WindowServer compositing, and the WindowServer budget is under 0.2% CPU. The bars jump to the new value. This deviation is recorded in the risks section of `v1-local-monitor.md`.
+Redraw runs at most every 2 s, or 4 s when backed off on battery, doubled again in Performance mode (D-077, D-088), and stops during display sleep. Values are quantized (bars to the pixel, temperature to 1 °C, percentages to 1%) and the rendered frame is hashed; an unchanged frame is not sent to the status item. The original tray mock specified a "150 ms tween". StatGlass does not tween the tray icon: a tween means 5 to 10 extra image sets per second, each of which costs WindowServer compositing, and the WindowServer budget is under 0.2% CPU. The bars jump to the new value. This deviation is recorded in the risks section of `v1-local-monitor.md`.
 
 The status item's highlighted state (a 22 pt tall pill with 5 pt radius) is native and needs no drawing.
 
 ## Anti-slop rules
 
-From opendata's `frontend-design-slop` skill, applied to Kelvo.
+From opendata's `frontend-design-slop` skill, applied to StatGlass.
 
 - No section kickers. Sentence-case field labels are fine (column headers, KPI labels, the "Modules" and "Menu bar style" control-group labels in onboarding). No uppercase tracked labels anywhere (D-101). A label above a heading that restates it is not.
 - No subtitle that restates the title. Page subtitles carry facts: "Apple M4 Pro · 10 performance + 4 efficiency cores", "On battery · 14.8 W system draw · 6:12 remaining".
@@ -337,9 +337,9 @@ From opendata's `frontend-design-slop` skill, applied to Kelvo.
 | Battery page | `/dashboard/battery` | `RingStatCard`, `BatteryHistoryBars`, `StatStrip` | v1.0 |
 | Processes page | `/dashboard/processes` | `ProcessTable` (full), `SearchField`, `SegmentedControl`, `ProcessActions` (row action and context menu with Quit and Force Quit), `Dialog`, toast | v1.0 |
 | Containers overview and detail | `/dashboard/containers`, `/dashboard/containers/:engineId/:containerId` | `PageHeader`, `SectionCard`, `SearchField`, `SegmentedControl`, `DockerLocalOnly`, `EngineChooser`, `ContainerTable` (search, grouping, sorting and bounded virtualized scrolling), `ComparisonChart`, `ChartChooser`, `MonitoringDialog`, `HistoryNotice`, `ContainerHistory`, `HistoryControls`, `RetainedHistory`, `ContainerLogs` (bounded tail and Follow); Activity workload review, Storage & cleanup breakdown/table, explicit action dialogs and results. See [Docker UX plan](docker-container-monitoring.md#2-experience-and-visual-direction) and [storage plan](docker-storage-cleanup.md) | Monitoring and storage extension implemented; light/dark browser checks passed; broader runtime and release acceptance remain open |
-| WidgetKit widgets | SwiftUI extension `native/KelvoWidgets` | SwiftUI views reading the widget feed | v2.2 dev build; v3 signed public build |
+| WidgetKit widgets | SwiftUI extension `native/StatGlassWidgets` | SwiftUI views reading the widget feed | v2.2 dev build; v3 signed public build |
 | Alerts editor | `/dashboard/alerts` | `RuleList`, `RuleEditor` | v2.3 (first built-in rule in v1.2 has no editor) |
-| Hosts page and machine selection | `/dashboard/hosts`; dashboard sidebar | `HostsRoute` (local and remote hosts, connection status, CPU/memory, retry and settings), `HostVersion` (reported and installable Kelvo version, What's new), `UpdateAllDialog` (confirmed sequential agent pushes, one result list), `HostUpdateNotice` (dashboard pages; D-123), `AddMacDialog`, `HostSettings`, `HostSwitcher` (selected machine chooser), `SshSetupHelp` (config detection and expandable setup guide), `RemoteSetupError` (recovery with diagnostic details) | Implemented; first Mac milestone, including SSH setup/recovery |
+| Hosts page and machine selection | `/dashboard/hosts`; dashboard sidebar | `HostsRoute` (local and remote hosts, connection status, CPU/memory, retry and settings), `HostVersion` (reported and installable StatGlass version, What's new), `UpdateAllDialog` (confirmed sequential agent pushes, one result list), `HostUpdateNotice` (dashboard pages; D-123), `AddMacDialog`, `HostSettings`, `HostSwitcher` (selected machine chooser), `SshSetupHelp` (config detection and expandable setup guide), `RemoteSetupError` (recovery with diagnostic details) | Implemented; first Mac milestone, including SSH setup/recovery |
 | Add host flow | `add-host` sheet | `HostPicker`, `InstallProgress` | v4.0 |
 
 ## Component inventory
@@ -384,7 +384,7 @@ Components under `src/app/widgets/` are render-only. They take plain props and c
 | `Sidebar`, `SidebarItem` | Dashboard navigation with live values; `attention` is a bordered count (a dot when collapsed) for something that needs the user, such as hosts behind this Mac | no | `{ groups: { items: { route; label; icon; value?: string; attention?: { count; label } }[] }[]; active }` |
 | `MachineHeader` | Illustration plus spec grid | no | `{ hostInfo: HostInfo; uptimeMs; lastWakeMs }` |
 | `PopoverHeader`, `PopoverFooter` | App title, interval pill, pause, settings; CTA row and self-CPU readout | no | `{ hostName; uptimeMs; intervalMs; paused; onPause; onSettings }`, `{ selfCpuPct; onOpenDashboard; onActivity }` |
-| `KelvoMark` | The brand mark (4 x 4 heat grid in the CPU accent, `brand/kelvo-icon.svg`): popover header, onboarding title, top of the dashboard sidebar | no | `{ className }` |
+| `StatGlassMark` | The brand mark (4 x 4 heat grid in the CPU accent, `brand/statglass-icon.svg`): popover header, onboarding title, top of the dashboard sidebar | no | `{ className }` |
 | `TrayPreview` | Simulated menu bar drawn from a `TrayLayout` (`trayLayout(menuBar, enabled, readings, units)`) | no | `{ layout: TrayLayout; clock?: string }` |
 | `TrayStyleOption` | Selectable card with TrayPreview | no | `{ style; title; description; recommended?: boolean; selected; onSelect }` |
 | `ModuleToggleList` | Module rows with swatch, description, switch | no | `{ modules: { id; label; description; enabled; available }[]; onToggle }` |

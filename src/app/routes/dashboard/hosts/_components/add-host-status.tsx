@@ -11,22 +11,22 @@ function macStatus(prepared: RemoteHostPreparation): string {
     prepared.message ??
     (prepared.installed
       ? prepared.compatible
-        ? "Kelvo is ready to connect."
-        : "Kelvo needs an update. The installed app will be replaced after verification."
-      : "Kelvo will be installed in your Applications folder on the other Mac.")
+        ? "StatGlass is ready to connect."
+        : "StatGlass needs an update. The installed app will be replaced after verification."
+      : "StatGlass will be installed in your Applications folder on the other Mac.")
   );
 }
 
 function busyStatus(phase: SetupPhase, prepared: RemoteHostPreparation | null) {
   if (phase === "cancelling") return "Cancelling… waiting for setup cleanup.";
   if (phase === "verifying") return "Verifying SSH host…";
-  if (phase === "checking") return "Checking SSH access and Kelvo…";
+  if (phase === "checking") return "Checking SSH access and StatGlass…";
   if (phase === "resetting") return "Giving the agent a new identity…";
   if (prepared?.kind === "linux")
     return prepared.installed && prepared.compatible
       ? "Connecting to the agent…"
       : "Installing the agent and connecting…";
-  return "Setting up Kelvo and connecting…";
+  return "Setting up StatGlass and connecting…";
 }
 
 export function AddHostStatus({
@@ -58,8 +58,8 @@ export function AddHostStatus({
           <div className="grid gap-1 text-[13px] text-fg-subtle">
             <p>{macStatus(prepared)}</p>
             <p>
-              Kelvo on that Mac will start at login and share its metrics with
-              this Mac.
+              StatGlass on that Mac will start at login and share its metrics
+              with this Mac.
             </p>
           </div>
         ))}

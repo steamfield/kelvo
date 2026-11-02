@@ -112,7 +112,7 @@ export function QuitDialog({ flow }: { flow: QuitFlow }) {
             excluded.
             {force
               ? " Processes stop immediately. Unsaved data will be lost."
-              : " Kelvo asks each process to quit; apps may ask you to save first."}
+              : " StatGlass asks each process to quit; apps may ask you to save first."}
           </>
         ) : force ? (
           <>
@@ -122,7 +122,7 @@ export function QuitDialog({ flow }: { flow: QuitFlow }) {
           </>
         ) : (
           <>
-            Kelvo asks {shown.target.name} (PID{" "}
+            StatGlass asks {shown.target.name} (PID{" "}
             <span className="figures">{shown.target.pid}</span>) to quit. An app
             with unsaved changes may ask you to save first.
           </>

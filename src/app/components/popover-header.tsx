@@ -1,8 +1,8 @@
 import { formatDuration } from "@core/format";
 import type { PerformanceReason } from "@core/generated/bindings";
 import { Pause, Play, SlidersHorizontal } from "lucide-react";
-import { KelvoMark } from "~/components/kelvo-mark";
 import { PerformanceExplainer } from "~/components/performance-explainer";
+import { StatGlassMark } from "~/components/statglass-mark";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { StatusPill, type StatusPillProps } from "~/widgets/status-pill";
@@ -44,9 +44,11 @@ export function PopoverHeader({
         scrolled ? "border-border" : "border-transparent"
       )}
     >
-      <KelvoMark className="size-7" />
+      <StatGlassMark className="size-7" />
       <div className="flex min-w-0 flex-1 flex-col gap-px">
-        <h1 className="m-0 font-[590] text-[13px] tracking-[-0.01em]">Kelvo</h1>
+        <h1 className="m-0 font-[590] text-[13px] tracking-[-0.01em]">
+          StatGlass
+        </h1>
         <span className="truncate font-normal text-[11px] text-muted-foreground">
           {hostName} · up{" "}
           <span className="figures">{formatDuration(uptimeMs)}</span>

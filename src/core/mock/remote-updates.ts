@@ -36,6 +36,17 @@ export function seedUpdateScenarios(
   remotes: MockRemotes,
   scenarios: readonly ScenarioName[]
 ) {
+  if (scenarios.includes("host-unreachable"))
+    seed(remotes, "unreachable", true, {
+      state: "error",
+      route: null,
+      last_seen_ms: null,
+      cpu_pct: null,
+      memory_pct: null,
+      error:
+        "SSH command failed (127): /usr/local/bin/statglass-agent: No such file or directory",
+      clock_offset_ms: null,
+    });
   if (scenarios.includes("hosts-outdated")) {
     for (const name of ["nas", "build-box"])
       seed(remotes, name, true, {

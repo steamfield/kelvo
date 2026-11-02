@@ -182,7 +182,7 @@ for (const theme of THEMES) {
       await button.click();
       await expect(
         page.getByText(
-          /^Exported [\d,]+ rows.* to \/Users\/mock\/Downloads\/kelvo-\d{4}-\d{2}-\d{2}-\d{4}-1d\.csv$/
+          /^Exported [\d,]+ rows.* to \/Users\/mock\/Downloads\/statglass-\d{4}-\d{2}-\d{2}-\d{4}-1d\.csv$/
         )
       ).toBeVisible();
       expect(errors).toEqual([]);

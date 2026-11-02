@@ -4,7 +4,7 @@
  *
  * The tables are hand-built rather than `Intl.DateTimeFormat`, which follows
  * the WKWebView system locale and can give a 12-hour clock, "24:05" or a
- * translated month. Kelvo's labels are English and 24-hour everywhere.
+ * translated month. StatGlass's labels are English and 24-hour everywhere.
  */
 import { isPresent, type MaybeNumber, MISSING } from "./number";
 

@@ -80,6 +80,17 @@ class BiomeRules(unittest.TestCase):
             with self.subTest(source=source):
                 self.assert_allowed(source, directory="src/app/widgets")
 
+    def test_widgets_barrel_reexports_follow_the_same_boundary(self):
+        # src/app/widgets/index.ts is docs-site's entry point: re-exports of
+        # sibling widgets pass, re-exports that would leak the app do not.
+        self.assert_allowed('export { Legend, type LegendProps } from "../legend";\n',
+                            directory="src/app/widgets", name="index.ts")
+        for module, symbol in (("@core/transport", "useTransport"), ("@core/generated/bindings", "commands"),
+                               ("~/hooks/use-transport", "useTransport"), ("@core/mock/fixtures", "MOCK_HOST_ID")):
+            with self.subTest(module=module, symbol=symbol):
+                self.assert_rejected(f'export {{ {symbol} }} from "{module}";\n',
+                                     directory="src/app/widgets", name="index.ts")
+
     def test_browser_rejects_node_builtins_in_prefixed_and_bare_forms(self):
         for directory in ("src/core", "src/app", "src/app/widgets"):
             for module in ("node:fs", "fs", "fs/promises"):

@@ -6,7 +6,7 @@ Read [architecture.md](architecture.md) first for the series model, bus, store t
 
 ## Goal and user value
 
-v1 answers "what is my Mac doing and what did it do". v2 lets people decide where that information lives. Someone who only cares about memory pressure and the hottest SoC zone can make the popover show exactly that. Someone with a second display can park a CPU heatmap and a network graph on the desktop and leave them there, without paying for animation nobody is looking at. Someone who prefers native macOS widgets can build Kelvo from source with a WidgetKit extension and add Kelvo to the widget gallery on their own Mac.
+v1 answers "what is my Mac doing and what did it do". v2 lets people decide where that information lives. Someone who only cares about memory pressure and the hottest SoC zone can make the popover show exactly that. Someone with a second display can park a CPU heatmap and a network graph on the desktop and leave them there, without paying for animation nobody is looking at. Someone who prefers native macOS widgets can build StatGlass from source with a WidgetKit extension and add StatGlass to the widget gallery on their own Mac.
 
 The engineering value is that widget definitions become data. One manifest drives the composer library, the popover, desktop boards, the Overview, and the WidgetKit kinds and their Swift types.
 
@@ -18,7 +18,7 @@ v1's popover and Overview are fixed. Every user gets the same seven cards in the
 |---|---|---|
 | Glance | "I want the two numbers I care about one click away" | A popover built from the widgets they picked, in their order, with their titles |
 | Ambient display | "I want to see load without opening anything" | Desktop widgets that stay put per display, cost nothing when covered, and respect Reduce Transparency |
-| Ambient display, native | "I want Kelvo in the macOS widget gallery next to the clock" | A WidgetKit extension they can build and sign locally with a free Apple account |
+| Ambient display, native | "I want StatGlass in the macOS widget gallery next to the clock" | A WidgetKit extension they can build and sign locally with a free Apple account |
 | Look back | "Show me the last 24 hours in this widget, not just the last minute" | Per-widget history windows backed by the persisted tiers |
 | Be told | "Tell me when memory pressure stays high, not only about hot processes" | An alert rules editor with more rule kinds than v1.2's single rule |
 | Glance, dashboard | "The Overview shows Disk but I never look at it" | A Customize mode for the Overview cards |
@@ -27,7 +27,7 @@ v1's popover and Overview are fixed. Every user gets the same seven cards in the
 
 ### Must
 
-- v2.0: widget manifest as JSON in `kelvo-schema`, validated at build time, with TS generated from it.
+- v2.0: widget manifest as JSON in `statglass-schema`, validated at build time, with TS generated from it.
 - v2.0: the composer's "Menu bar popover" tab with library, drag into preview, reorder, inspector (show title, custom title, chart style, window), Cancel and Save.
 - v2.0: the popover renders from the saved widget layout, and the default layout reproduces the v1 popover.
 - v2.1: one transparent board window per display at desktop-icon level, rendering that display's widgets.
@@ -125,13 +125,13 @@ Accessibility: each widget in edit mode is focusable and announces "Memory widge
 
 No mock. Compose from `10-desktop-widgets` widget cards (CPU cores heatmap, Power rings, Memory bar) and `14-component-popover-panel` cards, redrawn in SwiftUI at WidgetKit's systemSmall, systemMedium and systemLarge sizes.
 
-The widgets show the latest value and a 30-minute sparkline from the feed. When the feed is older than 5 minutes, the widget shows "as of 14:05" in the footer. When it is older than 30 minutes, it shows "Kelvo isn't running" instead of values. Stale data is always labelled, never presented as current.
+The widgets show the latest value and a 30-minute sparkline from the feed. When the feed is older than 5 minutes, the widget shows "as of 14:05" in the footer. When it is older than 30 minutes, it shows "StatGlass isn't running" instead of values. Stale data is always labelled, never presented as current.
 
 ### WidgetKit status in Settings (v2.2)
 
 No mock. Compose from `13-settings` General group (label row with a trailing value, as in "History on disk 148 MB").
 
-Only builds with the `widgetkit` feature show this row: "Desktop widgets (WidgetKit)" with "Feed written 12 s ago" as the trailing value and a "Reload widgets" button. If the extension is not registered with the system (checked via `pluginkit`), the row says "Extension not registered. Launch Kelvo from /Applications once, then reopen the widget gallery."
+Only builds with the `widgetkit` feature show this row: "Desktop widgets (WidgetKit)" with "Feed written 12 s ago" as the trailing value and a "Reload widgets" button. If the extension is not registered with the system (checked via `pluginkit`), the row says "Extension not registered. Launch StatGlass from /Applications once, then reopen the widget gallery."
 
 ### Alert rules editor (v2.3)
 
@@ -157,7 +157,7 @@ The Window option grows from the live range (60 s, 5 min, 15 min, 1 h) to includ
 
 ### Widget manifest (v2.0)
 
-Widget definitions move into `crates/kelvo-schema/widgets/manifest.json`. Rust loads it with `include_str!` and serde (`deny_unknown_fields`). Rust types for the manifest live in `kelvo-schema` and are exported to TS through tauri-specta like every other schema type. The manifest's contents (the list of widgets) are emitted as a TS `const` by a generator, `cargo run -p kelvo-schema --bin gen-widgets`, into `src/core/generated/widgets.ts`, along with a discriminated union of per-widget option types keyed by widget id. CI runs the generator and fails on a diff.
+Widget definitions move into `crates/statglass-schema/widgets/manifest.json`. Rust loads it with `include_str!` and serde (`deny_unknown_fields`). Rust types for the manifest live in `statglass-schema` and are exported to TS through tauri-specta like every other schema type. The manifest's contents (the list of widgets) are emitted as a TS `const` by a generator, `cargo run -p statglass-schema --bin gen-widgets`, into `src/core/generated/widgets.ts`, along with a discriminated union of per-widget option types keyed by widget id. CI runs the generator and fails on a diff.
 
 Each entry carries:
 
@@ -193,16 +193,16 @@ The v2.0 manifest entries, matching the composer library plus Power, which the d
 
 Power is in the v1 popover and the desktop widgets, so the manifest includes it and the library shows it under Power & Sensors. Per-widget options beyond the common set (show title, custom title, chart, window): `cpu.cores` has style (tiles as in the popover, or a heatmap as on the desktop), `net.rates` has interface (auto or a named one), `disk.storage` has volume, `sensors.temps` has a zone selection, `power.rails` has style (rings or stacked bar).
 
-A Rust test validates the manifest: every metric pattern resolves against the v1 metric catalog, min ≤ default ≤ max for every size, every option default satisfies its own schema, and ids are unique. Metric names in this doc are descriptive; the catalog in `kelvo-schema` is authoritative, and the test is what keeps the two in step.
+A Rust test validates the manifest: every metric pattern resolves against the v1 metric catalog, min ≤ default ≤ max for every size, every option default satisfies its own schema, and ids are unique. Metric names in this doc are descriptive; the catalog in `statglass-schema` is authoritative, and the test is what keeps the two in step.
 
 ### Widget layouts (v2.0)
 
 The store already uses "layout" for an ordered list of series ids, so this doc calls the new thing a widget layout and the type `WidgetLayout`, to keep the two apart in code and conversation.
 
 ```rust
-// crates/kelvo-schema/src/widgets.rs
+// crates/statglass-schema/src/widgets.rs
 pub struct WidgetLayout {
-    pub id: WidgetLayoutId,           // uuid; distinct from kelvo-store's series LayoutId
+    pub id: WidgetLayoutId,           // uuid; distinct from statglass-store's series LayoutId
     pub surface: Surface,             // Popover | Board { board_id, display_uuid, name } | Overview
     pub items: Vec<WidgetInstance>,
     pub schema_version: u32,
@@ -275,12 +275,12 @@ Either is selected with `APPLE_SIGNING_IDENTITY`, which Tauri's bundler reads. `
 
 #### Extension and data
 
-The SwiftUI extension lives in `native/KelvoWidgets/`, created from Xcode's Widget Extension template. Widget kinds and the Swift feed types are generated from the v2.0 manifest and `WidgetFeedDoc` by the same `gen-widgets` binary (a `--swift` mode emitting kind ids, display names, supported families and `Codable` structs). A fixture test pins the generated decoder to what Rust writes.
+The SwiftUI extension lives in `native/StatGlassWidgets/`, created from Xcode's Widget Extension template. Widget kinds and the Swift feed types are generated from the v2.0 manifest and `WidgetFeedDoc` by the same `gen-widgets` binary (a `--swift` mode emitting kind ids, display names, supported families and `Codable` structs). A fixture test pins the generated decoder to what Rust writes.
 
 The extension must be sandboxed. App Groups need a team, so v2.2 skips them. Instead:
 
-- The unsandboxed app writes one document per widget kind to `~/Library/Application Support/Kelvo/widget-feed/<kind>.json`, for example `cpu.usage.json`. This is deliberately a fixed, product-named path, separate from Tauri's identifier-based app data directory, so the entitlement string never changes.
-- The extension's entitlements are `com.apple.security.app-sandbox` and `com.apple.security.temporary-exception.files.home-relative-path.read-only` with the value `/Library/Application Support/Kelvo/widget-feed/`.
+- The unsandboxed app writes one document per widget kind to `~/Library/Application Support/StatGlass/widget-feed/<kind>.json`, for example `cpu.usage.json`. This is deliberately a fixed, product-named path, separate from Tauri's identifier-based app data directory, so the entitlement string never changes.
+- The extension's entitlements are `com.apple.security.app-sandbox` and `com.apple.security.temporary-exception.files.home-relative-path.read-only` with the value `/Library/Application Support/StatGlass/widget-feed/`.
 
 A new bus subscriber, `WidgetFeed`, in `src-tauri/src/widget_feed/`, builds one document per kind and hands it to a sink. The trait is the one sketched in [architecture.md](architecture.md#deliberately-deferred):
 
@@ -291,10 +291,10 @@ pub trait WidgetFeedSink: Send + Sync + 'static {
 }
 
 pub struct FileWidgetFeed { dir: PathBuf }           // v2.2: widget-feed/ under Application Support
-pub struct AppGroupWidgetFeed { container: PathBuf } // v3.1: TEAMID.com.tryopendata.kelvo container
+pub struct AppGroupWidgetFeed { container: PathBuf } // v3.1: TEAMID.com.tryopendata.statglass container
 ```
 
-`FileWidgetFeed` writes `<kind>.json.tmp` and renames it over `<kind>.json`, so the extension never reads a half-written file. `WidgetFeedDoc` is a `kelvo-schema` type, so its JSON shape has one source of truth. The `cpu.usage` document:
+`FileWidgetFeed` writes `<kind>.json.tmp` and renames it over `<kind>.json`, so the extension never reads a half-written file. `WidgetFeedDoc` is a `statglass-schema` type, so its JSON shape has one source of truth. The `cpu.usage` document:
 
 ```json
 {
@@ -313,19 +313,19 @@ pub struct AppGroupWidgetFeed { container: PathBuf } // v3.1: TEAMID.com.tryopen
 
 #### Reloads
 
-`WidgetCenter.reloadAllTimelines()` is Swift-only, so the app reaches it through a small Swift package, `native/KelvoBridge`, linked with the `swift-rs` crate and exposing one `@_cdecl` function. `FileWidgetFeed::request_reload` calls it at most every 5 minutes (configurable), not on every write. If reloads are throttled or ignored, the extension's timeline policy is the fallback: each timeline ends with `.after(now + 5 min)`. WidgetKit's reload budget for an accessory (menu bar) app is unverified, so phase 2.2b measures it.
+`WidgetCenter.reloadAllTimelines()` is Swift-only, so the app reaches it through a small Swift package, `native/StatGlassBridge`, linked with the `swift-rs` crate and exposing one `@_cdecl` function. `FileWidgetFeed::request_reload` calls it at most every 5 minutes (configurable), not on every write. If reloads are throttled or ignored, the extension's timeline policy is the fallback: each timeline ends with `.after(now + 5 min)`. WidgetKit's reload budget for an accessory (menu bar) app is unverified, so phase 2.2b measures it.
 
 #### Packaging
 
 Everything sits behind a `widgetkit` cargo feature and a config overlay, `src-tauri/tauri.widgetkit.conf.json`, so the default build and the public release DMG are unchanged. Build with `bun tauri build --features widgetkit --config src-tauri/tauri.widgetkit.conf.json`. Order matters:
 
 1. `beforeBundleCommand` runs `scripts/widgetkit/build-appex.sh`. It regenerates the Swift kinds and feed types, computes a build number, and runs `xcodebuild` with `CODE_SIGNING_ALLOWED=NO` and `CURRENT_PROJECT_VERSION=<build>`.
-2. The same script signs the appex first: `codesign --force --sign "$APPLE_SIGNING_IDENTITY" --entitlements native/KelvoWidgets/KelvoWidgets.entitlements KelvoWidgets.appex`.
-3. Tauri copies it in through `bundle.macOS.files` with the key `"PlugIns/KelvoWidgets.appex"`.
+2. The same script signs the appex first: `codesign --force --sign "$APPLE_SIGNING_IDENTITY" --entitlements native/StatGlassWidgets/StatGlassWidgets.entitlements StatGlassWidgets.appex`.
+3. Tauri copies it in through `bundle.macOS.files` with the key `"PlugIns/StatGlassWidgets.appex"`.
 4. Tauri signs the outer app with the same identity. No `--deep`, because a deep re-sign would strip the appex's sandbox entitlements. Whether tauri-bundler re-signs nested bundles under `PlugIns/` on its own is unverified. If it does, a post-bundle step re-signs the appex and then the outer app, in that order.
 5. `CFBundleVersion` is bumped on every build for both the app and the appex. `chronod` keeps rendering a stale extension when the version doesn't change.
 
-The app must launch once before its widgets show in the gallery, so the install script copies the app to `/Applications`, opens it, and checks registration with `pluginkit -m -v -p com.apple.widgetkit-extension | grep com.tryopendata.kelvo`.
+The app must launch once before its widgets show in the gallery, so the install script copies the app to `/Applications`, opens it, and checks registration with `pluginkit -m -v -p com.apple.widgetkit-extension | grep com.tryopendata.statglass`.
 
 #### Sources
 
@@ -338,7 +338,7 @@ The app must launch once before its widgets show in the gallery, so the install 
 
 ### Alerts editor (v2.3)
 
-Rule definitions are already serializable data in `kelvo-schema` (v1.2) and evaluated by the engine. v2.3 adds rule kinds and fields, not a new evaluator: threshold rules over any catalog series with an aggregation, comparator, sustain window and cooldown, plus outputs. It also adds `scope: RuleScope` to `AlertRule`, with a single variant, `Local`, in v2.3. The field costs nothing now and lets v4.2 add remote scopes without a rule migration. New commands `alert_rules_get`, `alert_rule_save`, `alert_rule_delete`, `alert_rule_test` (evaluates the rule against the last hour of the 10 s tier and returns when it would have fired, so the editor can preview "would have fired 3 times today").
+Rule definitions are already serializable data in `statglass-schema` (v1.2) and evaluated by the engine. v2.3 adds rule kinds and fields, not a new evaluator: threshold rules over any catalog series with an aggregation, comparator, sustain window and cooldown, plus outputs. It also adds `scope: RuleScope` to `AlertRule`, with a single variant, `Local`, in v2.3. The field costs nothing now and lets v4.2 add remote scopes without a rule migration. New commands `alert_rules_get`, `alert_rule_save`, `alert_rule_delete`, `alert_rule_test` (evaluates the rule against the last hour of the 10 s tier and returns when it would have fired, so the editor can preview "would have fired 3 times today").
 
 ### Overview layout (v2.3)
 
@@ -348,11 +348,11 @@ The Overview becomes a `WidgetLayout` with surface `Overview`. The six module ca
 
 | Change | Where | Version | Migration |
 |---|---|---|---|
-| Widget manifest | `kelvo-schema/widgets/manifest.json` | 2.0 | None; new |
-| `WidgetLayout`, `WidgetInstance`, `Surface`, `Appearance` | `kelvo-schema`, persisted in the settings store as `widget_layouts` with `schema_version` | 2.0 | Default popover layout generated from v1 popover settings |
+| Widget manifest | `statglass-schema/widgets/manifest.json` | 2.0 | None; new |
+| `WidgetLayout`, `WidgetInstance`, `Surface`, `Appearance` | `statglass-schema`, persisted in the settings store as `widget_layouts` with `schema_version` | 2.0 | Default popover layout generated from v1 popover settings |
 | Board surfaces with frames and appearance | Same store | 2.1 | None; new surface variant |
-| `WidgetFeedDoc` | `kelvo-schema`, JSON fixture `fixtures/widget-feed-v1.json` | 2.2 | None; files are rewritten every 60 s |
-| Alert rule fields (aggregation, sustain, cooldown, outputs, `scope`) | `kelvo-schema` alert-rule data, `rule_version` bump | 2.3 | v1.2 rules upgraded in place with defaults |
+| `WidgetFeedDoc` | `statglass-schema`, JSON fixture `fixtures/widget-feed-v1.json` | 2.2 | None; files are rewritten every 60 s |
+| Alert rule fields (aggregation, sustain, cooldown, outputs, `scope`) | `statglass-schema` alert-rule data, `rule_version` bump | 2.3 | v1.2 rules upgraded in place with defaults |
 | Overview surface | Settings store | 2.3 | Default Overview layout from v1 card order |
 
 No SQLite schema changes. Per-widget history reads the existing 10 s tier.
@@ -381,7 +381,7 @@ Each minor version is installable on its own. Phases within a version are ordere
 #### Phase 2.0a: Manifest and widget layouts
 
 Schema and codegen:
-- [ ] `crates/kelvo-schema/widgets/manifest.json` with the 12 entries in the table above
+- [ ] `crates/statglass-schema/widgets/manifest.json` with the 12 entries in the table above
 - [ ] Manifest Rust types with `deny_unknown_fields`, exported through tauri-specta
 - [ ] Manifest validation test: metric patterns resolve against the catalog, sizes ordered, option defaults valid, ids unique
 - [ ] `gen-widgets` binary emits `src/core/generated/widgets.ts` (data plus per-widget option union)
@@ -393,7 +393,7 @@ App shell:
 - [ ] Option migration by `(widget_id, from_version)`; unknown widget ids preserved on save
 - [ ] First-run-of-v2 migration from v1 popover settings, with a Rust test using a v1 settings fixture
 
-Acceptance: `cargo test -p kelvo-schema` passes; saving a layout with an out-of-range option returns a typed error; a v1 settings fixture migrates to a layout with the seven v1 popover cards in v1 order.
+Acceptance: `cargo test -p statglass-schema` passes; saving a layout with an out-of-range option returns a typed error; a v1 settings fixture migrates to a layout with the seven v1 popover cards in v1 order.
 
 #### Phase 2.0b: Widget host and popover
 
@@ -476,8 +476,8 @@ Acceptance: the numbers meet the performance budget table; v1 idle numbers uncha
 #### Phase 2.2a: Prove the recipe
 
 - [ ] Create the self-signed identity per the docs and verify with `security find-identity -v -p codesigning`
-- [ ] Xcode widget template in `native/KelvoWidgets/` with one static `cpu.usage` kind reading a hard-coded feed path
-- [ ] Hand-run the packaging order (appex sign, embed, outer sign) and confirm with `codesign -d --entitlements - Kelvo.app/Contents/PlugIns/KelvoWidgets.appex` that the sandbox and temporary exception survive
+- [ ] Xcode widget template in `native/StatGlassWidgets/` with one static `cpu.usage` kind reading a hard-coded feed path
+- [ ] Hand-run the packaging order (appex sign, embed, outer sign) and confirm with `codesign -d --entitlements - StatGlass.app/Contents/PlugIns/StatGlassWidgets.appex` that the sandbox and temporary exception survive
 - [ ] Confirm the widget appears in the gallery, survives a rebuild with a bumped `CFBundleVersion`, and reads the feed file
 - [ ] Record whether supported versions (26+) prompt for access to the feed directory
 - [ ] Write the outcome to `decisions.md`; stop v2.2 here if the recipe fails and move WidgetKit wholly to v3.1
@@ -487,23 +487,23 @@ Acceptance: a rebuilt app with a bumped build number still shows the widget in t
 #### Phase 2.2b: Feed and reloads
 
 App shell:
-- [ ] `WidgetFeedDoc` in `kelvo-schema` with the committed JSON fixture
+- [ ] `WidgetFeedDoc` in `statglass-schema` with the committed JSON fixture
 - [ ] `WidgetFeed` bus subscriber, `WidgetFeedSink` trait, `FileWidgetFeed` with atomic rename per kind
-- [ ] `native/KelvoBridge` via `swift-rs`, `kelvo_widgets_reload_all()`, called at most every 5 minutes
+- [ ] `native/StatGlassBridge` via `swift-rs`, `statglass_widgets_reload_all()`, called at most every 5 minutes
 - [ ] Settings row for feed status, "Reload widgets", and the extension-not-registered message
 
 Extension:
 - [ ] Generated Swift feed types plus an `xcodebuild test` that decodes the Rust-produced fixture
-- [ ] Timeline policy `.after(now + 5 min)`; "as of" footer past 5 minutes, "Kelvo isn't running" past 30
+- [ ] Timeline policy `.after(now + 5 min)`; "as of" footer past 5 minutes, "StatGlass isn't running" past 30
 - [ ] Log reload outcomes for a day and record the observed refresh interval in PROGRESS.md
 
-Acceptance: a Rust change to `WidgetFeedDoc` that breaks the Swift decoder fails `xcodebuild test`; with the app quit, widgets show "Kelvo isn't running" within 35 minutes.
+Acceptance: a Rust change to `WidgetFeedDoc` that breaks the Swift decoder fails `xcodebuild test`; with the app quit, widgets show "StatGlass isn't running" within 35 minutes.
 
 #### Phase 2.2c: Kinds and packaging
 
 - [ ] `gen-widgets --swift` emits kinds for every manifest entry with the `widgetkit` surface
 - [ ] SwiftUI views for the kinds in the manifest table, small/medium/large per entry
-- [ ] `tauri.widgetkit.conf.json` overlay with `beforeBundleCommand` and `bundle.macOS.files` `PlugIns/KelvoWidgets.appex`
+- [ ] `tauri.widgetkit.conf.json` overlay with `beforeBundleCommand` and `bundle.macOS.files` `PlugIns/StatGlassWidgets.appex`
 - [ ] `scripts/widgetkit/build-appex.sh` (xcodebuild, build number bump, appex signing) and `ensure-identity.sh`
 - [ ] `scripts/widgetkit/install.sh` (copy to /Applications, launch, `pluginkit` check)
 - [ ] README section "Build with WidgetKit" for contributors with a free Apple account
@@ -579,7 +579,7 @@ Everything here consumes interfaces defined in v1 (see [v1-local-monitor.md](v1-
 
 | Interface | Defined in | Used by |
 |---|---|---|
-| Metric catalog and series keys (`metric_id` plus labels) in `kelvo-schema` | v1.0 | Manifest `metrics` and the validation test |
+| Metric catalog and series keys (`metric_id` plus labels) in `statglass-schema` | v1.0 | Manifest `metrics` and the validation test |
 | Typed `Snapshot` view and per-host zustand stores keyed `hosts[hostId]` | v1.0 | Widget host |
 | Rust-owned settings with `settings-changed` and read-only mirrors | v1.0 | Widget layouts follow the same pattern |
 | Per-window live channels started and stopped by Rust, ring-buffer backfill | v1.0 | Popover, boards, pause and resume |

@@ -26,6 +26,8 @@
  * disk-space-eject (the external volume disconnects 40% into its scan),
  * disk-space-boot-only (only the boot volume can be scanned). `appstore`
  * also turns off disk space reports.
+ * `host-unreachable` adds a saved Linux host that has never connected: no
+ * samples, a zero-cadence status, and an SSH command failure on retry.
  *
  * `query_network_by_app` splits the ring's own `net.rx` / `net.tx` rows into
  * apps (mock/net-apps.ts), so a spike on the Network chart is attributable:

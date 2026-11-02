@@ -1,4 +1,4 @@
-# Kelvo
+# StatGlass
 
 Open-source macOS system monitor. A menu-bar tray plus popover, a dashboard window, and
 (v2) desktop widget boards, showing CPU, GPU, memory, power and sensors, network, disk and
@@ -26,13 +26,13 @@ gallery at `/?route=/dev/gallery`), and compare. Name every difference you leave
 
 ```
 crates/                    Rust workspace
-  kelvo-schema/           metric catalog, series keys, HostInfo, Capabilities, Snapshot view
-  kelvo-proto/            framing, CBOR codec, handshake, message types
-  kelvo-collect/          Collector trait; macos/ (sysinfo, IOReport, SMC/HID, IOKit); linux/ (/proc, sysfs, cgroups)
-  kelvo-store/            SQLite: series interning, tiered rollups, gaps, cursors, pruning
-  kelvo-engine/           sampler loop, rollups, detectors, bus, history lifecycle and queries
-  kelvo-remote/           SSH sessions, protocol server/client, isolated history mirrors
-  kelvo-remote-helper/    bundled stdio-to-local-socket bridge
+  statglass-schema/           metric catalog, series keys, HostInfo, Capabilities, Snapshot view
+  statglass-proto/            framing, CBOR codec, handshake, message types
+  statglass-collect/          Collector trait; macos/ (sysinfo, IOReport, SMC/HID, IOKit); linux/ (/proc, sysfs, cgroups)
+  statglass-store/            SQLite: series interning, tiered rollups, gaps, cursors, pruning
+  statglass-engine/           sampler loop, rollups, detectors, bus, history lifecycle and queries
+  statglass-remote/           SSH sessions, protocol server/client, isolated history mirrors
+  statglass-remote-helper/    bundled stdio-to-local-socket bridge
 src-tauri/                 app shell: HostRegistry, LocalSource, settings owner, tray, windows, commands
 src/
   core/                    plain TS, no React (~ @core/): transport, generated bindings, formatters, chart math
@@ -129,7 +129,7 @@ If a fix doesn't resolve the issue after 2 attempts without running a new diagno
 
 The README's recordings live on the orphan `assets` branch under `media/`, not on main,
 so clones stay small; `scripts/install.sh` clones `--single-branch --branch main` so
-installs never fetch them. The README links `raw.githubusercontent.com/steamfield/kelvo/assets/media/<name>.webp`.
+installs never fetch them. The README links `raw.githubusercontent.com/steamfield/statglass/assets/media/<name>.webp`.
 
 - **Format:** animated WebP from an MP4 screen recording (GIF exports come out 2 to 3 times larger, and gifsicle/ffmpeg can't shrink them). Needs `brew install webp`; Homebrew's ffmpeg has no WebP encoder, so frames go through `img2webp`:
   ```bash
@@ -145,8 +145,8 @@ installs never fetch them. The README links `raw.githubusercontent.com/steamfiel
 ```bash
 bun run dev                # Full app (tauri dev: Vite on :1420 + Rust)
 bun run dev:fast           # Browser only, mock transport
-bun run seed               # Quit Kelvo first: replaces the dev build's history with 30 synthetic days (old DB kept beside it)
-bun run seed:prod          # Same for the release build's history (com.tryopendata.kelvo)
+bun run seed               # Quit StatGlass first: replaces the dev build's history with 30 synthetic days (old DB kept beside it)
+bun run seed:prod          # Same for the release build's history (com.tryopendata.statglass)
 bun run typecheck          # Browser, test and Node tooling TypeScript projects
 bun run lint               # Biome lint (includes boundary rules)
 bun run format             # Biome format + import/class sorting + safe fixes

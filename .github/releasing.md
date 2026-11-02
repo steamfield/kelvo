@@ -1,6 +1,6 @@
-# Releasing Kelvo
+# Releasing StatGlass
 
-Kelvo stays free. The public channel is an Apple Silicon DMG on GitHub Releases,
+StatGlass stays free. The public channel is an Apple Silicon DMG on GitHub Releases,
 ad-hoc signed without Apple notarization. Mac App Store and Homebrew distribution
 are outside this release workflow.
 
@@ -29,26 +29,26 @@ are outside this release workflow.
    Verify the app with `codesign --verify --deep --strict`, confirm the bundled
    helper and both Linux agents, and run `scripts/check-deps.sh` against the app
    and helper executables. Stage with `python3 scripts/release-manifest.py TAG --stage`
-   then sign `release.json` and generate checksums using the commands below. Run
-   `cargo run -p kelvo --example verify_release -- target/release-assets`. This verifies
+   then sign `statglass-release.json` and generate checksums using the commands below. Run
+   `cargo run -p statglass --example verify_release -- target/release-assets`. This verifies
    the catalog signature, protocol/version agreement, and every advertised binary
    before exercising the Mac archive installation.
-   Run `cargo build -p kelvo --example verify_update_restart` followed by
+   Run `cargo build -p statglass --example verify_update_restart` followed by
    `python3 scripts/verify-update-restart.py` for isolated native restart acceptance.
    It checks ordinary, background and remote-setup launches with real shutdown,
    persistent identity/history and no restarted windows; a real login-session launch
    remains part of the fresh-account check below.
    Create the draft with `gh release create TAG target/release-assets/* --verify-tag
-   --draft --title "Kelvo TAG" --notes-file RELEASE_NOTES.md`. It must contain
-   `Kelvo_aarch64.dmg`, `Kelvo.app.tar.gz`, its `.sig`, `latest.json`, `release.json`,
-   `release.json.sig`, both standalone Linux musl agents, and `SHA256SUMS`.
+   --draft --title "StatGlass TAG" --notes-file RELEASE_NOTES.md`. It must contain
+   `StatGlass_aarch64.dmg`, `StatGlass.app.tar.gz`, its `.sig`, `statglass-latest.json`, `statglass-release.json`,
+   `statglass-release.json.sig`, both standalone Linux musl agents, and `SHA256SUMS`.
 4. Download the draft DMG. Verify the signature with `codesign --verify --deep
-   --strict Kelvo.app`, install and launch it on a fresh account/second Mac, and
+   --strict StatGlass.app`, install and launch it on a fresh account/second Mac, and
    check a real update from the previous release when one exists. Confirm history
    and settings survive and note any Gatekeeper prompts. Browser tests cannot
    establish native installation or restart behavior.
 5. Publish the complete draft as the latest stable release. Only then does the
-   fixed `/releases/latest/download/latest.json` and `release.json` endpoints advertise it to clients.
+   fixed `/releases/latest/download/statglass-latest.json` and `statglass-release.json` endpoints advertise it to clients.
 
 Never replace published updater archives or reuse a version. Fix a bad release
 with a higher version. A failed draft can be deleted and rebuilt from its existing
@@ -64,9 +64,9 @@ TAURI_SIGNING_PRIVATE_KEY_PASSWORD='' \
 bun run build:app --config src-tauri/tauri.release.conf.json --bundles app,dmg
 python3 scripts/release-manifest.py v0.3.0 --stage
 bun run tauri signer sign --private-key-path "$HOME/.config/kelvo/release/updater.key" \
-  --password '' --app-version 0.3.0 target/release-assets/release.json
+  --password '' --app-version 0.3.0 target/release-assets/statglass-release.json
 python3 scripts/release-manifest.py v0.3.0 --checksums
-cargo run -p kelvo --example verify_release -- target/release-assets
+cargo run -p statglass --example verify_release -- target/release-assets
 ```
 
 Use the actual version tag. `target/release-assets` must be empty before staging;
@@ -102,24 +102,24 @@ only updater-capable controllers share its transaction lock.
 
 ## Coordinated protocol upgrades
 
-When a release drops a protocol that an installed host supports, Kelvo leaves it
+When a release drops a protocol that an installed host supports, StatGlass leaves it
 pending. Repeating **Update agent** does not override this protection. Upgrade the
 controllers first, and schedule a monitoring interruption for each affected host.
 
-For a remote Mac, quit Kelvo and install the newer signed release from its DMG.
+For a remote Mac, quit StatGlass and install the newer signed release from its DMG.
 Its existing app data remains in place. Open it and confirm the host reconnects.
 
 For Linux, use the updated controller's bundled agent through Add host:
 
-1. On the host, disable and stop `kelvo-agent-update.timer`, stop
-   `kelvo-agent-update.service` (allow its recovery to finish), then stop
-   `kelvo-agent.service`. Use `systemctl --user` for a user installation or
+1. On the host, disable and stop `statglass-agent-update.timer`, stop
+   `statglass-agent-update.service` (allow its recovery to finish), then stop
+   `statglass-agent.service`. Use `systemctl --user` for a user installation or
    `systemctl` as root for a system installation.
 2. Keep an offline backup of the entire data directory, installed executable and
-   service units. System data is `/var/lib/kelvo-agent`; user data is normally
-   `~/.local/state/kelvo-agent` and may follow `XDG_STATE_HOME`. Record the host
+   service units. System data is `/var/lib/statglass-agent`; user data is normally
+   `~/.local/state/statglass-agent` and may follow `XDG_STATE_HOME`. Record the host
    identity, history epoch and configured paths before proceeding.
-3. Run `kelvo-agent uninstall` in its installation account, with `--system` for a
+3. Run `statglass-agent uninstall` in its installation account, with `--system` for a
    system installation. **Do not pass `--purge`.** Confirm that uninstallation
    succeeds and the data, settings and `host-id` remain. Keep the backup outside
    the installation's data directory.

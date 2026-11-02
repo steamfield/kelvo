@@ -134,7 +134,7 @@ pub async fn inspect_remote_ssh_host(
     app: AppHandle,
     alias: String,
 ) -> Result<RemoteSshHostTrust, CommandError> {
-    let candidate = kelvo_remote::trust::inspect_host(&alias)
+    let candidate = statglass_remote::trust::inspect_host(&alias)
         .await
         .map_err(CommandError::from)?;
     let token = Uuid::new_v4().to_string();
@@ -169,7 +169,7 @@ pub async fn accept_remote_ssh_host(app: AppHandle, token: String) -> Result<(),
     if at.elapsed() >= std::time::Duration::from_secs(300) {
         return Err(failure("SSH verification expired. Check the host again"));
     }
-    kelvo_remote::trust::accept_host(&candidate)
+    statglass_remote::trust::accept_host(&candidate)
         .await
         .map_err(CommandError::from)
 }
@@ -248,7 +248,7 @@ async fn stop_remote_sharing(saved: &SavedHost) -> Result<(), CommandError> {
             return Ok(());
         };
         configure_stop_sharing(|request| async move {
-            kelvo_remote::install::configure(&alias, helper, &request)
+            statglass_remote::install::configure(&alias, helper, &request)
                 .await
                 .map_err(CommandError::from)
         })
@@ -284,7 +284,7 @@ pub(super) async fn finish_removal(
 ) -> Result<Option<String>, CommandError> {
     let warning = if stop_sharing {
         configure.await.err().map(|error| {
-            format!("The Mac was removed, but Kelvo could not stop sharing on it. Turn off Allow remote monitoring in Kelvo on that Mac. {error}")
+            format!("The Mac was removed, but StatGlass could not stop sharing on it. Turn off Allow remote monitoring in StatGlass on that Mac. {error}")
         })
     } else {
         None
@@ -393,7 +393,7 @@ pub async fn repair_remote_host(
         .get(&id)
         .cloned()
         .ok_or(CommandError::UnknownHost { host: id })?;
-    let session = kelvo_remote::connect(&previous.endpoint(), state.local, None)
+    let session = statglass_remote::connect(&previous.endpoint(), state.local, None)
         .await
         .map_err(CommandError::from)?;
     let mut record = HostRecord::from_identity(session.hello.host.clone(), false);

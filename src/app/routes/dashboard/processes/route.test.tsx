@@ -163,7 +163,7 @@ describe("Processes page", () => {
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Quit" }));
     const toast = await screen.findByText(
-      "Kelvo can't quit processes owned by another user"
+      "StatGlass can't quit processes owned by another user"
     );
     expect(toast).toBeVisible();
     expect(toast.closest("[data-sonner-toast]")).toHaveAttribute(

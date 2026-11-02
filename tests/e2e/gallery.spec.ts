@@ -84,7 +84,7 @@ for (const theme of THEMES) {
 const ROUTES = [
   { name: "popover", url: "/?window=popover", ready: "CPU" },
   { name: "dashboard", url: "/?window=dashboard", ready: "CPU" },
-  { name: "onboarding", url: "/?window=onboarding", ready: "Set up Kelvo" },
+  { name: "onboarding", url: "/?window=onboarding", ready: "Set up StatGlass" },
 ];
 
 for (const theme of THEMES) {

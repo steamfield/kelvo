@@ -1,0 +1,12 @@
+/*
+ * The design tokens and global helpers the widgets need, without the app's
+ * page-level rules (base.css). The app imports this from app.css; docs-site
+ * imports it through its `@statglass/tokens.css` alias so the site uses the
+ * same tokens as the app.
+ */
+@import "./theme.css";
+@import "./motion.css";
+
+/* Design system utilities */
+@import "./effects.css" layer(components);
+@import "./cards.css";

@@ -30,7 +30,6 @@ import {
   wattsText,
 } from "@core/tray-layout";
 import { useId } from "react";
-import { TrayMarkerIcon, TrayPreview } from "~/components/tray-preview";
 import {
   Select,
   SelectContent,
@@ -45,6 +44,7 @@ import { useWriteSettings } from "~/hooks/use-write-settings";
 import { cn } from "~/lib/utils";
 import { useHost } from "~/stores/host-store";
 import { FIELD_LABEL } from "~/widgets/lib/classes";
+import { TrayMarkerIcon, TrayPreview } from "~/widgets/tray-preview";
 import { ABSENT_TEXT, MODULE_ROWS } from "./modules-panel";
 
 const BAR_MODULES = ["cpu", "gpu", "memory"] as const;

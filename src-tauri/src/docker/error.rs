@@ -1,6 +1,6 @@
 //! Convert domain failures at the IPC boundary, without inspecting display strings.
 use crate::error::CommandError;
-use kelvo_engine::docker::{DockerServiceError, storage::DockerStorageError};
+use statglass_engine::docker::{DockerServiceError, storage::DockerStorageError};
 
 pub(super) fn task_failed(message: &'static str, source: impl std::fmt::Display) -> CommandError {
     tracing::error!(error = %source, message, "Docker command task failed");
@@ -59,7 +59,7 @@ impl From<DockerStorageError> for CommandError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kelvo_store::StoreError;
+    use statglass_store::StoreError;
 
     fn kind(error: impl Into<CommandError>) -> String {
         serde_json::to_value(error.into()).unwrap()["kind"]

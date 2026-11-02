@@ -346,7 +346,7 @@ export interface Transport {
   historyHealth(host: HostId): Promise<CommandResult<HistoryHealth>>;
   /**
    * Move the history file aside (kept as `history-reset-<ms>.sqlite`) and
-   * start an empty one (D-064). `store_busy` while another Kelvo process
+   * start an empty one (D-064). `store_busy` while another StatGlass process
    * holds it. Returns the new size on disk.
    */
   resetHistory(): Promise<CommandResult<ByteCount>>;

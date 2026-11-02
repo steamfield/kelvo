@@ -193,6 +193,6 @@ required unless the user explicitly defers those acceptance items.
   match this installation.
 - [Colima FAQ](https://colima.run/docs/faq/): discovery starting point only; no
   installed Colima combination was exercised.
-- Local macOS SDK `<sys/resource.h>` and `<sys/proc_info.h>`, and Kelvo's
-  `crates/kelvo-collect/src/macos/libproc.rs`, supplied the process-measurement
+- Local macOS SDK `<sys/resource.h>` and `<sys/proc_info.h>`, and StatGlass's
+  `crates/statglass-collect/src/macos/libproc.rs`, supplied the process-measurement
   structure definitions and existing collector conventions.

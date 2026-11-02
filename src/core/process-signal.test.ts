@@ -16,7 +16,7 @@ describe("refusalReason", () => {
     "launchd",
     "window_server",
     "login_window",
-    "kelvo",
+    "statglass",
   ] as const)("says why %s is refused", (refusal) => {
     expect(refusalReason({ refusal })).toMatch(/\w/);
   });
@@ -41,7 +41,7 @@ describe("signalOutcome", () => {
     );
     expect(out).toEqual({
       tone: "error",
-      message: "Kelvo can't quit processes owned by another user",
+      message: "StatGlass can't quit processes owned by another user",
     });
   });
 
@@ -73,7 +73,7 @@ describe("signalOutcome", () => {
       signalOutcome({ status: "error", error }, target, "quit");
     expect(msg({ kind: "remote_host", host: "h" })).toEqual({
       tone: "error",
-      message: "Kelvo can only quit processes on this Mac",
+      message: "StatGlass can only quit processes on this Mac",
     });
     expect(msg({ kind: "failed", message: "EINVAL" }).message).toBe(
       "Couldn't quit Xcode (2214): EINVAL"
@@ -81,7 +81,8 @@ describe("signalOutcome", () => {
     expect(msg({ kind: "unknown_host", host: "h" }).tone).toBe("error");
     expect(msg({ kind: "unavailable" })).toEqual({
       tone: "error",
-      message: "Quitting processes isn't available in this edition of Kelvo",
+      message:
+        "Quitting processes isn't available in this edition of StatGlass",
     });
   });
 });

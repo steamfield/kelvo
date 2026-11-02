@@ -21,7 +21,7 @@ impl InstallBlocked {
         match self {
             Self::Maintenance => "Waiting for maintenance to finish.",
             Self::PolicyOrWindow => {
-                "Waiting until automatic installation is enabled and Kelvo windows are closed."
+                "Waiting until automatic installation is enabled and StatGlass windows are closed."
             }
         }
     }
@@ -49,7 +49,7 @@ impl Updates {
             .clone()
             .try_read_owned()
             .map_err(|_| CommandError::Update {
-                message: "Kelvo is installing an update. Try again after it restarts.".into(),
+                message: "StatGlass is installing an update. Try again after it restarts.".into(),
             })
     }
 }

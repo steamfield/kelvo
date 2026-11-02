@@ -64,7 +64,7 @@ export function HistoryNotice({
     : paused
       ? "Monitoring paused"
       : saving
-        ? "Recent history is not being saved. Kelvo will retry."
+        ? "Recent history is not being saved. StatGlass will retry."
         : gaps.length
           ? `${metric === "cpu" ? "CPU" : "Memory"} history missing for ${gaps.length} ${gaps.length === 1 ? "interval" : "intervals"}`
           : partial

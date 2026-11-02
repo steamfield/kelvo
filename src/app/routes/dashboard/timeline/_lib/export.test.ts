@@ -3,8 +3,10 @@ import { exportFailure, exportFileName, exportSaved } from "./export";
 describe("export helpers", () => {
   it("names the file after the range's local start and its length", () => {
     const from = new Date(2026, 9, 4, 9, 5).getTime();
-    expect(exportFileName("24h", from)).toBe("kelvo-2026-10-04-0905-24h.csv");
-    expect(exportFileName("6h", from)).toBe("kelvo-2026-10-04-0905-6h.csv");
+    expect(exportFileName("24h", from)).toBe(
+      "statglass-2026-10-04-0905-24h.csv"
+    );
+    expect(exportFileName("6h", from)).toBe("statglass-2026-10-04-0905-6h.csv");
   });
 
   it("says where a save went and is silent on a cancel", () => {
@@ -12,12 +14,12 @@ describe("export helpers", () => {
     expect(
       exportSaved({
         kind: "saved",
-        path: "/Users/me/kelvo.csv",
+        path: "/Users/me/statglass.csv",
         rows: 1440,
         gap_rows: 2,
         bytes: 1,
       })
-    ).toBe("Exported 1,440 rows and 2 gaps to /Users/me/kelvo.csv");
+    ).toBe("Exported 1,440 rows and 2 gaps to /Users/me/statglass.csv");
     expect(
       exportSaved({
         kind: "saved",

@@ -972,15 +972,15 @@ mod tests {
     }
 
     /// Writes the sample menu bar rows as PNGs for visual review:
-    /// `KELVO_TRAY_PNG_DIR=<dir> cargo test -p kelvo --lib dump_tray_rows -- --ignored`.
+    /// `STATGLASS_TRAY_PNG_DIR=<dir> cargo test -p statglass --lib dump_tray_rows -- --ignored`.
     #[test]
     #[ignore = "writes files; run by hand for visual review"]
     fn dump_tray_rows() {
         use crate::tray::model::{ItemKey, Reading, Readings, TrayHistory, build};
-        use kelvo_schema::Settings;
-        use kelvo_schema::settings::{BarSettings, ItemMode, ItemSettings, ReadoutSettings};
+        use statglass_schema::Settings;
+        use statglass_schema::settings::{BarSettings, ItemMode, ItemSettings, ReadoutSettings};
 
-        let dir = std::env::var("KELVO_TRAY_PNG_DIR").unwrap_or_else(|_| ".".into());
+        let dir = std::env::var("STATGLASS_TRAY_PNG_DIR").unwrap_or_else(|_| ".".into());
         // Sample values for each graph.
         let spark = [
             6, 8, 5, 9, 12, 7, 6, 10, 14, 9, 7, 8, 11, 6, 5, 8, 7, 9, 6, 7,

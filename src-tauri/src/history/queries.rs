@@ -9,10 +9,10 @@ impl History {
     /// the ring alone answers (live-only). Blocking.
     pub fn network_by_app(
         &self,
-        host: kelvo_schema::HostId,
+        host: statglass_schema::HostId,
         from_ms: i64,
         to_ms: i64,
-        recent: impl FnOnce() -> kelvo_engine::RecentNet,
+        recent: impl FnOnce() -> statglass_engine::RecentNet,
     ) -> Result<NetworkByApp, CommandError> {
         validate_range(from_ms, to_ms, MAX_NET_SPAN_MS)?;
         let (read, complete_to_ms) = self.storage.network_by_app(host, from_ms, to_ms, recent)?;
@@ -43,16 +43,16 @@ impl History {
         ))
     }
 
-    /// Bounded disk query. Pairing and operation weighting remain in kelvo-store.
+    /// Bounded disk query. Pairing and operation weighting remain in statglass-store.
     pub fn disk_io(
         &self,
-        request: &kelvo_schema::disk_io::DiskIoRequest,
+        request: &statglass_schema::disk_io::DiskIoRequest,
         now_ms: i64,
         recent: impl Fn() -> Vec<BucketRow>,
-    ) -> Result<kelvo_schema::disk_io::DiskIoPage, CommandError> {
+    ) -> Result<statglass_schema::disk_io::DiskIoPage, CommandError> {
         if request.from_ms < 0
             || request.to_ms <= request.from_ms
-            || request.to_ms > kelvo_schema::JS_SAFE_INT_MAX
+            || request.to_ms > statglass_schema::JS_SAFE_INT_MAX
             || request.to_ms.saturating_sub(request.from_ms) > MAX_NET_SPAN_MS
             || !(1..=2000).contains(&request.max_points)
             || request.device.as_ref().is_some_and(|dev| {
@@ -78,12 +78,12 @@ impl History {
             tier: TierChoice::Auto,
             max_points: ((request.to_ms - request.from_ms) / 10_000 + 2) as u32,
             selectors: (if request.device.is_some() {
-                &kelvo_store::disk_io::DISK_IO_METRICS
+                &statglass_store::disk_io::DISK_IO_METRICS
             } else {
-                &kelvo_schema::disk_io::TOTAL_METRICS
+                &statglass_schema::disk_io::TOTAL_METRICS
             })
             .iter()
-            .map(|id| kelvo_schema::SeriesSelector {
+            .map(|id| statglass_schema::SeriesSelector {
                 metric: MetricId::from_static(id),
                 labels: labels.clone(),
             })
@@ -96,7 +96,7 @@ impl History {
                     .into(),
             });
         }
-        Ok(kelvo_store::disk_io::disk_io_page(
+        Ok(statglass_store::disk_io::disk_io_page(
             read,
             request.device.as_deref(),
             request.from_ms,
@@ -127,7 +127,7 @@ impl History {
     /// Blocking.
     pub fn series_stats(
         &self,
-        host: kelvo_schema::HostId,
+        host: statglass_schema::HostId,
         metrics: &[String],
         from_ms: i64,
         to_ms: i64,
@@ -135,7 +135,7 @@ impl History {
         recent: impl Fn() -> Vec<BucketRow>,
     ) -> Result<RangeStats, CommandError> {
         validate_range(from_ms, to_ms, MAX_NET_SPAN_MS)?;
-        let catalog = kelvo_schema::Catalog::builtin();
+        let catalog = statglass_schema::Catalog::builtin();
         let defs = metrics
             .iter()
             .map(|m| match catalog.get(m) {
@@ -158,7 +158,7 @@ impl History {
             Tier::S10.bucket_ms().unwrap_or(10_000),
         );
         let read = self.history_through_now(&query, recent)?;
-        Ok(kelvo_store::range_stats(
+        Ok(statglass_store::range_stats(
             &read, &defs, from_ms, to_ms, now_ms,
         ))
     }
@@ -173,7 +173,7 @@ impl History {
     /// so neither a minute nor a quarter hour straddles a local hour. Blocking.
     pub fn battery_hours(
         &self,
-        host: kelvo_schema::HostId,
+        host: statglass_schema::HostId,
         hour_starts: &[i64],
         recent: impl Fn() -> Vec<BucketRow>,
     ) -> Result<Vec<BatteryHour>, CommandError> {
@@ -265,7 +265,7 @@ fn validate_range(from_ms: i64, to_ms: i64, max_ms: i64) -> Result<(), CommandEr
 /// A read of the unlabelled `metrics` with room for one point per `bucket_ms` bucket of
 /// `[from_ms, to_ms)`, so none are merged.
 fn per_bucket_query(
-    host: kelvo_schema::HostId,
+    host: statglass_schema::HostId,
     metrics: impl IntoIterator<Item = MetricId>,
     from_ms: i64,
     to_ms: i64,
@@ -276,7 +276,7 @@ fn per_bucket_query(
         host,
         selectors: metrics
             .into_iter()
-            .map(|metric| kelvo_schema::SeriesSelector {
+            .map(|metric| statglass_schema::SeriesSelector {
                 metric,
                 labels: Labels::new(),
             })

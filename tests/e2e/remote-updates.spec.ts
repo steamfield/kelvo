@@ -31,7 +31,7 @@ for (const theme of ["dark", "light"]) {
     );
     const notice = page
       .getByRole("region", { name: "Host updates" })
-      .filter({ hasText: "4 hosts are running an older Kelvo." });
+      .filter({ hasText: "4 hosts are running an older StatGlass." });
     await expect(notice).toBeVisible();
     await expect(
       page.getByRole("link", { name: /Hosts.*4 hosts need an update/ })
@@ -43,7 +43,7 @@ for (const theme of ["dark", "light"]) {
     await expect(page.getByRole("heading", { name: "Hosts" })).toBeVisible();
     await expect(notice).toHaveCount(0);
     await expect(
-      page.getByText("Kelvo 0.0.9 (last reported) → 0.1.0 available")
+      page.getByText("StatGlass 0.0.9 (last reported) → 0.1.0 available")
     ).toBeVisible();
     await page.screenshot({
       path: `test-results/screens/hosts-versions-${theme}-${info.project.name}.png`,
@@ -60,12 +60,12 @@ for (const theme of ["dark", "light"]) {
     await nav.getByRole("link", { name: /^Overview/ }).click();
     await page
       .getByRole("region", { name: "Host updates" })
-      .filter({ hasText: "older Kelvo" })
+      .filter({ hasText: "older StatGlass" })
       .getByRole("button", { name: "Dismiss" })
       .click();
     await nav.getByRole("link", { name: /^CPU/ }).click();
     await expect(page.getByRole("heading", { name: "CPU" })).toBeVisible();
-    await expect(page.getByText("older Kelvo")).toHaveCount(0);
+    await expect(page.getByText("older StatGlass")).toHaveCount(0);
   });
 }
 

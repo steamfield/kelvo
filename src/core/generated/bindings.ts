@@ -218,7 +218,7 @@ export const commands = {
 	getNetworkAddresses: (host: HostId) => typedError<NetworkAddresses, CommandError>(__TAURI_INVOKE("get_network_addresses", { host })),
 	/**
 	 *  This Mac's public address, from an outside service over HTTPS (D-093). The one
-	 *  request Kelvo makes on its own; only the Network page asks, and only while shown.
+	 *  request StatGlass makes on its own; only the Network page asks, and only while shown.
 	 */
 	getPublicIp: () => typedError<string, CommandError>(__TAURI_INVOKE("get_public_ip")),
 	/**
@@ -288,8 +288,8 @@ export const commands = {
 	/**
 	 *  Moves the history database aside (it stays next to the new one as
 	 *  `history-reset-<ms>.sqlite`, for diagnosis) and starts an empty one: the way out when
-	 *  history is unavailable because the file is corrupt or from a newer Kelvo. Sampling
-	 *  continues throughout. `store_busy` when another Kelvo process has the database open.
+	 *  history is unavailable because the file is corrupt or from a newer StatGlass. Sampling
+	 *  continues throughout. `store_busy` when another StatGlass process has the database open.
 	 *  Returns the new size on disk; `history-health-changed` follows.
 	 */
 	resetHistory: () => typedError<ByteCount, CommandError>(__TAURI_INVOKE("reset_history")),
@@ -402,7 +402,7 @@ export const USAGE_PROCESS_PAGE_MAX = 100 as const;
 
 /* Types */
 /**
- *  A host's installed Kelvo against the version this Mac bundles, which is the newest
+ *  A host's installed StatGlass against the version this Mac bundles, which is the newest
  *  this Mac can install there (D-123).
  */
 export type AgentUpdate =
@@ -615,7 +615,7 @@ export type CommandError = { kind: "update"; message: string } |
 { kind: "remote_auth"; message: string } |
 /**  The other Mac's host key isn't trusted yet, or needs checking in Terminal. */
 { kind: "host_key_unknown"; message: string } |
-/**  The other Mac can't run this Kelvo (architecture, macOS or protocol version). */
+/**  The other Mac can't run this StatGlass (architecture, macOS or protocol version). */
 { kind: "remote_incompatible"; message: string } |
 /**  The Mac that answered is not the one this host was added as. */
 { kind: "remote_identity"; message: string } |
@@ -659,7 +659,7 @@ export type CommandError = { kind: "update"; message: string } |
 { kind: "remote_host"; host: HostId } |
 /**
  *  There is no history store: it could not be opened at launch, the local host could
- *  not be registered in it, or a reset failed. Kelvo runs live-only. `reason` says
+ *  not be registered in it, or a reset failed. StatGlass runs live-only. `reason` says
  *  why when it is known; `reset_history` can recover from everything but `locked`.
  */
 { kind: "history_unavailable"; reason?: HistoryUnavailableReason | null } |
@@ -670,13 +670,13 @@ export type CommandError = { kind: "update"; message: string } |
 { kind: "store_busy"; message: string } |
 /**  The database file is damaged. `reset_history` moves it aside and starts a new one. */
 { kind: "store_corrupt"; message: string } |
-/**  A newer Kelvo wrote the database; this build cannot read it. */
+/**  A newer StatGlass wrote the database; this build cannot read it. */
 { kind: "store_too_new"; found: number; supported: number } |
 /**  Any other history query or write failure. */
 { kind: "store"; message: string } |
 /**  A disk space scan could not start, or its report is gone. */
 { kind: "disk_space"; message: string } |
-/**  A bug or a crashed worker inside Kelvo (a command's task panicked). Not retryable. */
+/**  A bug or a crashed worker inside StatGlass (a command's task panicked). Not retryable. */
 { kind: "internal"; message: string } |
 /**  The settings patch produced settings that fail validation. Nothing changed. */
 { kind: "invalid_settings"; message: string } |
@@ -1235,8 +1235,8 @@ export type ExportRequest = {
 	 */
 	tier: TierRequest,
 	/**
-	 *  The file name the dialog proposes (`kelvo-2026-10-04.csv`); local dates are the
-	 *  frontend's to format. Path separators are dropped. Default `kelvo-history.csv`.
+	 *  The file name the dialog proposes (`statglass-2026-10-04.csv`); local dates are the
+	 *  frontend's to format. Path separators are dropped. Default `statglass-history.csv`.
 	 */
 	file_name?: string | null,
 };
@@ -1268,7 +1268,7 @@ export type GapReason =
 /**  The machine slept. Written by the engine on `WillSleep`, closed on `DidWake`. */
 "sleep" |
 /**
- *  Kelvo was not running. Written by the store on startup, from the last persisted
+ *  StatGlass was not running. Written by the store on startup, from the last persisted
  *  bucket to now.
  */
 "app_not_running" |
@@ -1560,11 +1560,11 @@ export type HistorySettings = {
 /**  Why history is unavailable, for the banner and for whether `reset_history` can help. */
 export type HistoryUnavailableReason =
 /**
- *  Another Kelvo process (a second copy, or an installed build next to a dev build
+ *  Another StatGlass process (a second copy, or an installed build next to a dev build
  *  sharing its data) has the database open. Quit it; a reset cannot help.
  */
 { kind: "locked" } |
-/**  A newer Kelvo wrote the database. */
+/**  A newer StatGlass wrote the database. */
 { kind: "too_new"; found: number; supported: number } |
 /**  The database file is damaged. */
 { kind: "corrupt"; message: string } |
@@ -1839,7 +1839,7 @@ export type LiveProcess = {
 	user: string,
 	/**
 	 *  Why Quit and Force Quit refuse this process, `null` when they may signal it: the
-	 *  rule `process_signal` checks, with Kelvo's own processes from the self-CPU
+	 *  rule `process_signal` checks, with StatGlass's own processes from the self-CPU
 	 *  collector's list (D-092).
 	 */
 	refusal: SignalRefusal | null,
@@ -1872,7 +1872,7 @@ export type LiveStatus = {
 	power_source: PowerSource,
 	/**
 	 *  The `iface` label of the reported interface carrying the default route, `null`
-	 *  when the route is on an interface Kelvo does not report (a VPN tunnel) or there is
+	 *  when the route is on an interface StatGlass does not report (a VPN tunnel) or there is
 	 *  none. Re-read on interface changes and every 60 s (D-092).
 	 */
 	primary_iface: string | null,
@@ -2086,7 +2086,7 @@ export type NetworkByApp = {
 	overhead_tx_bytes: number,
 	/**
 	 *  "System and other": interface minus apps, other apps and overhead, never below 0.
-	 *  Root daemons (software update, mDNSResponder, backups) that Kelvo cannot see.
+	 *  Root daemons (software update, mDNSResponder, backups) that StatGlass cannot see.
 	 */
 	system_rx_bytes: number,
 	system_tx_bytes: number,
@@ -2219,7 +2219,7 @@ export type ProcessSignalError =
 { kind: "not_found" } |
 /**  The PID now belongs to a process with a different start time. Nothing was sent. */
 { kind: "pid_reused" } |
-/**  `EPERM`: another user's process. Kelvo never escalates. */
+/**  `EPERM`: another user's process. StatGlass never escalates. */
 { kind: "permission_denied" } |
 /**  No host with this id is registered. */
 { kind: "unknown_host"; host: HostId } |
@@ -2396,7 +2396,7 @@ export type RemoteHostConfig = {
 
 /**  What answered at an SSH alias, which decides the setup path. */
 export type RemoteHostKind =
-/**  Another Mac, running Kelvo.app (D-104). */
+/**  Another Mac, running StatGlass.app (D-104). */
 "mac" |
 /**  A Linux host, running the headless agent (D-116). */
 "linux";
@@ -2435,7 +2435,7 @@ export type RemoteHostStatus = {
 	memory_pct: number | null,
 	/**  The version the host last reported (`Hello.app_version`), kept across restarts. */
 	agent_version: string | null,
-	/**  How the host's Kelvo compares with the one this Mac can install (D-123). */
+	/**  How the host's StatGlass compares with the one this Mac can install (D-123). */
 	agent_update: AgentUpdate,
 	/**
 	 *  The id the host answered with when it is not the paired one. The host list
@@ -2618,12 +2618,12 @@ export type SignalKind =
 /**  `NSRunningApplication.forceTerminate` for a regular app, `SIGKILL` otherwise. */
 "force_quit";
 
-/**  Why Kelvo will not signal a process. The UI words it (`process-signal.ts`). */
+/**  Why StatGlass will not signal a process. The UI words it (`process-signal.ts`). */
 export type SignalRefusal =
 /**  The macOS kernel (pid 0), or a pid kill(2) would treat as a process group. */
 "kernel_task" | "launchd" | "window_server" | "login_window" |
-/**  Kelvo itself or one of its helpers. */
-"kelvo";
+/**  StatGlass itself or one of its helpers. */
+"statglass";
 
 export type SpaceCrumb = {
 	id: number,
@@ -2869,7 +2869,7 @@ export type UpdateStatusChanged = {
 
 /**
  *  `query_usage_by_app`: which apps used CPU, GPU, memory, disk and energy over a range,
- *  from the last hour of process samples Kelvo keeps in memory (D-093, D-099). Your
+ *  from the last hour of process samples StatGlass keeps in memory (D-093, D-099). Your
  *  processes only; `other` holds the rest.
  */
 export type UsageByApp = {
@@ -2877,7 +2877,7 @@ export type UsageByApp = {
 	from_ms: number,
 	to_ms: number,
 	/**
-	 *  When Kelvo started counting (this launch, or the last history clear); `null`
+	 *  When StatGlass started counting (this launch, or the last history clear); `null`
 	 *  before the first process sample. After `from_ms`, the range is covered only from
 	 *  here.
 	 */
@@ -2961,7 +2961,7 @@ export type UsageNetworkUncertainty = {
 };
 
 /**
- *  What the host measured beyond Kelvo's processes ("System and other"): the host's
+ *  What the host measured beyond StatGlass's processes ("System and other"): the host's
  *  own series over the same range less `UsageByApp.total`. It holds other users' and
  *  root's processes and those that lived less than one sample. `null` fields where the
  *  series was not recorded (module off, GPU never measured).

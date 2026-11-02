@@ -9,19 +9,19 @@ import { Switch } from "~/components/ui/switch";
 import { useTransport } from "~/lib/transport-context";
 
 export const COORDINATED_UPGRADE_GUIDE =
-  "https://github.com/steamfield/kelvo/blob/main/.github/releasing.md#coordinated-protocol-upgrades";
+  "https://github.com/steamfield/statglass/blob/main/.github/releasing.md#coordinated-protocol-upgrades";
 
 function message(status: RemoteUpdateStatus): string {
   if (!status.supported)
     return (
       status.message ??
-      "Update Kelvo on this host once to enable automatic updates."
+      "Update StatGlass on this host once to enable automatic updates."
     );
   if (status.message) return status.message;
   switch (status.status) {
     case "available":
       return status.version
-        ? `Kelvo ${status.version} is available on this host.`
+        ? `StatGlass ${status.version} is available on this host.`
         : "An update is available on this host.";
     case "up_to_date":
       return "The host is running the latest compatible release.";
@@ -34,7 +34,7 @@ function message(status: RemoteUpdateStatus): string {
     case "updated":
     case "ready":
       return status.version
-        ? `Updated to Kelvo ${status.version}.`
+        ? `Updated to StatGlass ${status.version}.`
         : "Update installed.";
     case "failed":
       return "The last update failed. The host kept its previous version.";
@@ -45,7 +45,7 @@ function message(status: RemoteUpdateStatus): string {
     case "compatibility_blocked":
       return "Update deferred to keep existing connections compatible.";
     case "needs_authorization":
-      return "Open Kelvo on this Mac to approve installation.";
+      return "Open StatGlass on this Mac to approve installation.";
     default:
       return status.check_updates && status.auto_install_updates
         ? "This host installs compatible releases even when this Mac is offline."

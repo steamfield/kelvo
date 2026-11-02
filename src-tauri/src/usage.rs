@@ -1,12 +1,12 @@
 //! `query_usage_by_app` and `query_usage_series` (D-093, D-099): the engine's per-app use
 //! over a range, with what the Quit actions need and what the host measured beyond
-//! Kelvo's processes. Which process an app row's Quit acts on is decided here, so every
+//! StatGlass's processes. Which process an app row's Quit acts on is decided here, so every
 //! view that offers it agrees.
 
-use kelvo_schema::JsSafeInt;
-use kelvo_schema::usage::{UsageApp, UsageProc};
-use kelvo_store::{MetricStats, RangeStats};
 use serde::Serialize;
+use statglass_schema::JsSafeInt;
+use statglass_schema::usage::{UsageApp, UsageProc};
+use statglass_store::{MetricStats, RangeStats};
 
 use crate::error::CommandError;
 use crate::ipc::{
@@ -49,7 +49,7 @@ fn refusal_of(
 /// covered part of the range (`None` with history unreadable), `cores` the host's CPU
 /// cores.
 pub fn usage_by_app(
-    e: kelvo_schema::usage::UsageByApp,
+    e: statglass_schema::usage::UsageByApp,
     stats: Option<&RangeStats>,
     cores: usize,
     refusal: impl Fn(i32, i64, &str) -> Option<SignalRefusal>,
@@ -147,7 +147,7 @@ pub struct UsageSeries {
 }
 
 /// The `query_usage_series` answer.
-pub fn usage_series(e: kelvo_engine::UsageSeries) -> UsageSeries {
+pub fn usage_series(e: statglass_engine::UsageSeries) -> UsageSeries {
     UsageSeries {
         from_ms: e.from_ms,
         bucket_ms: e.bucket_ms,
@@ -174,11 +174,11 @@ pub fn check_series_range(from_ms: i64, to_ms: i64) -> Result<(), CommandError> 
             message: format!("to_ms {to_ms} is before from_ms {from_ms}"),
         });
     }
-    if to_ms - from_ms > kelvo_engine::USAGE_KEEP_MS {
+    if to_ms - from_ms > statglass_engine::USAGE_KEEP_MS {
         return Err(CommandError::InvalidArgument {
             message: format!(
                 "the range is longer than the {} ms of samples kept",
-                kelvo_engine::USAGE_KEEP_MS
+                statglass_engine::USAGE_KEEP_MS
             ),
         });
     }
@@ -188,7 +188,7 @@ pub fn check_series_range(from_ms: i64, to_ms: i64) -> Result<(), CommandError> 
 /// Where the remainder's host series are read: the covered part of the usage range,
 /// `(from, to, cut)`. `cut` is the newest process sample, where the apps' sums stop, so
 /// the host series are cut there too rather than at now.
-pub fn remainder_range(e: &kelvo_schema::usage::UsageByApp) -> Option<(i64, i64, i64)> {
+pub fn remainder_range(e: &statglass_schema::usage::UsageByApp) -> Option<(i64, i64, i64)> {
     let from = e.since_ms?.max(e.from_ms);
     let cut = e.latest_ms?;
     (e.covered_ms > 0 && from < e.to_ms).then_some((from, e.to_ms, cut))
@@ -197,7 +197,7 @@ pub fn remainder_range(e: &kelvo_schema::usage::UsageByApp) -> Option<(i64, i64,
 /// The host's series less the apps' totals, clamped at 0. Averages are compared with
 /// averages, each over its own measured time; bytes with bytes over the same range.
 fn other(
-    e: &kelvo_schema::usage::UsageByApp,
+    e: &statglass_schema::usage::UsageByApp,
     stats: Option<&RangeStats>,
     cores: usize,
 ) -> UsageOther {
@@ -271,7 +271,7 @@ pub fn series_stats(s: RangeStats) -> SeriesStats {
 
 #[cfg(test)]
 mod tests {
-    use kelvo_schema::usage::UsageTotal as EngineTotal;
+    use statglass_schema::usage::UsageTotal as EngineTotal;
 
     use super::*;
 
@@ -323,7 +323,7 @@ mod tests {
         proc.start_time_us = 123;
         proc.read_b = 600.;
         proc.write_b = 300.;
-        let input = kelvo_schema::usage::UsageByApp {
+        let input = statglass_schema::usage::UsageByApp {
             from_ms: 0,
             to_ms: 60_000,
             covered_ms: 3_000,
@@ -341,7 +341,7 @@ mod tests {
             (Some(200.), Some(100.), Some(300.))
         );
         let out = usage_by_app(
-            kelvo_schema::usage::UsageByApp {
+            statglass_schema::usage::UsageByApp {
                 covered_ms: 0,
                 ..input
             },
@@ -368,7 +368,7 @@ mod tests {
 
     #[test]
     fn exited_processes_carry_no_refusal() {
-        let e = kelvo_schema::usage::UsageByApp {
+        let e = statglass_schema::usage::UsageByApp {
             from_ms: 0,
             to_ms: 10_000,
             since_ms: Some(0),
@@ -381,7 +381,7 @@ mod tests {
                 "WindowServer",
                 vec![p(1, true, false), p(2, false, false)],
             )],
-            ..kelvo_schema::usage::UsageByApp::default()
+            ..statglass_schema::usage::UsageByApp::default()
         };
         let out = usage_by_app(e, None, 8, |_, _, _| Some(SignalRefusal::WindowServer));
         let procs = &out.apps[0].processes;
@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn the_remainder_is_the_host_less_the_apps_clamped() {
-        let e = kelvo_schema::usage::UsageByApp {
+        let e = statglass_schema::usage::UsageByApp {
             from_ms: 0,
             to_ms: 60_000,
             since_ms: Some(0),
@@ -406,7 +406,7 @@ mod tests {
                 write_b: 9_000.0,
                 ..EngineTotal::default()
             },
-            ..kelvo_schema::usage::UsageByApp::default()
+            ..statglass_schema::usage::UsageByApp::default()
         };
         let stats = RangeStats {
             from_ms: 0,
@@ -430,7 +430,7 @@ mod tests {
 
         // Nothing covered, or no host series: no remainder rather than a wrong one.
         let none = other(
-            &kelvo_schema::usage::UsageByApp {
+            &statglass_schema::usage::UsageByApp {
                 covered_ms: 0,
                 ..e.clone()
             },
@@ -443,23 +443,23 @@ mod tests {
 
     #[test]
     fn the_remainder_reads_only_the_covered_part() {
-        let e = kelvo_schema::usage::UsageByApp {
+        let e = statglass_schema::usage::UsageByApp {
             from_ms: 0,
             to_ms: 60_000,
             since_ms: Some(25_000),
             latest_ms: Some(57_000),
             covered_ms: 32_000,
-            ..kelvo_schema::usage::UsageByApp::default()
+            ..statglass_schema::usage::UsageByApp::default()
         };
         // Cut where the apps' sums stop, not at now.
         assert_eq!(remainder_range(&e), Some((25_000, 60_000, 57_000)));
-        let never = kelvo_schema::usage::UsageByApp { covered_ms: 0, ..e };
+        let never = statglass_schema::usage::UsageByApp { covered_ms: 0, ..e };
         assert_eq!(remainder_range(&never), None);
     }
 
     #[test]
     fn the_series_range_must_be_ordered_and_within_what_is_kept() {
-        let keep = kelvo_engine::USAGE_KEEP_MS;
+        let keep = statglass_engine::USAGE_KEEP_MS;
         assert!(matches!(
             check_series_range(10_000, 0),
             Err(CommandError::InvalidArgument { .. })

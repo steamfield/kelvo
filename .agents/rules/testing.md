@@ -41,7 +41,7 @@ they do not exempt production code from the native lint profiles (D-112).
 Escalate only as far as you need to:
 
 1. Single test while red/green cycling: `bun run test -- src/core/format.test.ts -t "bytes"`,
-   `cargo test -p kelvo-store rollup::closes_bucket`
+   `cargo test -p statglass-store rollup::closes_bucket`
 2. The test file, once that test passes.
 3. The directory or crate, to catch neighbours you broke.
 4. The package suite with no args (`bun run test`, `cargo test --workspace`) when the change is done.

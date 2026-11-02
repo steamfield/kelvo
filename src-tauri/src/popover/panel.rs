@@ -65,7 +65,7 @@ pub fn create(app: &AppHandle) -> anyhow::Result<()> {
     // Hidden from the start: no frames until the first show (D-049).
     set_visible(app, false);
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App(ROUTE.into()))
-        .title("Kelvo")
+        .title("StatGlass")
         .inner_size(super::WIDTH_PT, super::HEIGHT_PT)
         .decorations(false)
         .resizable(false)

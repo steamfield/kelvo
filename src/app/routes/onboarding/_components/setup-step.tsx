@@ -101,7 +101,7 @@ export function SetupStep({
   return (
     <OnboardingFrame
       step={1}
-      title="Set up Kelvo"
+      title="Set up StatGlass"
       sub="Pick what to sample and how it shows in the menu bar. Everything here is in Settings later."
       footer={
         <>

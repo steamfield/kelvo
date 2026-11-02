@@ -268,7 +268,7 @@ describe("UsageAppsCard (D-093, D-099)", () => {
       covered_ms: 120_000,
     }));
     expect(
-      await screen.findByText(/Kelvo started counting at/)
+      await screen.findByText(/StatGlass started counting at/)
     ).toHaveTextContent("so these figures cover");
   });
 

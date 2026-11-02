@@ -1,8 +1,8 @@
-//! `tracing` to `~/Library/Logs/com.tryopendata.kelvo/` (v1-local-monitor.md 6.5), plus stderr
+//! `tracing` to `~/Library/Logs/com.tryopendata.statglass/` (v1-local-monitor.md 6.5), plus stderr
 //! in debug builds. `RUST_LOG` overrides the default `info` level.
 //!
 //! Rotation is daily with the five newest files kept. `tracing-appender` rotates by time
-//! only; at Kelvo's log volume (startup, settings changes, collector errors rate-limited
+//! only; at StatGlass's log volume (startup, settings changes, collector errors rate-limited
 //! to one a minute) a day stays far below the 5 MB per file the plan budgets.
 //!
 //! A log directory that cannot be created or written (root-owned after a `sudo` run, a
@@ -24,7 +24,7 @@ fn file_appender(dir: &Path) -> anyhow::Result<RollingFileAppender> {
     std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
     RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
-        .filename_prefix("kelvo")
+        .filename_prefix("statglass")
         .filename_suffix("log")
         .max_log_files(LOG_FILES_KEPT)
         .build(dir)
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn an_unusable_log_dir_is_an_error_not_a_panic() {
         let parent = std::env::temp_dir().join(format!(
-            "kelvo-shell-logs-{}-{}",
+            "statglass-shell-logs-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));

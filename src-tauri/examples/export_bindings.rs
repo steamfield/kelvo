@@ -4,8 +4,8 @@
 use anyhow::Context;
 
 fn main() -> anyhow::Result<()> {
-    kelvo_lib::export_bindings(&kelvo_lib::specta_builder())
-        .with_context(|| format!("exporting bindings to {}", kelvo_lib::BINDINGS_PATH))?;
-    println!("wrote {}", kelvo_lib::BINDINGS_PATH);
+    statglass_lib::export_bindings(&statglass_lib::specta_builder())
+        .with_context(|| format!("exporting bindings to {}", statglass_lib::BINDINGS_PATH))?;
+    println!("wrote {}", statglass_lib::BINDINGS_PATH);
     Ok(())
 }

@@ -86,7 +86,7 @@ describe("remote Mac recovery workflows", () => {
       status: "error",
       error: {
         kind: "remote_unreachable",
-        message: "A packaged Kelvo.app with bundled helper is required.",
+        message: "A packaged StatGlass.app with bundled helper is required.",
       },
     });
     mount(source);
@@ -97,7 +97,7 @@ describe("remote Mac recovery workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check connection" }));
     fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "A packaged Kelvo.app with bundled helper is required."
+      "A packaged StatGlass.app with bundled helper is required."
     );
     expect(screen.getByRole("alert")).not.toHaveTextContent("could not reach");
   });

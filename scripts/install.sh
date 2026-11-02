@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# Build Kelvo from source and install it to ~/Applications. Installs the build tools it
+# Build StatGlass from source and install it to ~/Applications. Installs the build tools it
 # needs (Xcode Command Line Tools, Rust, Bun) when they are missing. Rerun it to update.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/steamfield/kelvo/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/steamfield/statglass/main/scripts/install.sh | bash
 #   scripts/install.sh            (from a checkout: builds that checkout as-is)
 #
-# Piped from curl, the source lives in $KELVO_SRC (default ~/.kelvo/src) and is
+# Piped from curl, the source lives in $STATGLASS_SRC (default ~/.statglass/src) and is
 # fast-forwarded to the latest main on each run. The app is ad-hoc signed: a build made on
 # this Mac carries no quarantine flag, so Gatekeeper opens it without a prompt.
 set -euo pipefail
 
-REPO_URL="https://github.com/steamfield/kelvo.git"
+REPO_URL="https://github.com/steamfield/statglass.git"
 
-say() { printf '\033[1mkelvo:\033[0m %s\n' "$*"; }
-die() { printf '\033[1;31mkelvo:\033[0m %s\n' "$*" >&2; exit 1; }
+say() { printf '\033[1mstatglass:\033[0m %s\n' "$*"; }
+die() { printf '\033[1;31mstatglass:\033[0m %s\n' "$*" >&2; exit 1; }
 
 check_mac() {
-  [ "$(uname -s)" = "Darwin" ] || die "Kelvo runs on macOS only."
-  [ "$(uname -m)" = "arm64" ] || die "Kelvo needs an Apple Silicon Mac (M1 or newer)."
+  [ "$(uname -s)" = "Darwin" ] || die "StatGlass runs on macOS only."
+  [ "$(uname -m)" = "arm64" ] || die "StatGlass needs an Apple Silicon Mac (M1 or newer)."
   local major
   major="$(sw_vers -productVersion | cut -d. -f1)"
-  [ "$major" -ge 26 ] || die "Kelvo needs macOS 26 or newer (this Mac has $(sw_vers -productVersion))."
+  [ "$major" -ge 26 ] || die "StatGlass needs macOS 26 or newer (this Mac has $(sw_vers -productVersion))."
 }
 
 ensure_xcode_clt() {
@@ -59,7 +59,7 @@ find_source() {
     return
   fi
 
-  SRC="${KELVO_SRC:-$HOME/.kelvo/src}"
+  SRC="${STATGLASS_SRC:-$HOME/.statglass/src}"
   if [ -d "$SRC/.git" ]; then
     say "updating the source in $SRC."
     git -C "$SRC" pull --ff-only --quiet </dev/null
@@ -75,10 +75,10 @@ build_and_install() {
   cd "$SRC"
   say "installing JavaScript dependencies."
   bun install --frozen-lockfile </dev/null
-  say "building Kelvo. The first build takes about five minutes."
+  say "building StatGlass. The first build takes about five minutes."
   APPLE_SIGNING_IDENTITY=- bun run build:app --bundles app </dev/null
 
-  bash "$SRC/scripts/install-app.sh" "$SRC/target/release/bundle/macos/Kelvo.app"
+  bash "$SRC/scripts/install-app.sh" "$SRC/target/release/bundle/macos/StatGlass.app"
 }
 
 # Everything runs from main so that `curl | bash` has read the whole script before any

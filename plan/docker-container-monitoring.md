@@ -36,9 +36,9 @@ This is a local macOS feature, staged independently of the numbered roadmap. It 
 
 ## 1. Problem, evidence, and scope
 
-The first user is a developer running local Compose projects who sees high CPU or memory in Kelvo but can only attribute it to a Docker runtime or VM. They switch to Docker tooling to find the workload, and lose the connection between current container stats and an earlier host spike. The intended feeling is confidence: identify the workload, see the evidence, and understand where measurement stops.
+The first user is a developer running local Compose projects who sees high CPU or memory in StatGlass but can only attribute it to a Docker runtime or VM. They switch to Docker tooling to find the workload, and lose the connection between current container stats and an earlier host spike. The intended feeling is confidence: identify the workload, see the evidence, and understand where measurement stops.
 
-The feature request and supplied mocks establish demand and an initial direction. They do not establish prevalence or validate usability. Docker's own [stats semantics](https://docs.docker.com/reference/cli/docker/container/stats/) establish the expected CPU and memory units; its [event interface](https://docs.docker.com/reference/cli/docker/system/events/) supplies lifecycle evidence but only retains the latest 256 events. Kelvo's opportunity is a local history and attribution workflow that fits its existing monitor.
+The feature request and supplied mocks establish demand and an initial direction. They do not establish prevalence or validate usability. Docker's own [stats semantics](https://docs.docker.com/reference/cli/docker/container/stats/) establish the expected CPU and memory units; its [event interface](https://docs.docker.com/reference/cli/docker/system/events/) supplies lifecycle evidence but only retains the latest 256 events. StatGlass's opportunity is a local history and attribution workflow that fits its existing monitor.
 
 | Job | Experience | Success check |
 |---|---|---|
@@ -53,11 +53,11 @@ Task-time targets apply to supported, fully monitored populations; a partial pop
 
 **Staged after the core tab:** Timeline lane and event links, optional popover summary and tray count. These consume the same facts and do not create independent collectors.
 
-**Deferred from this monitoring milestone:** remote engines, simultaneous monitoring of multiple engines, Podman/Kubernetes/containerd adapters, lifecycle actions, terminal/exec, image/volume cleanup, builds, Compose editing, disk-image capacity scanning, notifications/alert rules, log storage/export, and v2 widget authoring. Explicit local Stop and storage cleanup are now covered by the separate [storage and cleanup plan](docker-storage-cleanup.md) and D-107; the monitoring client stays read-only. Docker installation is the user's existing environment; Kelvo needs no Docker CLI, helper container, privileged helper, or permission-changing setup command.
+**Deferred from this monitoring milestone:** remote engines, simultaneous monitoring of multiple engines, Podman/Kubernetes/containerd adapters, lifecycle actions, terminal/exec, image/volume cleanup, builds, Compose editing, disk-image capacity scanning, notifications/alert rules, log storage/export, and v2 widget authoring. Explicit local Stop and storage cleanup are now covered by the separate [storage and cleanup plan](docker-storage-cleanup.md) and D-107; the monitoring client stays read-only. Docker installation is the user's existing environment; StatGlass needs no Docker CLI, helper container, privileged helper, or permission-changing setup command.
 
 ## 2. Experience and visual direction
 
-Use Kelvo's existing Utility & Function / Data & Analysis direction: dense table, restrained chart treatment, native SF Pro, sentence-case labels, `.figures` for updating numbers, and `.figures-display` for headline figures. Apply [design-system.md](design-system.md), [D-101](decisions.md#d-101-sf-pro-for-the-ui-sf-pro-rounded-for-headline-figures-no-monospace-or-uppercase-labels), and the neighboring Processes and Network pages. New route designs must be compared in dark and light mode against those screens and the dev gallery.
+Use StatGlass's existing Utility & Function / Data & Analysis direction: dense table, restrained chart treatment, native SF Pro, sentence-case labels, `.figures` for updating numbers, and `.figures-display` for headline figures. Apply [design-system.md](design-system.md), [D-101](decisions.md#d-101-sf-pro-for-the-ui-sf-pro-rounded-for-headline-figures-no-monospace-or-uppercase-labels), and the neighboring Processes and Network pages. New route designs must be compared in dark and light mode against those screens and the dev gallery.
 
 The supplied local PDFs, `Containers (1).pdf`, `Container · worker (OOM loop) (1).pdf`, and `Containers · popover, tray, timeline (1).pdf`, in `plan/container-mocks/`, are inspiration. They are not tracked prerequisites for a clean checkout. Keep their useful aggregate-to-container hierarchy, Compose grouping and event context. Improve their wide clipped table, equally prominent stat cards, rainbow stacks and control-heavy detail. Do not carry over restart/stop/shell controls or environment-derived tuning advice.
 
@@ -112,7 +112,7 @@ Logs are an explicit secondary pane. Opening fetches the latest 200 lines; Follo
 | Disabled | Enable monitoring; retained history remains available |
 | Discovering / initial sample | Bounded progress and cancel; no placeholder zeroes |
 | Docker not found / engine stopped | Explain the distinction where known; Retry / Engine…; no automatic launch |
-| Permission denied / unsupported API | Socket and actionable reason; no chmod/sudo suggestion executed by Kelvo |
+| Permission denied / unsupported API | Socket and actionable reason; no chmod/sudo suggestion executed by StatGlass |
 | Connected, no containers | “No containers found” after successful inventory |
 | All containers stopped / engine idle | Counts and last observed state; monitoring idle and history coverage labelled |
 | Partial sample / over population cap | “Measured 96 of 128 monitored; 200 running”; partial subtotal, never a global total |
@@ -134,9 +134,9 @@ Keep the dependency direction `schema → {proto, collect, store} → engine →
 
 ```mermaid
 flowchart LR
-  SOCKET[Selected local Unix socket] --> ADAPTER[kelvo-collect Docker adapter]
+  SOCKET[Selected local Unix socket] --> ADAPTER[statglass-collect Docker adapter]
   PROC[macOS process attribution] --> NORMALIZE
-  ADAPTER --> NORMALIZE[kelvo-engine Docker worker and normalization]
+  ADAPTER --> NORMALIZE[statglass-engine Docker worker and normalization]
   NORMALIZE --> HUB[Docker live hub and bounded ring]
   NORMALIZE --> WRITER[Existing SQLite single writer]
   HUB --> IPC[Shell typed Docker transport]
@@ -175,14 +175,14 @@ Continuously monitor up to 128 containers, with inventory bounded at 10,000 entr
 
 ### Contract and source touchpoints
 
-Add feature types under `kelvo-schema`, adapter under `kelvo-collect`, and worker/hub/ring under `kelvo-engine`. Keep the existing physical host hub and tick semantics unchanged: its single frame timestamp cannot represent independent Docker observations. Shell APIs expose discovery/selection, live subscription, inventory/detail, history/events and logs through generated Rust types. Add matching Tauri and browser mock Transport methods; never hand-edit generated bindings. Use strings for full nanosecond timestamps over IPC rather than unsafe JavaScript numbers.
+Add feature types under `statglass-schema`, adapter under `statglass-collect`, and worker/hub/ring under `statglass-engine`. Keep the existing physical host hub and tick semantics unchanged: its single frame timestamp cannot represent independent Docker observations. Shell APIs expose discovery/selection, live subscription, inventory/detail, history/events and logs through generated Rust types. Add matching Tauri and browser mock Transport methods; never hand-edit generated bindings. Use strings for full nanosecond timestamps over IPC rather than unsafe JavaScript numbers.
 
 Verified integration points in this checkout:
 
 - [Host live hub](../src-tauri/src/live.rs), [history reader](../src-tauri/src/history.rs), and [Transport](../src/core/transport.ts): patterns to reuse, with a dedicated Docker stream and history merge.
 - [Mock transport](../src/core/mock-transport.ts): every state and timing contract must have a deterministic fixture.
 - [Sidebar](../src/app/routes/dashboard/_components/live-sidebar.tsx), [Processes](../src/app/routes/dashboard/processes/route.tsx), [Network](../src/app/routes/dashboard/network/route.tsx): route integration, PageHeader, SectionCard, SearchField, SegmentedControl and table interaction conventions.
-- [Store schema](../crates/kelvo-store/src/db.rs), [transactions](../crates/kelvo-store/src/writer/txn.rs), [discard](../crates/kelvo-store/src/writer/discard.rs), [pruning](../crates/kelvo-store/src/writer/prune.rs), and [roll-down](../crates/kelvo-store/src/rolldown.rs): explicit Docker extension points described below.
+- [Store schema](../crates/statglass-store/src/db.rs), [transactions](../crates/statglass-store/src/writer/txn.rs), [discard](../crates/statglass-store/src/writer/discard.rs), [pruning](../crates/statglass-store/src/writer/prune.rs), and [roll-down](../crates/statglass-store/src/rolldown.rs): explicit Docker extension points described below.
 
 ## 4. SQLite architecture
 
@@ -304,7 +304,7 @@ For healthy local engines with 32 containers, target inventory within two second
 
 Preserve all existing gates in [perf-budget.json](../perf-budget.json), including their scenario-specific limits. Add a proposed Containers/detail fixture gate of at most **35 ms main-thread work per second at 1 Hz** and no task above 50 ms, measured using the current e2e methodology; a different limit requires evidence and a decision entry. Existing limits must not be relaxed by applying a blanket 50 ms/s target.
 
-Measure module-off overhead against the current baseline, then enabled overhead with 0/1/32/128 containers and 200-container inventory. Proposed enabled background increment is at most **0.2 percentage points of one core** over the same app/runtime workload with monitoring off. The existing whole-app 0.5% background target remains unchanged; this proposal does not claim the current baseline already meets it. Record daemon/VM energy and CPU separately because socket traffic can cost work outside Kelvo's coalition. A 24-hour soak must show bounded RAM, query latency, pending writes, database growth and WAL. Idle-engine tests must prove Kelvo does not keep Resource Saver awake; otherwise ship explicit suspension.
+Measure module-off overhead against the current baseline, then enabled overhead with 0/1/32/128 containers and 200-container inventory. Proposed enabled background increment is at most **0.2 percentage points of one core** over the same app/runtime workload with monitoring off. The existing whole-app 0.5% background target remains unchanged; this proposal does not claim the current baseline already meets it. Record daemon/VM energy and CPU separately because socket traffic can cost work outside StatGlass's coalition. A 24-hour soak must show bounded RAM, query latency, pending writes, database growth and WAL. Idle-engine tests must prove StatGlass does not keep Resource Saver awake; otherwise ship explicit suspension.
 
 Run scoped tests while building, then repository verification (`make check` and `bun run test:e2e`) and actual macOS checks before merging implementation. Code review covers the full diff after verification, with architecture, database and UX reviewers; fix Critical/Important findings and document any deferred suggestions. No runtime accuracy, migration execution, energy measurement or visual implementation validation has been performed by this planning change.
 
@@ -332,7 +332,7 @@ Primary references used for the design (recheck API compatibility during work it
 - [Docker Engine API](https://docs.docker.com/reference/api/engine/): inventory, inspection, stats, events and logs contracts.
 - [Docker events](https://docs.docker.com/reference/cli/docker/system/events/): event vocabulary and replay limit.
 - [Docker logging](https://docs.docker.com/engine/logging/): logging-driver availability and log access expectations.
-- [Docker Desktop Resource Saver](https://docs.docker.com/desktop/use-desktop/resource-saver/): idle VM behavior; Kelvo's impact still needs direct testing.
+- [Docker Desktop Resource Saver](https://docs.docker.com/desktop/use-desktop/resource-saver/): idle VM behavior; StatGlass's impact still needs direct testing.
 - [OrbStack Docker compatibility](https://docs.orbstack.dev/docker/) and [Colima FAQ](https://colima.run/docs/faq/): runtime/context/socket integration starting points.
 - [Bollard Docker client](https://docs.rs/bollard/latest/bollard/struct.Docker.html): explicit connection and API negotiation; pin and review the chosen release during implementation.
 - [SQLite WAL](https://www.sqlite.org/wal.html), [foreign keys](https://www.sqlite.org/foreignkeys.html), and [query-plan inspection](https://www.sqlite.org/eqp.html): reader/writer behavior, relational integrity and index validation.

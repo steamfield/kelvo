@@ -23,11 +23,14 @@ export class MockShell {
   };
   readonly reportPopoverContentHeight: MockTransport["reportPopoverContentHeight"] =
     async (height) => {
-      if (Number.isFinite(height) && height > 0 && height <= 100_000)
+      if (Number.isFinite(height) && height > 0 && height <= 100_000) {
         this.commands.record("report_popover_content_height", height);
+        this.options.embed?.popoverContentHeight(height);
+      }
     };
   readonly openDashboard: MockTransport["openDashboard"] = async (route) => {
     this.commands.record("open_dashboard", route);
+    this.options.embed?.openDashboard(route);
     return ok(null);
   };
   readonly getEdition: MockTransport["getEdition"] = async () => {

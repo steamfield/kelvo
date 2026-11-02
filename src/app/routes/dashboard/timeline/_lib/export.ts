@@ -6,7 +6,7 @@ import type { Span } from "./time";
 
 /**
  * The name the save dialog proposes: the range's local start and its
- * length, "kelvo-2026-10-04-2240-24h.csv". Rust only drops path separators,
+ * length, "statglass-2026-10-04-2240-24h.csv". Rust only drops path separators,
  * so the local date is ours to format.
  */
 export function exportFileName(span: Span | number, fromMs: number): string {
@@ -19,7 +19,7 @@ export function exportFileName(span: Span | number, fromMs: number): string {
           : `${span / 60_000}m`
       : span;
   const d = new Date(fromMs);
-  return `kelvo-${localDateIso(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}-${duration}.csv`;
+  return `statglass-${localDateIso(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}-${duration}.csv`;
 }
 
 /** The toast after a save: where it went and how much. `null` for a cancel. */

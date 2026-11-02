@@ -31,7 +31,7 @@ const DAY = 24 * HOUR;
  * of 5 to 8 hours starting within an hour of the same clock time, all ending
  * more than a day ago so the 24h range keeps its one band. Night 20
  * is a weekend away (one 34-hour sleep covering night 19 too), and two
- * afternoons have multi-hour holes for other reasons: Kelvo not running
+ * afternoons have multi-hour holes for other reasons: StatGlass not running
  * (day 3, inside the 7d range) and paused (day 12).
  */
 function pastNights(nowMs: number): Gap[] {

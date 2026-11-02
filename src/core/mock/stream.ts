@@ -52,7 +52,7 @@ export class MockStream {
         this.setWindowVisible(true);
         // The perf gate measures long tasks from here: building the messages
         // above is Rust's work, applying them is the webview's.
-        performance.mark("kelvo:resume");
+        performance.mark("statglass:resume");
       }, 50);
     }
     const ts = this.ring.now() + this.ring.clockOffset;
@@ -134,6 +134,35 @@ export class MockStream {
         opts.backfillMs ?? 60000,
         opts.series ?? null
       );
+      if (
+        this.options.scenarios?.includes("host-unreachable") &&
+        remote.record.config.id === "remote-unreachable"
+      ) {
+        // The real remote publishes its default status before its first
+        // successful handshake. There are no samples or cadence yet.
+        onMsg({
+          kind: "status",
+          interval_ms: 0,
+          frame_period_ms: 0,
+          paused: false,
+          display_idle: false,
+          on_battery: false,
+          performance: "off",
+          power_source: "unknown",
+          primary_iface: null,
+        });
+        return {
+          info: ok({
+            host,
+            stream: this.nextStream++,
+            backfill_start_ms: null,
+            backfill_rows: 0,
+            earlier_start_ms: null,
+            earlier_rows: 0,
+          }),
+          unsubscribe: () => {},
+        };
+      }
       return remote.peer.subscribeLive(MOCK_HOST_ID, onMsg, opts);
     }
     const backfillMs = Math.min(opts.backfillMs ?? 60_000, RING_SPAN_MS);

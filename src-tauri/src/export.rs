@@ -1,4 +1,4 @@
-//! `export_csv`'s file side: the store streams CSV rows ([`kelvo_store::Reader::export_csv`])
+//! `export_csv`'s file side: the store streams CSV rows ([`statglass_store::Reader::export_csv`])
 //! through a buffered writer into a temporary file next to the one the user picked in
 //! the save dialog, which is then renamed over it. A failed or interrupted export leaves
 //! the user's existing file (if any) as it was, and removes its temporary file.
@@ -8,14 +8,14 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use kelvo_store::{ExportQuery, StoreError};
+use statglass_store::{ExportQuery, StoreError};
 
 use crate::error::CommandError;
 use crate::history::History;
 use crate::ipc::ExportOutcome;
 
 /// The name the save dialog proposes when the request has none.
-pub const DEFAULT_FILE_NAME: &str = "kelvo-history.csv";
+pub const DEFAULT_FILE_NAME: &str = "statglass-history.csv";
 
 /// The dialog's proposed name: the request's, without path separators, ending in `.csv`.
 pub fn file_name(requested: Option<&str>) -> String {
@@ -34,13 +34,13 @@ pub fn file_name(requested: Option<&str>) -> String {
     }
 }
 
-/// `.kelvo-<pid>-<n>.tmp` beside `path`: hidden in Finder, on the same volume so the
+/// `.statglass-<pid>-<n>.tmp` beside `path`: hidden in Finder, on the same volume so the
 /// rename is atomic, short whatever the target's name (a 255-byte name plus a suffix
 /// would be too long), and unique, so two exports to one path never share a file.
 fn temp_path(path: &Path) -> PathBuf {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let n = NEXT.fetch_add(1, Ordering::Relaxed);
-    path.with_file_name(format!(".kelvo-{}-{n}.tmp", std::process::id()))
+    path.with_file_name(format!(".statglass-{}-{n}.tmp", std::process::id()))
 }
 
 /// Writes `query` as CSV to `path`, replacing any file there only once the export is
@@ -105,11 +105,11 @@ pub fn write_csv(
 mod tests {
     use std::sync::Arc;
 
-    use kelvo_schema::{
+    use statglass_schema::{
         Gap, GapReason, HostId, HostInfo, HostRecord, Labels, MetricId, OsKind, SeriesKey,
         SeriesSelector, Tier,
     };
-    use kelvo_store::{BucketRow, TierChoice};
+    use statglass_store::{BucketRow, TierChoice};
 
     use super::*;
 
@@ -118,7 +118,7 @@ mod tests {
 
     fn temp_dir(name: &str) -> tempfile::TempDir {
         tempfile::Builder::new()
-            .prefix(&format!("kelvo-shell-{name}-"))
+            .prefix(&format!("statglass-shell-{name}-"))
             .tempdir()
             .unwrap()
     }
@@ -234,7 +234,7 @@ mod tests {
         std::fs::read_dir(dir)
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-            .filter(|n| n.starts_with(".kelvo-") || n.ends_with("-tmp"))
+            .filter(|n| n.starts_with(".statglass-") || n.ends_with("-tmp"))
             .collect()
     }
 
@@ -292,7 +292,10 @@ mod tests {
     fn proposed_names_are_plain_csv_file_names() {
         assert_eq!(file_name(None), DEFAULT_FILE_NAME);
         assert_eq!(file_name(Some("  ")), DEFAULT_FILE_NAME);
-        assert_eq!(file_name(Some("kelvo-2026-10-04")), "kelvo-2026-10-04.csv");
+        assert_eq!(
+            file_name(Some("statglass-2026-10-04")),
+            "statglass-2026-10-04.csv"
+        );
         assert_eq!(file_name(Some("week.CSV")), "week.CSV");
         assert_eq!(file_name(Some("../../etc/passwd")), "etcpasswd.csv");
     }

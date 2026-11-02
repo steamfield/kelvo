@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { KelvoMark } from "~/components/kelvo-mark";
+import { StatGlassMark } from "~/components/statglass-mark";
 import { enter } from "~/lib/motion/enter";
 import { cn } from "~/lib/utils";
 import cardStyles from "~/widgets/card.module.css";
@@ -47,7 +47,7 @@ export function OnboardingFrame({
         {/* The mark sits beside the title, as in the popover header, so the
             steps fit the fixed 820 x 566 window above the footer. */}
         <div className="flex items-center gap-3">
-          <KelvoMark className="size-9" />
+          <StatGlassMark className="size-9" />
           <h1 className="font-[590] text-[28px] tracking-[-0.022em]">
             {title}
           </h1>

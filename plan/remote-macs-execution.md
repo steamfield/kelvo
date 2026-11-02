@@ -13,10 +13,10 @@ ce:code-reviewer review before integration. Preserve unrelated work in the origi
 
 ## Approved design
 
-One Kelvo app/collector/database per Mac. An owner-only control socket bootstraps
+One StatGlass app/collector/database per Mac. An owner-only control socket bootstraps
 remote settings; a separate opt-in metrics socket serves local data through a bundled
 stdio helper over persistent SSH. LAN and Tailscale aliases race with a 500 ms LAN
-preference. No Kelvo backend. Host selection scopes the existing dashboard. Background
+preference. No StatGlass backend. Host selection scopes the existing dashboard. Background
 hosts use summaries; visible pages request live/process interest. Remote app Quit/logout
 stops monitoring; hidden tray and closed windows do not.
 
@@ -52,7 +52,7 @@ open; do not substitute mocked results or mark them complete without evidence.
 
 ## Progress
 
-- Worktree created at /private/tmp/kelvo-remote-macs; dependency installation complete.
+- Worktree created at /private/tmp/statglass-remote-macs; dependency installation complete.
 - Protocol/store, transport and frontend agents completed their ownership groups.
 - ce:code-reviewer approved the complete diff after the final cancellation fix.
 - 909 frontend tests and the full Chromium/WebKit suite passed (236 passed, 8 existing
@@ -63,7 +63,7 @@ open; do not substitute mocked results or mark them complete without evidence.
 - The signed debug app was built with `APPLE_SIGNING_IDENTITY=- bun run build:app
   --debug --bundles app`; `codesign --verify --deep --strict` passes and its bundled
   helper reports version 0.1.0. Preserved artifact:
-  `/private/tmp/kelvo-remote-build/Kelvo.app`.
+  `/private/tmp/statglass-remote-build/StatGlass.app`.
 - Transport tests exercise concurrent routes, source-clock skew, immediate multi-page
   catch-up, application heartbeat framing, exact fingerprint acceptance, and restoring
   both app and data after a simulated schema migration. The actual helper subprocess
@@ -91,7 +91,7 @@ Review unknown-host fingerprints against the other Mac before accepting them. Ch
 keys and custom proxy trust configuration require native SSH resolution.
 
 The flow reuses a compatible app or installs/updates the packaged app. An update requires
-Kelvo to be quit on the other Mac and saves a matched app/data backup. macOS approvals
+StatGlass to be quit on the other Mac and saves a matched app/data backup. macOS approvals
 remain native and can be completed on the other Mac before retrying. Cancellation stops
 read-only waits immediately, but waits for file swaps and settings writes to settle before
 recovery. A completed fresh installation may remain for a later retry; no host row is
@@ -136,7 +136,7 @@ for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$key"; done
 The guide also provides a strict access test (`BatchMode=yes`,
 `StrictHostKeyChecking=yes`, `ControlPath=none`). It must succeed without a password,
 passphrase or trust prompt; success exits without output. Interactive verification
-alone does not establish that Kelvo can connect. Save any address edits, then use
+alone does not establish that StatGlass can connect. Save any address edits, then use
 **Retry** in Hosts. A changed key requires confirming why it changed and resolving
 trust in Terminal; the app never replaces a known key automatically.
 
@@ -144,7 +144,7 @@ trust in Terminal; the app never replaces a known key automatically.
 | --- | --- |
 | SSH authentication | Check the signed-in account and Remote Login access, authorize a key, and unlock it in the SSH agent |
 | Host key needs verification | Compare fingerprints; investigate changed keys before resolving trust |
-| Unsupported Mac or Kelvo version | Check Apple Silicon/macOS 26 requirements and the diagnostic for the version mismatch |
+| Unsupported Mac or StatGlass version | Check Apple Silicon/macOS 26 requirements and the diagnostic for the version mismatch |
 | Different Mac answers | Correct the alias/address/account, or add a replacement as a new Mac |
 | Connection/setup failure | Keep the actual diagnostic visible: this also covers installation, protocol and local I/O failures, not just network reachability |
 
@@ -238,12 +238,12 @@ claimed as verified. Results and discovered fixes are recorded below.
   The motion suite passed 10/10, the injected replay failed as expected, and the restored
   live-tick check passed in both engines. TypeScript and Biome passed after this correction.
 - [x] `make bindings-check` passed; generated bindings are unchanged.
-- [x] Built an ad-hoc signed isolated app (`com.tryopendata.kelvo.remoteqa`), verified
+- [x] Built an ad-hoc signed isolated app (`com.tryopendata.statglass.remoteqa`), verified
   its signature and executed its bundled helper's version command. Artifact:
-  `/private/tmp/kelvo-remote-qa-artifacts/Kelvo Remote QA.app`.
+  `/private/tmp/statglass-remote-qa-artifacts/StatGlass Remote QA.app`.
 - [ ] Native manual QA and the opt-in `packaged_app` acceptance test. The app has not
   been launched: computer-use app selection repeatedly returned `Computer Use was not
-  approved to use Kelvo Remote QA`, including after the user granted consent and showed
+  approved to use StatGlass Remote QA`, including after the user granted consent and showed
   Any App enabled. This is a tool-access blocker, not missing user consent. No other
   UI automation path was used to bypass it. The everyday installed app was untouched.
 - [x] ce:code-reviewer review and fix iteration: the native test's restoration
@@ -251,7 +251,7 @@ claimed as verified. Results and discovered fixes are recorded below.
   restore. Both that review and the final motion-test/docs delta review approved with
   no remaining findings.
 
-Logs and browser artifacts are preserved under `/private/tmp/kelvo-remote-qa-artifacts/`.
+Logs and browser artifacts are preserved under `/private/tmp/statglass-remote-qa-artifacts/`.
 The user's explicit integration instruction supersedes the earlier hold for native QA.
 All executed checks pass; integration does not mark the unrun native checks as verified.
 Another Mac is not required for those checks. The `codex/remote-qa` branch and its
@@ -262,7 +262,7 @@ The native acceptance test is compiled but deliberately ignored by the default s
 After launching the isolated QA app, run:
 
 ```sh
-KELVO_QA_DATA_DIR="/Users/riley/Library/Application Support/com.tryopendata.kelvo.remoteqa" cargo test -p kelvo-remote --test packaged_app -- --ignored --nocapture
+STATGLASS_QA_DATA_DIR="/Users/riley/Library/Application Support/com.tryopendata.statglass.remoteqa" cargo test -p statglass-remote --test packaged_app -- --ignored --nocapture
 ```
 
 It checks actual control/metrics sockets, advancing collector samples, memory values,

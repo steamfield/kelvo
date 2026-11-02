@@ -1,8 +1,8 @@
 //! Translation between storage/engine results and shell IPC types.
 use super::*;
 
-impl From<kelvo_engine::HistoryHealth> for HistoryHealth {
-    fn from(h: kelvo_engine::HistoryHealth) -> Self {
+impl From<statglass_engine::HistoryHealth> for HistoryHealth {
+    fn from(h: statglass_engine::HistoryHealth) -> Self {
         HistoryHealth {
             low_disk_paused: h.low_disk_paused,
             trimmed_before_ms: h.trimmed_before_ms,
@@ -166,8 +166,8 @@ pub(super) fn history_page(r: HistoryResult, hold: impl Fn(&SeriesKey, i64) -> i
     }
 }
 
-impl From<kelvo_engine::NetAttribution> for NetworkByApp {
-    fn from(a: kelvo_engine::NetAttribution) -> Self {
+impl From<statglass_engine::NetAttribution> for NetworkByApp {
+    fn from(a: statglass_engine::NetAttribution) -> Self {
         NetworkByApp {
             from_ms: a.from_ms,
             to_ms: a.to_ms,
@@ -205,8 +205,8 @@ impl From<kelvo_engine::NetAttribution> for NetworkByApp {
     }
 }
 
-impl From<kelvo_store::ProcessesAt> for ProcessesAt {
-    fn from(p: kelvo_store::ProcessesAt) -> Self {
+impl From<statglass_store::ProcessesAt> for ProcessesAt {
+    fn from(p: statglass_store::ProcessesAt) -> Self {
         ProcessesAt {
             ts_ms: p.ts_ms,
             resolution: match p.resolution {

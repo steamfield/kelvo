@@ -129,7 +129,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: 820, height: 566 });
       await page.goto(`/?window=onboarding&theme=${theme}&ticks=0`);
       await expect(
-        page.getByRole("heading", { name: "Set up Kelvo" })
+        page.getByRole("heading", { name: "Set up StatGlass" })
       ).toBeVisible();
       await expect(
         page.getByText("M4 Pro detected · all sensors mapped")

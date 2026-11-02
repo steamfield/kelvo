@@ -124,10 +124,10 @@ export function SamplingPanel({
         label="Sample interval"
         sub={
           overhead === "measuring" ? (
-            `Measuring Kelvo's CPU at ${intervalLabel(liveInterval)}…`
+            `Measuring StatGlass's CPU at ${intervalLabel(liveInterval)}…`
           ) : overhead !== null ? (
             <>
-              Kelvo uses about{" "}
+              StatGlass uses about{" "}
               <span className="figures">
                 {formatPercent(overhead, { decimals: 1 })}
               </span>{" "}

@@ -1,7 +1,7 @@
 //! Typed Docker shell. No arbitrary endpoint or command crosses IPC.
 mod error;
 use crate::{AppState, error::CommandError, settings::SettingsPatch};
-use kelvo_schema::{docker::*, lock::LockExt};
+use statglass_schema::{docker::*, lock::LockExt};
 use std::{collections::HashMap, sync::Mutex};
 use tauri::{AppHandle, Manager, State, ipc::Channel};
 
@@ -376,15 +376,15 @@ mod tests {
 pub async fn docker_storage_scan(
     state: State<'_, AppState>,
     force: bool,
-) -> Result<kelvo_engine::docker::storage::DockerStorageView, CommandError> {
+) -> Result<statglass_engine::docker::storage::DockerStorageView, CommandError> {
     Ok(state.docker.storage_scan(force).await)
 }
 #[tauri::command]
 #[specta::specta]
 pub async fn docker_storage_prepare(
     state: State<'_, AppState>,
-    selections: Vec<kelvo_schema::docker_storage::DockerStorageSelection>,
-) -> Result<kelvo_engine::docker::storage::DockerStorageReview, CommandError> {
+    selections: Vec<statglass_schema::docker_storage::DockerStorageSelection>,
+) -> Result<statglass_engine::docker::storage::DockerStorageReview, CommandError> {
     state
         .docker
         .storage_prepare(selections)
@@ -397,7 +397,7 @@ pub async fn docker_storage_execute(
     state: State<'_, AppState>,
     token: String,
     confirm_volumes: bool,
-) -> Result<kelvo_engine::docker::storage::DockerStorageOperation, CommandError> {
+) -> Result<statglass_engine::docker::storage::DockerStorageOperation, CommandError> {
     state
         .docker
         .storage_execute(&token, confirm_volumes)
@@ -408,7 +408,7 @@ pub async fn docker_storage_execute(
 pub fn docker_storage_operation(
     state: State<'_, AppState>,
     operation_id: String,
-) -> Result<kelvo_engine::docker::storage::DockerStorageOperation, CommandError> {
+) -> Result<statglass_engine::docker::storage::DockerStorageOperation, CommandError> {
     state
         .docker
         .storage_operation(&operation_id)
@@ -421,8 +421,8 @@ pub async fn docker_container_action(
     state: State<'_, AppState>,
     engine_id: String,
     container_id: String,
-    action: kelvo_schema::docker_storage::DockerContainerAction,
-) -> Result<kelvo_engine::docker::storage::DockerStorageOperation, CommandError> {
+    action: statglass_schema::docker_storage::DockerContainerAction,
+) -> Result<statglass_engine::docker::storage::DockerStorageOperation, CommandError> {
     state
         .docker
         .container_action(&engine_id, &container_id, action)

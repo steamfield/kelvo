@@ -1,22 +1,22 @@
 use super::*;
-use kelvo_engine::RecentNet;
+use statglass_engine::RecentNet;
 
 const NOW: i64 = 1_800_000_000_000;
 
 fn temp_dir(name: &str) -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix(&format!("kelvo-shell-{name}-"))
+        .prefix(&format!("statglass-shell-{name}-"))
         .tempdir()
         .unwrap()
 }
 
 fn local_record() -> HostRecord {
     HostRecord {
-        id: kelvo_schema::HostId(uuid::Uuid::from_u128(7)),
+        id: statglass_schema::HostId(uuid::Uuid::from_u128(7)),
         is_local: true,
         display_name: "Mac".into(),
-        info: kelvo_schema::HostInfo {
-            os: kelvo_schema::OsKind::MacOs,
+        info: statglass_schema::HostInfo {
+            os: statglass_schema::OsKind::MacOs,
             os_version: "27.0".into(),
             model: None,
             chip: None,
@@ -37,7 +37,7 @@ fn local_record() -> HostRecord {
 #[test]
 fn disk_io_requests_validate_bounds_before_reading_history() {
     let history = History::unavailable();
-    let base = kelvo_schema::disk_io::DiskIoRequest {
+    let base = statglass_schema::disk_io::DiskIoRequest {
         host: local_record().id,
         device: Some("disk0".into()),
         from_ms: 0,
@@ -45,27 +45,27 @@ fn disk_io_requests_validate_bounds_before_reading_history() {
         max_points: 100,
     };
     for bad in [
-        kelvo_schema::disk_io::DiskIoRequest {
+        statglass_schema::disk_io::DiskIoRequest {
             max_points: 0,
             ..base.clone()
         },
-        kelvo_schema::disk_io::DiskIoRequest {
+        statglass_schema::disk_io::DiskIoRequest {
             max_points: 2001,
             ..base.clone()
         },
-        kelvo_schema::disk_io::DiskIoRequest {
+        statglass_schema::disk_io::DiskIoRequest {
             from_ms: -1,
             ..base.clone()
         },
-        kelvo_schema::disk_io::DiskIoRequest {
+        statglass_schema::disk_io::DiskIoRequest {
             to_ms: 0,
             ..base.clone()
         },
-        kelvo_schema::disk_io::DiskIoRequest {
+        statglass_schema::disk_io::DiskIoRequest {
             to_ms: MAX_NET_SPAN_MS + 1,
             ..base.clone()
         },
-        kelvo_schema::disk_io::DiskIoRequest {
+        statglass_schema::disk_io::DiskIoRequest {
             device: Some("disk0/escape".into()),
             ..base.clone()
         },
@@ -111,7 +111,7 @@ fn reset_returns_health_only_when_history_is_back() {
     // handles it): an error, no health.
     let err = history
             .reset_and_attach(NOW + 1, |h| {
-                let conn = kelvo_store::rusqlite::Connection::open(dir.join(DB_FILE)).unwrap();
+                let conn = statglass_store::rusqlite::Connection::open(dir.join(DB_FILE)).unwrap();
                 conn.execute_batch("CREATE TRIGGER refuse_hosts BEFORE INSERT ON hosts BEGIN SELECT RAISE(ABORT, 'disk says no'); END;").unwrap();
                 assert!(h.register_host(&local_record()).is_none());
             })
@@ -147,7 +147,7 @@ fn a_heatmap_request_reads_one_value_per_local_hour() {
     starts.extend((3..=24).map(|h| NOW + (h - 1) * H));
     for (start, v) in [(NOW, 10.0), (NOW + 2 * H, 30.0)] {
         for m in 0..60 {
-            w.write_bucket(kelvo_store::BucketRow {
+            w.write_bucket(statglass_store::BucketRow {
                 host: local_record().id,
                 tier: Tier::M1,
                 bucket_ts: start + m * 60_000,
@@ -208,8 +208,8 @@ fn malformed_heatmap_days_are_invalid_arguments() {
     assert!(invalid(serde_json::Value::Array(many)));
 }
 
-fn net_bucket(apps: &[(Option<&str>, u64, u64)], rx: u64, tx: u64) -> kelvo_store::NetBucket {
-    kelvo_store::NetBucket {
+fn net_bucket(apps: &[(Option<&str>, u64, u64)], rx: u64, tx: u64) -> statglass_store::NetBucket {
+    statglass_store::NetBucket {
         measured_ms: 10_000,
         iface_rx_bytes: rx,
         iface_tx_bytes: tx,
@@ -217,7 +217,7 @@ fn net_bucket(apps: &[(Option<&str>, u64, u64)], rx: u64, tx: u64) -> kelvo_stor
         iface_tx_pkts: tx / 1_500,
         apps: apps
             .iter()
-            .map(|&(name, rx_bytes, tx_bytes)| kelvo_store::NetApp {
+            .map(|&(name, rx_bytes, tx_bytes)| statglass_store::NetApp {
                 name: name.map(str::to_owned),
                 rx_bytes,
                 tx_bytes,
@@ -492,11 +492,11 @@ fn series_stats_average_peak_and_gaps_by_module() {
     let host = local_record().id;
     w.write_gap(
         host,
-        kelvo_schema::Gap::new(
+        statglass_schema::Gap::new(
             NOW,
             Some(NOW + 10 * S),
-            Some(kelvo_schema::Module::Disk),
-            kelvo_schema::GapReason::ModuleDisabled,
+            Some(statglass_schema::Module::Disk),
+            statglass_schema::GapReason::ModuleDisabled,
         )
         .unwrap(),
     )
@@ -546,22 +546,22 @@ fn series_stats_count_measured_time_through_now() {
     // buckets does not touch Network.
     w.write_gap(
         host,
-        kelvo_schema::Gap::new(
+        statglass_schema::Gap::new(
             NOW + 100 * S,
             Some(NOW + 115 * S),
             None,
-            kelvo_schema::GapReason::Sleep,
+            statglass_schema::GapReason::Sleep,
         )
         .unwrap(),
     )
     .unwrap();
     w.write_gap(
         host,
-        kelvo_schema::Gap::new(
+        statglass_schema::Gap::new(
             NOW,
             Some(NOW + 20 * S),
-            Some(kelvo_schema::Module::Cpu),
-            kelvo_schema::GapReason::ModuleDisabled,
+            Some(statglass_schema::Module::Cpu),
+            statglass_schema::GapReason::ModuleDisabled,
         )
         .unwrap(),
     )
@@ -705,7 +705,7 @@ fn history_pages_carry_each_series_hold() {
     let history = History::unavailable();
     let request = HistoryRequest {
         host: local_record().id,
-        selectors: vec![kelvo_schema::SeriesSelector {
+        selectors: vec![statglass_schema::SeriesSelector {
             metric: MetricId::from_static("battery.charge"),
             labels: Labels::new(),
         }],
@@ -728,10 +728,10 @@ fn history_pages_carry_each_series_hold() {
 
 #[test]
 fn network_by_app_json_is_snake_case_numbers() {
-    let n = NetworkByApp::from(kelvo_engine::attribute(kelvo_store::NetByApp {
+    let n = NetworkByApp::from(statglass_engine::attribute(statglass_store::NetByApp {
         from_ms: NOW,
         to_ms: NOW + 10_000,
-        coverage: vec![kelvo_store::NetSpan {
+        coverage: vec![statglass_store::NetSpan {
             from_ms: NOW,
             to_ms: NOW + 10_000,
             tier: None,

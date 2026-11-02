@@ -4,7 +4,7 @@
 Usage: tray-frames.py RESULT.json LOG_DIR START_EPOCH END_EPOCH
 
 Reads the "tray frames" counter lines a bench build logs every
-KELVO_BENCH_TRAY_COUNTERS_MS (src-tauri/src/bench.rs) from LOG_DIR/kelvo.*.log and adds
+STATGLASS_BENCH_TRAY_COUNTERS_MS (src-tauri/src/bench.rs) from LOG_DIR/statglass.*.log and adds
 `frames_per_min` to RESULT.json: drawn frames (summed over items) between the first and
 the last line inside [START, END], per minute of the time between those two lines. With
 fewer than two lines in the window the key is left out.
@@ -23,7 +23,7 @@ def main() -> None:
     path, logs = sys.argv[1], sys.argv[2]
     start, end = float(sys.argv[3]), float(sys.argv[4])
     points = []
-    for f in sorted(glob.glob(f"{logs}/kelvo.*.log"))[-2:]:
+    for f in sorted(glob.glob(f"{logs}/statglass.*.log"))[-2:]:
         with open(f, errors="replace") as lines:
             for line in lines:
                 m = LINE.match(line)

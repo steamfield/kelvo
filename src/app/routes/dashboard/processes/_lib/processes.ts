@@ -135,7 +135,7 @@ export function countLine(
 }
 
 /**
- * D-045: without root, macOS only lets Kelvo read the user's own processes.
+ * D-045: without root, macOS only lets StatGlass read the user's own processes.
  * The count comes from the collector once the schema carries it; until then
  * the note says it without a number.
  */

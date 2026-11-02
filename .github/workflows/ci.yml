@@ -176,7 +176,7 @@ jobs:
       # This bridge ships for macOS only; Linux compilation catches portability
       # regressions cheaply without claiming Linux product support.
       - name: Remote helper compile check
-        run: cargo check -p kelvo-remote-helper --all-targets
+        run: cargo check -p statglass-remote-helper --all-targets
 
       # The static Linux agents the app bundles (make agent-linux, D-116), built the way
       # the release builds them. Versions match ZIG_VERSION and CARGO_ZIGBUILD_VERSION in
@@ -197,14 +197,14 @@ jobs:
         run: make agent-linux
 
       - name: Linux agent smoke test
-        run: src-tauri/binaries/agent/kelvo-agent-x86_64-unknown-linux-musl version --json
+        run: src-tauri/binaries/agent/statglass-agent-x86_64-unknown-linux-musl version --json
 
       # The stdio session and one-shot commands against the musl build of the agent.
       - name: Linux agent pipe test (musl)
-        run: cargo-zigbuild test --locked -p kelvo-agent --test pipe --target x86_64-unknown-linux-musl
+        run: cargo-zigbuild test --locked -p statglass-agent --test pipe --target x86_64-unknown-linux-musl
 
       # 30 days of synthetic history through the real store writer, pruned, then
       # measured: fails if 150 series exceed 150 MB, and logs the 250-series size.
       # Ignored in plain `cargo test` because it writes ~1 GB; see `make test-fill`.
       - name: Store fill test
-        run: cargo test --release -p kelvo-store --test fill -- --ignored --nocapture
+        run: cargo test --release -p statglass-store --test fill -- --ignored --nocapture

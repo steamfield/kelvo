@@ -54,11 +54,11 @@ describe("Linux hosts", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /at \/usr\/local\/bin\/kelvo-agent as a system service that runs as root/
+        /at \/usr\/local\/bin\/statglass-agent as a system service that runs as root/
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/150 MB of history in \/var\/lib\/kelvo-agent/)
+      screen.getByText(/150 MB of history in \/var\/lib\/statglass-agent/)
     ).toBeInTheDocument();
     expect(screen.getByText(/SELinux is enforcing/)).toBeInTheDocument();
     expect(
@@ -96,7 +96,7 @@ describe("Linux hosts", () => {
     mount();
     await check("linux-update");
     expect(
-      await screen.findByText(/Kelvo agent 0\.0\.9 is installed/)
+      await screen.findByText(/StatGlass agent 0\.0\.9 is installed/)
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Update and connect" })

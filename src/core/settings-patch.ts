@@ -29,7 +29,7 @@ export type SettingsModule = Exclude<
   "sensors" | "containers" | "unknown"
 >;
 
-/** `kelvo_schema::settings::SETTINGS_MODULES`, in settings row order. */
+/** `statglass_schema::settings::SETTINGS_MODULES`, in settings row order. */
 export const SETTINGS_MODULES: readonly SettingsModule[] =
   SETTINGS_MODULE_ORDER;
 
@@ -210,7 +210,7 @@ export function settingsErrorText(error: CommandError): string {
     return "Couldn't save settings. Nothing changed.";
   }
   if (error.kind === "invalid_settings") {
-    return `Kelvo rejected that setting: ${error.message}`;
+    return `StatGlass rejected that setting: ${error.message}`;
   }
   return "Couldn't change settings. Nothing changed.";
 }

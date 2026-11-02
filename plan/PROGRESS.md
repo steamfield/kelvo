@@ -1,8 +1,125 @@
 # Progress
 
-This file tracks where Kelvo is against the plan. Task-level checkboxes live in each version doc. This file holds the milestone status and a dated log, so an agent starting fresh can see what's done and what's next without reading every doc.
+This file tracks where StatGlass is against the plan. Task-level checkboxes live in each version doc. This file holds the milestone status and a dated log, so an agent starting fresh can see what's done and what's next without reading every doc.
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
+
+## Landing page (2026-11-01, branch `feat/landing-page`, uncommitted)
+
+The landing page embeds the live popover (collapsed scenario, height locked at
+its first size so expanded cards scroll inside) and the Timeline dashboard,
+with a CPU card from the widgets on phones. `TrayPreview` moved from
+`src/app/components/` to `src/app/widgets/` and the barrel also exports
+`trayLayout`/`trayStyleMenuBar`, so the hero shows the default menu bar item
+above the popover and a section shows the four menu bar styles, laid out by
+the app's rules over seeded readings. The site header is a sticky translucent
+toolbar with Docs, GitHub and Install. Accent left borders (docs callouts,
+sidebar and table of contents current item) were removed and the
+`frontend-design-slop` skill now bans them outright.
+
+Scroll reveals follow stacks-api's pattern (`docs-site/src/styles/motion.css`,
+one IntersectionObserver in the layout, nothing hidden without JS or with
+reduced motion): the hero staggers in and the popover opens from the menu bar
+item; benchmark bars (`MeterTrack`) wipe in. `.github/workflows/site.yml`
+(Linux) deploys to the Cloudflare Pages project `statglass` on pushes to main
+that touch the site or the app sources it renders; `statglass.steamfield.io`
+is a proxied CNAME to `statglass.pages.dev`. Needs the `CLOUDFLARE_API_TOKEN`
+repository secret before the first deploy.
+
+## Docs site, phases A to C (2026-11-01, locally merged)
+
+`docs-site/` is a static Astro site (scaffolded with `stacks`, `astro-blog`
+stack, blog removed) that renders the app's own components. The app exposes
+`src/app/widgets/index.ts` (`@statglass/widgets`) and `src/app/styles/tokens.css`
+(`@statglass/tokens.css`); `app.css` now imports `tokens.css` and its built CSS
+is unchanged apart from rule order. `docs-site/scripts/build-demo.mjs` builds
+the real app on its mock transport into `public/demo/` for the planned live
+demo, and a mock-only postMessage bridge (`src/core/mock/embed-bridge.ts`)
+reports dashboard requests and popover height to the parent page and lets it
+hide/show the demo. The `/docs` route (ported from stacks-api) has nine pages
+drawn from the README, Markdown exports and `llms.txt`.
+
+Verified: `stacks verify --all` green in docs-site (67 tests, including a
+build test over every docs page, link, anchor and Markdown export); bridge and
+copy-button regression tests fail with their fixes reverted; docs pages compared
+in both themes at 1440 and 390 px against the app tokens. Root frontend checks,
+typecheck and Rust unit tests passed; `perf_gates` failed on process-collector
+allocations under machine load, with no Rust changes on the branch (it passed
+7/7 earlier in the same session on a quieter machine).
+
+Open: landing page (live popover demo, widget islands, posters),
+`public/_headers`, app-boundary
+import test and a Linux-only CI job. Rendering `Card` with `asChild` (radix
+`Slot`) from docs-site crashes with two React copies (the root's and the
+site's) in both the Astro build and Vitest; `resolve.dedupe` alone doesn't
+cover it, so phase D has to settle one React before using `LinkCard`.
+`docs-site/.env.example` is uncommitted (unread here). Site URL is still
+`https://example.com`.
+
+## Remote connection recovery (2026-11-01, implemented)
+
+The copied Linux connection settings pointed at StatGlass before the hosts had
+been upgraded. Manually installed the matching renamed agents on Live Oak and
+m1-linux, copied their databases and settings, and rebound the system agent's
+machine fingerprints without changing either host UUID. Database integrity,
+foreign keys and every table's row count matched before starting the new services.
+Old binaries and data remain; old services and update timers are disabled. Live
+Oak's user service now has linger enabled so logging out does not stop collection.
+Both hosts reconnect in the installed app.
+
+A never-connected remote reports zero cadence. Charts now use a finite empty
+display grid until a real cadence arrives, without inventing samples; the stale
+watchdog does not start zero-delay timers. Connection failures get an undimmed
+notice with Retry connection, Open Hosts and expandable diagnostics. Unexpected
+render failures keep the dashboard sidebar and offer retry or host navigation.
+Pending streams say Connecting rather than Live or Sampling every 0s.
+
+M4 Mini had a separate sleep issue: its engine logged sleep at 18:35, while later
+SSH/background wakes did not resume sampling. A one-off full wake at 19:02 resumed
+the engine; existing sleep-prevention processes and permanent settings were left
+as found. Its screen remained locked. The controller also incorrectly used the
+remote display-idle flag to suppress incoming frames. Local stream delivery now
+applies that flag only to this Mac's own source, preserving local idle behavior
+and the remote source's actual status. Actual system sleep still stops collection.
+
+Terra code review approved both fixes. Regression tests failed on the original
+array allocation, timer, boundary and remote-display behavior and pass with the
+fixes. Frontend checks passed 1,389 tests; the focused Chromium/WebKit host and
+recovery flows passed 28 cases. Both themes were compared with Hosts and the dev
+gallery: existing tokens, controls and spacing remain; the larger error heading,
+persistent sidebar and undimmed recovery actions are deliberate. Evidence and
+the one-off remote migration helper are under `target/qa/remote-host-recovery/`.
+The final `make check` passed, including native performance gates. The app build,
+deep code signature and system-only dependency checks passed. Installed the verified
+build in `/Applications/StatGlass.app`, retaining the previous app in the primary
+checkout's QA directory. Native acceptance shows M4's changing live CPU readings
+while its screen is locked, plus the explicit 18:35–19:02 sleep gap in history.
+
+## Rename to StatGlass (2026-11-01, locally merged)
+
+The [approved rename](rename-statglass.md) uses fresh app and agent identities,
+without importing or deleting existing Kelvo data. A tracked-file script performs
+the case-sensitive text and path changes; generated bindings and agent guidance
+come from their existing generators. The release channel uses separate StatGlass
+manifest filenames. Historical records below keep the original names and URLs.
+Implementation and independent review use GPT-6.1 Terra with `ce:executing-plans`.
+The tracked rename, new release-channel names, outlined wordmarks and regenerated
+outputs are implemented. Frontend checks passed 1,384 tests, Chromium/WebKit passed
+500 cases, the script passed 16 disposable-repository cases and Terra code review
+approved the fixes. App/DMG packaging and native signature, dependency and bundled
+agent checks pass. The running StatGlass app shows live readings and copied history
+without startup errors. At the user's later request, both local data environments
+were copied with WAL-consistent SQLite snapshots and host IDs rebound to the new
+namespace; original data and prelaunch copies are retained. Launch at Login moved
+to StatGlass.
+
+The native process-allocation gate varied on both unchanged main and the renamed
+build in alternating runs; no limit was changed. The user inspected the running
+app and explicitly accepted QA as complete. Commit `98e80ed` is merged locally
+to main. Codex retained the worktree as this chat's protected primary checkout.
+GitHub is now `steamfield/statglass`; current media and historical
+release redirects work. No release or push is part of this work. Evidence is in
+the primary checkout's `target/qa/rename-statglass/`.
 
 ## Host versions and update notices (2026-11-01, in review)
 
