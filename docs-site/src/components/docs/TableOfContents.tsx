@@ -13,13 +13,13 @@ export function TableOfContents({
   return (
     <nav aria-label="On this page" data-toc className="sticky top-24 text-xs">
       <p className="mb-3 text-[11px] text-muted-foreground">On this page</p>
-      <ul className="space-y-1 border-l border-border">
+      <ul className="space-y-1">
         {sections.map((heading) => (
           <li key={heading.slug}>
             <a
               href={`#${heading.slug}`}
               data-toc-link
-              className={`-ml-px block border-l border-transparent py-0.5 text-muted-foreground hover:text-foreground aria-[current=location]:border-link aria-[current=location]:text-foreground ${heading.depth === 3 ? "pl-6" : "pl-3"}`}
+              className={`block py-0.5 text-muted-foreground hover:text-foreground aria-[current=location]:text-foreground ${heading.depth === 3 ? "pl-3" : ""}`}
             >
               {heading.text}
             </a>

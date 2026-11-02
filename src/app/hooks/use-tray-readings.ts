@@ -1,7 +1,6 @@
 import type { TrayReadings, TrayUnits } from "@core/tray-layout";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import { SPARK_SAMPLES } from "~/components/tray-preview";
 import { useHostRecord } from "~/hooks/use-host-record";
 import { useRecent } from "~/hooks/use-recent";
 import { type HostLiveState, useHost } from "~/stores/host-store";
@@ -17,6 +16,7 @@ import {
   selectSensors,
 } from "~/stores/live-selectors";
 import { useSettingsStore } from "~/stores/settings-store";
+import { SPARK_SAMPLES } from "~/widgets/tray-preview";
 
 function select(s: HostLiveState, bootMount: string | null) {
   const disk = selectDisk(s);

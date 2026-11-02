@@ -95,7 +95,7 @@ Grouped so a reviewer can scan the codebase for them. The grep column is a start
 | Gradient text, gradient borders, hero washes | `text-gradient`, `iridescent-border`, a full-bleed `bg-gradient-to-b` | `rg "text-gradient\|iridescent"` | Flat text and borders. The corner-glow accent card (9% tint, 6% on chart cards) is house style, not slop; leave it |
 | Glow | `shadow-[0_0_8px]`, glowing accent dots | `rg "shadow-\[0_0"` | Depth from luminance steps |
 | Accent color spread thin | module accent on eyebrows, dots, icons, links and badges in one card | `rg "text-primary"` per file | A card's accent marks its data series and nothing else; series use a lightness ramp of that one accent |
-| Colored left border cycling through a palette | `border-l-4 border-emerald-500` per card | `rg "border-l-"` | Accent border only as consistent semantic status |
+| Accent left border | a colored `border-l` on a callout, card, quote or the active nav item, whether one color or a palette | `rg "border-l\|border-s\|border-left\|border-inline-start"` | Never. Name the state in text (a callout's title, the current page's weight and fill); neutral dividers and scroll tracks are fine |
 | Status color without a state machine | ad hoc `text-emerald-400` for "good" | `rg "text-emerald"` | Status colors only for real thresholds; emerald is also the Network accent and amber the Power accent, so warnings need icon + text |
 
 ### Iconography and decoration

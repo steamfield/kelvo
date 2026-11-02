@@ -42,7 +42,15 @@ Events are declared in `src/lib/events.ts`; `track()` accepts only those names. 
 
 - TypeScript is pinned to 6.x because `astro check` does not support TypeScript 7.
 
+## Deployment
+
+`.github/workflows/site.yml` deploys to the Cloudflare Pages project `statglass`
+(https://statglass.steamfield.io, a proxied CNAME to `statglass.pages.dev` in the
+`steamfield.io` zone) on every push to main that touches `docs-site/` or the app
+sources the site renders. It runs `make install lint check test build` on Linux,
+then `wrangler pages deploy dist`.
+
 ## Pending user actions
 
-- Create a PostHog project and set `PUBLIC_POSTHOG_KEY` in the deploy environment.
-- Replace the placeholder site URL (`https://example.com`) in `astro.config.mjs` and `public/robots.txt` once the domain is chosen.
+- Add the `CLOUDFLARE_API_TOKEN` repository secret (Account > Cloudflare Pages > Edit); the deploy step fails with that message until it exists.
+- Create a PostHog project and set the `PUBLIC_POSTHOG_KEY` repository variable.

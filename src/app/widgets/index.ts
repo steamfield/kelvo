@@ -1,8 +1,17 @@
 /**
  * Public surface of the widget library for docs-site, which renders real
  * widgets on the marketing pages. The app keeps importing widgets by file.
- * Named re-exports of `./` files only: no `export *`, no sample data.
+ * Named re-exports of `./` files, plus the pure `@core` functions that
+ * build a widget's props (the menu bar layout), so the site lays out the
+ * menu bar with the app's rules. No `export *`, no sample data.
  */
+export { type TrayStyle, trayStyleMenuBar } from "@core/settings-patch";
+export {
+  type TrayLayout,
+  type TrayReadings,
+  type TrayUnits,
+  trayLayout,
+} from "@core/tray-layout";
 export {
   BatteryHistoryBars,
   type BatteryHistoryBarsProps,
@@ -74,4 +83,5 @@ export {
 } from "./stat-strip";
 export { StatusPill, type StatusPillProps } from "./status-pill";
 export { StreamArea, type StreamAreaProps } from "./stream-area";
+export { TrayPreview, type TrayPreviewProps } from "./tray-preview";
 export { WindowTicks, type WindowTicksProps } from "./window-ticks";

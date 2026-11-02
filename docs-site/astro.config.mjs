@@ -7,7 +7,7 @@ import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { docsHastPlugins, docsShikiConfig } from "./src/lib/markdown/index.ts";
 
-const SITE_URL = "https://example.com";
+const SITE_URL = "https://statglass.steamfield.io";
 
 // docs-site renders real StatGlass widgets. Its own code may only import the
 // two `@statglass/*` entry points; `~` and `@core` exist because the widgets

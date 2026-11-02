@@ -4,6 +4,28 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Landing page (2026-11-01, branch `feat/landing-page`, uncommitted)
+
+The landing page embeds the live popover (collapsed scenario, height locked at
+its first size so expanded cards scroll inside) and the Timeline dashboard,
+with a CPU card from the widgets on phones. `TrayPreview` moved from
+`src/app/components/` to `src/app/widgets/` and the barrel also exports
+`trayLayout`/`trayStyleMenuBar`, so the hero shows the default menu bar item
+above the popover and a section shows the four menu bar styles, laid out by
+the app's rules over seeded readings. The site header is a sticky translucent
+toolbar with Docs, GitHub and Install. Accent left borders (docs callouts,
+sidebar and table of contents current item) were removed and the
+`frontend-design-slop` skill now bans them outright.
+
+Scroll reveals follow stacks-api's pattern (`docs-site/src/styles/motion.css`,
+one IntersectionObserver in the layout, nothing hidden without JS or with
+reduced motion): the hero staggers in and the popover opens from the menu bar
+item; benchmark bars (`MeterTrack`) wipe in. `.github/workflows/site.yml`
+(Linux) deploys to the Cloudflare Pages project `statglass` on pushes to main
+that touch the site or the app sources it renders; `statglass.steamfield.io`
+is a proxied CNAME to `statglass.pages.dev`. Needs the `CLOUDFLARE_API_TOKEN`
+repository secret before the first deploy.
+
 ## Docs site, phases A to C (2026-11-01, locally merged)
 
 `docs-site/` is a static Astro site (scaffolded with `stacks`, `astro-blog`

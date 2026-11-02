@@ -1,11 +1,363 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { SITE } from "@/config";
+import { PopoverDemo } from "@/islands/PopoverDemo";
+import { DashboardDemo } from "@/islands/DashboardDemo";
+import { MenuBarItem } from "@/islands/MenuBarItem";
+import { MenuBarStyles } from "@/islands/MenuBarStyles";
+import { MeterTrack } from "@statglass/widgets";
+
+// Facts on this page come from the README; keep them in step with it.
+const modules = [
+  [
+    "CPU",
+    "Total and per-core load, efficiency and performance clusters, top processes",
+  ],
+  ["GPU", "Utilization, frequency, GPU time per process"],
+  ["Memory", "App, wired, compressed and cached memory, pressure, swap"],
+  [
+    "Power & Sensors",
+    "Power draw with per-app lines, thermal zone history, temperatures, fan speeds and thermal state",
+  ],
+  ["Network", "Rates per interface, download and upload per process"],
+  [
+    "Disk",
+    "Read and write rates, free space, top processes and an on-demand space report",
+  ],
+  ["Battery", "Charge, health, cycle count, power in or out, time remaining"],
+  [
+    "Processes",
+    "Every process, with CPU, memory, disk, network and GPU columns",
+  ],
+  [
+    "Containers",
+    "Opt-in local Docker CPU, memory and I/O, history, logs and reviewed cleanup",
+  ],
+];
+
+const retention = [
+  ["Last 24 hours", "10-second buckets"],
+  ["Through 7 days", "1-minute buckets"],
+  ["Through 30 days", "15-minute buckets"],
+];
+
+const benchmarks: [string, string, string, string][] = [
+  ["StatGlass", "Menu bar only, default settings", "0.67%", "105 MB"],
+  ["Stats 3.0.20", "Menu bar only, default settings", "4.1%", "149 MB"],
+  ["Activity Monitor", "Window open, 5 s updates", "3.9%", "138 MB"],
+];
+
+const maxCpu = Math.max(
+  ...benchmarks.map(([, , cpu]) => Number.parseFloat(cpu))
+);
+
+const section = "mx-auto max-w-[1200px] px-4 sm:px-8";
+const h2 =
+  "text-[28px] leading-tight font-[590] tracking-[-0.022em] text-balance sm:text-[32px]";
+const body = "text-base leading-relaxed text-pretty text-secondary-foreground";
+const primaryButton =
+  "inline-flex min-h-11 items-center rounded-control bg-primary px-5 text-sm font-[510] text-primary-foreground hover:opacity-90";
 ---
 
-<BaseLayout path="/">
-  <section class="py-12">
-    <h1 class="text-4xl font-[590] tracking-tight">{SITE.title}</h1>
-    <p class="mt-4 text-lg text-muted-foreground">{SITE.description}</p>
+<BaseLayout path="/" landing>
+  <section
+    data-reveal
+    class={`${section} grid items-center gap-12 pt-8 pb-20 sm:pt-12 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-16 lg:pt-16 lg:pb-28`}
+  >
+    <div class="min-w-0 space-y-6">
+      <h1
+        data-motion-part
+        class="text-[clamp(2.5rem,6vw,3.75rem)] leading-[1.04] font-[590] tracking-[-0.03em] text-balance"
+      >
+        A menu bar system monitor that keeps history.
+      </h1>
+      <p data-motion-part class={`${body} lg:text-lg`}>
+        StatGlass shows CPU, GPU, memory, power and sensors, network, disk and
+        battery once a second, and keeps up to 30 days of it on your Mac. When
+        the fans spun up at 3pm, you can scroll back and see which process did
+        it.
+      </p>
+      <div data-motion-part class="flex flex-wrap items-center gap-x-5 gap-y-3">
+        <a href="/docs/install" class={primaryButton} data-track-install="hero">
+          Install StatGlass
+        </a>
+        <a
+          href={SITE.repo}
+          class="text-sm font-[510] text-foreground underline-offset-4 hover:underline"
+        >
+          Source on GitHub
+        </a>
+      </div>
+      <p data-motion-part class="text-sm text-muted-foreground">
+        Free and open source. Apple Silicon Macs on macOS 26 or newer.
+      </p>
+    </div>
+    <div class="flex w-full max-w-[360px] flex-col gap-1.5 justify-self-center">
+      <div data-motion="drop" style="--motion-delay: 260ms">
+        <MenuBarItem client:load />
+      </div>
+      <div data-motion="popover" style="--motion-delay: 480ms">
+        <PopoverDemo client:load />
+      </div>
+    </div>
+  </section>
+
+  <section class="border-y border-border bg-well py-20 sm:py-24">
+    <div
+      data-reveal
+      class={`${section} grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16`}
+    >
+      <div data-motion class="space-y-4">
+        <h2 class={h2}>
+          The readings stay in the menu bar when nothing is open.
+        </h2>
+        <p class={body}>
+          You pick a style the first time StatGlass opens and can change it in
+          Settings, down to which values the combined item shows. Settings warns
+          you when that item gets wide enough to disappear behind a MacBook's
+          camera notch.
+        </p>
+      </div>
+      <MenuBarStyles client:visible />
+    </div>
+  </section>
+
+  <section class="py-20 sm:py-24">
+    <div class={`${section} space-y-12`}>
+      <div
+        data-reveal
+        class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16"
+      >
+        <div data-motion class="space-y-4">
+          <h2 class={h2}>Scroll back to when the fans spun up.</h2>
+          <p class={body}>
+            The Timeline puts every module on one chart covering the last hour,
+            24 hours, 7 days or 30 days, and marks fans ramping, thermal state
+            changes, a process pinning the CPU and power spikes on it. Select an
+            interval to see which apps used the most CPU, GPU, memory, power or
+            network in it, compared with the interval before.
+          </p>
+        </div>
+        <div
+          data-motion
+          class="space-y-3 self-end"
+          style="--motion-delay: 120ms"
+        >
+          <table class="w-full text-sm">
+            <caption class="pb-2 text-left text-xs text-muted-foreground">
+              How history is kept, within a 750 MB limit you can change
+            </caption>
+            <tbody>
+              {retention.map(([span, detail]) => (
+                <tr class="border-t border-border">
+                  <th scope="row" class="py-2.5 pr-4 text-left font-[510]">
+                    {span}
+                  </th>
+                  <td class="py-2.5 text-right text-secondary-foreground">
+                    {detail}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="text-xs leading-relaxed text-muted-foreground">
+            How far back that reaches depends on activity and the limit, so 30
+            days is the most, not a promise.{" "}
+            <a
+              href="/docs/history"
+              class="text-link underline underline-offset-2"
+            >
+              History and storage
+            </a>{" "}
+            has the details.
+          </p>
+        </div>
+      </div>
+      <div data-reveal>
+        <div data-motion="card">
+          <DashboardDemo client:visible route="/dashboard/timeline" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-y border-border bg-well py-20 sm:py-24">
+    <div
+      data-reveal
+      class={`${section} grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-16`}
+    >
+      <div data-motion class="space-y-4">
+        <h2 class={h2}>From per-core load to Docker containers.</h2>
+        <p class={body}>
+          Each module has a card in the popover and a page in the dashboard.
+        </p>
+      </div>
+      <dl class="divide-y divide-border border-y border-border">
+        {modules.map(([name, detail]) => (
+          <div
+            data-motion-part
+            class="grid gap-1 py-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-6"
+          >
+            <dt class="text-sm font-[590]">{name}</dt>
+            <dd class="text-sm leading-relaxed text-secondary-foreground">
+              {detail}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </section>
+
+  <section class="py-20 sm:py-24">
+    <div data-reveal class={`${section} space-y-8`}>
+      <div data-motion class="max-w-2xl space-y-4">
+        <h2 class={h2}>Under 1% of one core with only the menu bar showing.</h2>
+        <p class={body}>
+          In the background StatGlass samples every 2 seconds. Open a window and
+          it samples every second and uses 6 to 10% of one core, depending on
+          the page.
+        </p>
+      </div>
+      <div data-motion class="overflow-x-auto" style="--motion-delay: 120ms">
+        <table class="w-full min-w-[620px] text-sm">
+          <caption class="pb-3 text-left text-xs text-muted-foreground">
+            M3 Max, macOS 27, plugged in, 2026-10-07. CPU time over 120 seconds,
+            including helper processes.
+          </caption>
+          <thead>
+            <tr class="border-b border-border text-xs text-muted-foreground">
+              <th scope="col" class="py-2 pr-4 text-left font-normal">
+                App
+              </th>
+              <th scope="col" class="py-2 pr-4 text-left font-normal">
+                State
+              </th>
+              <th scope="col" class="py-2 pr-4 text-right font-normal">
+                CPU, % of one core
+              </th>
+              <th scope="col" class="py-2 text-right font-normal">
+                Memory
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {benchmarks.map(([app, state, cpu, memory], i) => (
+              <tr class="border-b border-border">
+                <th
+                  scope="row"
+                  class:list={[
+                    "py-3 pr-4 text-left",
+                    i === 0 ? "font-[590]" : "font-[510]",
+                  ]}
+                >
+                  {app}
+                </th>
+                <td class="py-3 pr-4 text-secondary-foreground">{state}</td>
+                <td class="py-3 pr-4">
+                  <div class="flex items-center justify-end gap-3">
+                    <span
+                      data-motion="wipe"
+                      class="block w-32 sm:w-44"
+                      style={`--motion-delay: ${360 + i * 140}ms`}
+                    >
+                      <MeterTrack
+                        fraction={Number.parseFloat(cpu) / maxCpu}
+                        fill={
+                          i === 0
+                            ? "var(--color-cpu)"
+                            : "var(--color-muted-foreground)"
+                        }
+                        height="h-1.5"
+                      />
+                    </span>
+                    <span class="figures w-12 text-right">{cpu}</span>
+                  </div>
+                </td>
+                <td class="figures py-3 text-right">{memory}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p
+        data-motion
+        class="max-w-2xl text-xs leading-relaxed text-muted-foreground"
+        style="--motion-delay: 200ms"
+      >
+        Single runs on a busy machine, before remote monitoring existed, with
+        Docker monitoring off. Activity Monitor had its window open, so compare
+        it with StatGlass's 6 to 10% windowed figure. Run{" "}
+        <code>make bench</code> in the repository to measure your own Mac.
+      </p>
+    </div>
+  </section>
+
+  <section class="border-y border-border bg-well py-20 sm:py-24">
+    <div data-reveal class={`${section} grid gap-12 lg:grid-cols-2 lg:gap-16`}>
+      <div data-motion-part class="space-y-4">
+        <h2 class={h2}>Your other Macs and Linux servers too.</h2>
+        <p class={body}>
+          Add another Mac or a Linux server over SSH and see its live metrics
+          and history from this one. Setup installs StatGlass on the other host
+          for you, and the data travels over SSH with no StatGlass server in
+          between.
+        </p>
+        <p class="text-sm">
+          <a
+            href="/docs/remote-macs"
+            class="text-link underline underline-offset-2"
+          >
+            Monitor another Mac
+          </a>{" "}
+          <span class="text-muted-foreground">or</span>{" "}
+          <a
+            href="/docs/linux-hosts"
+            class="text-link underline underline-offset-2"
+          >
+            a Linux host
+          </a>
+        </p>
+      </div>
+      <div data-motion-part class="space-y-4">
+        <h2 class={h2}>Nothing leaves your Mac.</h2>
+        <p class={body}>
+          StatGlass reads macOS as your user, without a privileged helper, and
+          sends no metrics, history or machine identifier anywhere. Besides SSH
+          to hosts you add, its only connection is the update check to GitHub,
+          which you can turn off.
+        </p>
+        <p class="text-sm">
+          <a
+            href="/docs/privacy"
+            class="text-link underline underline-offset-2"
+          >
+            Privacy and data
+          </a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section
+    data-reveal
+    class={`${section} flex flex-wrap items-center justify-between gap-6 py-16 sm:py-20`}
+  >
+    <p
+      data-motion-part
+      class="max-w-xl text-xl leading-snug font-[590] tracking-[-0.01em] text-balance"
+    >
+      StatGlass is free under the Apache-2.0 license.
+    </p>
+    <div data-motion-part class="flex flex-wrap items-center gap-x-5 gap-y-3">
+      <a href="/docs/install" class={primaryButton} data-track-install="footer">
+        Install StatGlass
+      </a>
+      <a
+        href="/docs"
+        class="text-sm font-[510] underline-offset-4 hover:underline"
+      >
+        Read the docs
+      </a>
+    </div>
   </section>
 </BaseLayout>

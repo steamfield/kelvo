@@ -3,7 +3,7 @@ import type { TrayLayout } from "@core/tray-layout";
 import { RadioGroup } from "radix-ui";
 import type { ComponentProps } from "react";
 import { cn } from "~/lib/utils";
-import { TrayPreview } from "./tray-preview";
+import { TrayPreview } from "~/widgets/tray-preview";
 
 export interface TrayStyleGroupProps
   extends Omit<

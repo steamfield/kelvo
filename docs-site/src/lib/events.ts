@@ -5,6 +5,8 @@
  */
 export const EVENTS = {
   downloadClicked: "download_clicked",
+  demoStarted: "demo_started",
+  demoDashboardOpened: "demo_dashboard_opened",
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

@@ -5,7 +5,8 @@ A menu bar system monitor for Apple Silicon Macs that keeps history.
 StatGlass shows CPU, GPU, memory, power and sensors, network, disk and battery once a second, and keeps local history, with up to 30 days available depending on your size limit and recorded activity. When the fans spun up at 3pm, you can scroll back and see which process did it.
 
 StatGlass is free and open source. Download the app below; no build tools are needed.
-See the [changelog](CHANGELOG.md) for release history.
+See the [changelog](CHANGELOG.md) for release history, and
+[statglass.steamfield.io](https://statglass.steamfield.io) for a live demo and the documentation.
 
 ![The StatGlass dashboard switching between modules](https://raw.githubusercontent.com/steamfield/statglass/assets/media/dashboard.webp)
 

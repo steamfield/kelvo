@@ -34,7 +34,7 @@ function DocsNav({
                     <a
                       href={item.href}
                       aria-current={active ? "page" : undefined}
-                      className={`block border-l py-1.5 pl-3 text-sm ${active ? "rounded-r-control border-link bg-secondary font-[510] text-foreground" : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"}`}
+                      className={`block rounded-control px-3 py-1.5 text-sm ${active ? "bg-secondary font-[510] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       {item.label}
                     </a>

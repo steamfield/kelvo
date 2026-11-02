@@ -7,6 +7,7 @@
 @import "@statglass/tokens.css";
 /* Code blocks only; the rest of the site is the system face, as in the app. */
 @import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "./motion.css";
 
 /* Tailwind only scans this project by default; the widgets live in the app. */
 @source "../../../src/app/widgets";

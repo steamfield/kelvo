@@ -4,8 +4,6 @@ export const SITE = {
     "A menu bar system monitor for Apple Silicon Macs that keeps history.",
   ogImage: "/og-default.png",
   repo: "https://github.com/steamfield/statglass",
-  nav: [
-    { label: "Docs", href: "/docs" },
-    { label: "GitHub", href: "https://github.com/steamfield/statglass" },
-  ],
+  /** Site sections in the header; GitHub and Install sit beside them. */
+  nav: [{ label: "Docs", href: "/docs" }],
 } as const;

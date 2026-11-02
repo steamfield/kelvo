@@ -73,11 +73,57 @@ const jsonLd = JSON.stringify({
         system.addEventListener("change", apply);
       })();
     </script>
+    <script is:inline>
+      // Scroll reveals (src/styles/motion.css). Without this script, or with
+      // reduced motion, every section is simply visible.
+      (() => {
+        if (
+          matchMedia("(prefers-reduced-motion: reduce)").matches ||
+          !("IntersectionObserver" in window)
+        )
+          return;
+        document.documentElement.dataset.motionReady = "";
+        document.addEventListener(
+          "DOMContentLoaded",
+          () => {
+            const observer = new IntersectionObserver(
+              (entries) => {
+                for (const entry of entries) {
+                  if (!entry.isIntersecting) continue;
+                  entry.target.setAttribute("data-revealed", "");
+                  observer.unobserve(entry.target);
+                }
+              },
+              { rootMargin: "0px 0px -12% 0px" }
+            );
+            for (const el of document.querySelectorAll("[data-reveal]"))
+              observer.observe(el);
+          },
+          { once: true }
+        );
+      })();
+    </script>
     <script>
-      import { initAnalytics } from "@/lib/analytics";
+      import { initAnalytics, track } from "@/lib/analytics";
+      import { EVENTS } from "@/lib/events";
       import { enhanceCopyButtons } from "@/lib/copy-buttons";
       void initAnalytics();
       enhanceCopyButtons(document);
+      for (const link of document.querySelectorAll<HTMLElement>(
+        "[data-track-install]"
+      )) {
+        link.addEventListener("click", () =>
+          track(EVENTS.downloadClicked, { from: link.dataset.trackInstall })
+        );
+      }
+      // The header's hairline appears once the page scrolls under it.
+      const header = document.querySelector<HTMLElement>("[data-header]");
+      const sentinel = document.querySelector("[data-header-sentinel]");
+      if (header && sentinel) {
+        new IntersectionObserver(([entry]) => {
+          header.toggleAttribute("data-scrolled", !entry?.isIntersecting);
+        }).observe(sentinel);
+      }
     </script>
   </head>
   <body class="min-h-screen">
@@ -87,28 +133,63 @@ const jsonLd = JSON.stringify({
     >
       Skip to content
     </a>
-    <header class="mx-auto flex max-w-[1200px] items-center justify-between px-4 py-5 sm:px-8">
-      <a href="/" class="flex items-center gap-2 font-[590]">
-        <img src="/favicon.svg" alt="" width="22" height="22" />
-        {SITE.title}
-      </a>
-      <nav class="flex gap-5 text-sm" aria-label="Site">
-        {SITE.nav.map((item) => (
+    <div data-header-sentinel class="h-px" aria-hidden="true"></div>
+    <header
+      data-header
+      class="sticky top-0 z-40 -mt-px border-b border-transparent bg-background/90 backdrop-blur-md backdrop-saturate-150 transition-colors duration-(--motion-fast) data-scrolled:border-border"
+    >
+      <div class="mx-auto flex h-14 max-w-[1200px] items-center gap-6 px-4 sm:px-8">
+        <a
+          href="/"
+          class="-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1 text-[15px] font-[590] tracking-[-0.01em]"
+          aria-current={path === "/" ? "page" : undefined}
+        >
+          <img src="/favicon.svg" alt="" width="20" height="20" />
+          {SITE.title}
+        </a>
+        <nav
+          class="ml-auto flex items-center gap-1 text-[13px] font-[510]"
+          aria-label="Site"
+        >
+          {SITE.nav.map((item) => (
+            <a
+              href={item.href}
+              class="rounded-control px-2.5 py-1.5 text-muted-foreground transition-colors duration-(--motion-fast) hover:text-foreground aria-[current]:text-foreground"
+              aria-current={
+                path === item.href
+                  ? "page"
+                  : path.startsWith(`${item.href}/`)
+                    ? "true"
+                    : undefined
+              }
+            >
+              {item.label}
+            </a>
+          ))}
           <a
-            href={item.href}
-            class="text-muted-foreground hover:text-foreground"
-            aria-current={
-              path === item.href
-                ? "page"
-                : path.startsWith(`${item.href}/`)
-                  ? "true"
-                  : undefined
-            }
+            href={SITE.repo}
+            class="flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-muted-foreground transition-colors duration-(--motion-fast) hover:text-foreground"
           >
-            {item.label}
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+            </svg>
+            <span class="max-sm:sr-only">GitHub</span>
           </a>
-        ))}
-      </nav>
+          <a
+            href="/docs/install"
+            data-track-install="header"
+            class="ml-2 inline-flex h-8 items-center rounded-control bg-primary px-3 text-primary-foreground transition-opacity duration-(--motion-fast) hover:opacity-90"
+          >
+            Install
+          </a>
+        </nav>
+      </div>
     </header>
     <main
       id="main"

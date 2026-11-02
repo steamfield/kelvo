@@ -172,26 +172,12 @@
 }
 
 .prose blockquote[data-callout] {
-  --callout-accent: var(--color-disk);
   padding: 0.875rem 1.125rem;
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--callout-accent);
   border-radius: var(--radius-card);
   background: var(--color-card);
   color: var(--color-foreground);
   font-size: 0.875rem;
-}
-
-.prose blockquote[data-callout="tip"] {
-  --callout-accent: var(--color-net);
-}
-
-.prose blockquote[data-callout="warning"] {
-  --callout-accent: var(--color-power);
-}
-
-.prose blockquote[data-callout="important"] {
-  --callout-accent: var(--color-gpu);
 }
 
 .prose blockquote p:last-child {

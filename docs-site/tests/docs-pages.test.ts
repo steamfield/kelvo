@@ -13,7 +13,7 @@ import { Window } from "happy-dom";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { buildSite } from "./helpers/frontend-build";
 
-const site = "https://example.com";
+const site = "https://statglass.steamfield.io";
 const docsDir = fileURLToPath(new URL("../src/content/docs/", import.meta.url));
 const root = mkdtempSync(join(tmpdir(), "docs-pages-"));
 const output = join(root, "site");

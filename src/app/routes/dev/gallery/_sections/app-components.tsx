@@ -24,7 +24,6 @@ import { type ProcessSort, ProcessTable } from "~/components/process-table";
 import { SegmentedControl } from "~/components/segmented-control";
 import { SettingsRow } from "~/components/settings-row";
 import { Sidebar, type SidebarProps } from "~/components/sidebar";
-import { TrayPreview } from "~/components/tray-preview";
 import {
   TrayStyleGroup,
   TrayStyleOption,
@@ -39,6 +38,7 @@ import { ComparisonChart } from "~/routes/dashboard/containers/_components/compa
 import { HistoryNotice } from "~/routes/dashboard/containers/_components/history-notice";
 import cardStyles from "~/widgets/card.module.css";
 import type { Accent } from "~/widgets/lib/accent";
+import { TrayPreview } from "~/widgets/tray-preview";
 import { GalleryItem } from "../_components/gallery-item";
 import {
   DOCKER_COMPARISON,
