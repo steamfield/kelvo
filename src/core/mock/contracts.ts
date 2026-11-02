@@ -10,7 +10,17 @@ import type {
 } from "@core/generated/bindings";
 import type { Transport } from "../transport";
 import type { ScenarioFlags, ScenarioName } from "./fixtures";
+/**
+ * The page embedding a mock-transport build (docs-site's live demo). Shell
+ * calls that would act on another native window are passed here.
+ */
+export interface MockEmbed {
+  openDashboard(route: string | null): void;
+  popoverContentHeight(height: number): void;
+}
 export interface MockTransportOptions {
+  /** Set when the app runs as an embedded demo inside another page. */
+  embed?: MockEmbed;
   updateStatus?: UpdateStatus;
   updateFails?: boolean;
   /** A bounded setup delay for cancellation tests. */

@@ -1,0 +1,40 @@
+/* The app's corner-glow card (src/app/widgets/card.module.css) for plain
+   links: 9% tint at rest, 22% on hover, eased with the app's motion tokens
+   (0 under reduced motion and Performance mode). */
+.card {
+  --card-accent: var(--color-cpu);
+  --g: 9%;
+  height: 100%;
+  background:
+    radial-gradient(
+      ellipse 80% 100% at 0% 0%,
+      color-mix(in srgb, var(--card-accent) var(--g), transparent) 0%,
+      transparent 60%
+    ),
+    var(--color-card);
+  transition:
+    --g var(--motion-entry) var(--ease-out),
+    border-color var(--motion-entry) var(--ease-out);
+}
+
+.card:hover,
+.card:focus-visible {
+  --g: 22%;
+  border-color: var(--color-border-strong);
+}
+
+.card[data-accent="2"] {
+  --card-accent: var(--color-mem);
+}
+.card[data-accent="3"] {
+  --card-accent: var(--color-net);
+}
+.card[data-accent="4"] {
+  --card-accent: var(--color-disk);
+}
+.card[data-accent="5"] {
+  --card-accent: var(--color-gpu);
+}
+.card[data-accent="6"] {
+  --card-accent: var(--color-power);
+}

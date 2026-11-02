@@ -1,0 +1,11 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { SITE } from "@/config";
+---
+
+<BaseLayout path="/">
+  <section class="py-12">
+    <h1 class="text-4xl font-[590] tracking-tight">{SITE.title}</h1>
+    <p class="mt-4 text-lg text-muted-foreground">{SITE.description}</p>
+  </section>
+</BaseLayout>

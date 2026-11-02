@@ -15,6 +15,9 @@ import type { Transport } from "./transport";
  *   ?chart_window=30m                      starting chart window (5m|15m|30m|1h)
  *   ?update=available                      preview an available app update
  *   ?setup_delay=60000                     hold Add host's setup step, ms
+ *
+ * Inside an iframe (docs-site's live demo) the mock also talks to the parent
+ * page through `mock/embed-bridge.ts`.
  */
 export async function createAppTransport(search: string): Promise<Transport> {
   if (
@@ -33,14 +36,19 @@ export async function createAppTransport(search: string): Promise<Transport> {
       (SCENARIOS as readonly string[]).includes(s)
     );
   const { createMockTransport } = await import("./mock-transport");
+  const bridge =
+    typeof window !== "undefined" && window.parent !== window
+      ? (await import("./mock/embed-bridge")).createEmbedBridge(window)
+      : null;
   const windowLabel = params.get("window") ?? "dashboard";
   const chartWindow = CHART_WINDOWS.find(
     (w) => w === params.get("chart_window")
   );
   const intervalMs = Number(params.get("interval"));
   const remoteSetupDelayMs = Number(params.get("setup_delay"));
-  return createMockTransport({
+  const transport = createMockTransport({
     windowLabel,
+    ...(bridge ? { embed: bridge.embed } : {}),
     ...(params.get("update") === "available"
       ? {
           updateStatus: {
@@ -59,4 +67,6 @@ export async function createAppTransport(search: string): Promise<Transport> {
     ...(remoteSetupDelayMs ? { remoteSetupDelayMs } : {}),
     ...(chartWindow ? { chartWindow } : {}),
   });
+  bridge?.attach(transport);
+  return transport;
 }

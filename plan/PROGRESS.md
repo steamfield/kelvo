@@ -4,6 +4,36 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Docs site, phases A to C (2026-11-01, locally merged)
+
+`docs-site/` is a static Astro site (scaffolded with `stacks`, `astro-blog`
+stack, blog removed) that renders the app's own components. The app exposes
+`src/app/widgets/index.ts` (`@statglass/widgets`) and `src/app/styles/tokens.css`
+(`@statglass/tokens.css`); `app.css` now imports `tokens.css` and its built CSS
+is unchanged apart from rule order. `docs-site/scripts/build-demo.mjs` builds
+the real app on its mock transport into `public/demo/` for the planned live
+demo, and a mock-only postMessage bridge (`src/core/mock/embed-bridge.ts`)
+reports dashboard requests and popover height to the parent page and lets it
+hide/show the demo. The `/docs` route (ported from stacks-api) has nine pages
+drawn from the README, Markdown exports and `llms.txt`.
+
+Verified: `stacks verify --all` green in docs-site (67 tests, including a
+build test over every docs page, link, anchor and Markdown export); bridge and
+copy-button regression tests fail with their fixes reverted; docs pages compared
+in both themes at 1440 and 390 px against the app tokens. Root frontend checks,
+typecheck and Rust unit tests passed; `perf_gates` failed on process-collector
+allocations under machine load, with no Rust changes on the branch (it passed
+7/7 earlier in the same session on a quieter machine).
+
+Open: landing page (live popover demo, widget islands, posters),
+`public/_headers`, app-boundary
+import test and a Linux-only CI job. Rendering `Card` with `asChild` (radix
+`Slot`) from docs-site crashes with two React copies (the root's and the
+site's) in both the Astro build and Vitest; `resolve.dedupe` alone doesn't
+cover it, so phase D has to settle one React before using `LinkCard`.
+`docs-site/.env.example` is uncommitted (unread here). Site URL is still
+`https://example.com`.
+
 ## Remote connection recovery (2026-11-01, implemented)
 
 The copied Linux connection settings pointed at StatGlass before the hosts had

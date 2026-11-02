@@ -1,0 +1,131 @@
+---
+import "@/styles/global.css";
+import { SITE } from "@/config";
+
+interface Props {
+  /** Page title without the site name; omit on the home page. */
+  title?: string;
+  description?: string;
+  /** Route path such as "/" or "/docs/install"; never Astro.url.pathname. */
+  path: string;
+  ogImage?: string;
+  /** Full-bleed sections (landing) instead of the centred content column. */
+  landing?: boolean;
+  /** A Markdown copy of this page, for agents (docs pages). */
+  alternate?: string;
+}
+
+const {
+  title,
+  description = SITE.description,
+  path,
+  ogImage = SITE.ogImage,
+  landing = false,
+  alternate,
+} = Astro.props;
+
+const pageTitle = title ? `${title} | ${SITE.title}` : SITE.title;
+const canonical = new URL(path, Astro.site);
+const ogUrl = new URL(ogImage, Astro.site);
+// Escape "<" so no value can close the <script> it is inlined into.
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: SITE.title,
+  description: SITE.description,
+  operatingSystem: "macOS",
+  applicationCategory: "UtilitiesApplication",
+  offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+  license: `${SITE.repo}/blob/main/LICENSE`,
+  downloadUrl: `${SITE.repo}/releases`,
+  url: new URL("/", Astro.site).href,
+}).replace(/</g, "\\u003c");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    {alternate && (
+      <link rel="alternate" type="text/markdown" href={alternate} />
+    )}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE.title} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {path === "/" && <script type="application/ld+json" set:html={jsonLd} />}
+    <script is:inline>
+      // Follow the system appearance, as the app does; no site toggle.
+      (() => {
+        const system = matchMedia("(prefers-color-scheme: dark)");
+        const apply = () =>
+          document.documentElement.classList.toggle("dark", system.matches);
+        apply();
+        system.addEventListener("change", apply);
+      })();
+    </script>
+    <script>
+      import { initAnalytics } from "@/lib/analytics";
+      import { enhanceCopyButtons } from "@/lib/copy-buttons";
+      void initAnalytics();
+      enhanceCopyButtons(document);
+    </script>
+  </head>
+  <body class="min-h-screen">
+    <a
+      href="#main"
+      class="sr-only fixed top-3 left-4 z-50 rounded-control bg-foreground px-4 py-3 text-sm text-background focus:not-sr-only"
+    >
+      Skip to content
+    </a>
+    <header class="mx-auto flex max-w-[1200px] items-center justify-between px-4 py-5 sm:px-8">
+      <a href="/" class="flex items-center gap-2 font-[590]">
+        <img src="/favicon.svg" alt="" width="22" height="22" />
+        {SITE.title}
+      </a>
+      <nav class="flex gap-5 text-sm" aria-label="Site">
+        {SITE.nav.map((item) => (
+          <a
+            href={item.href}
+            class="text-muted-foreground hover:text-foreground"
+            aria-current={
+              path === item.href
+                ? "page"
+                : path.startsWith(`${item.href}/`)
+                  ? "true"
+                  : undefined
+            }
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </header>
+    <main
+      id="main"
+      class:list={[
+        "min-h-[calc(100vh-160px)]",
+        !landing && "mx-auto max-w-[1200px] px-4 pt-4 pb-16 sm:px-8 sm:pb-20",
+      ]}
+    >
+      <slot />
+    </main>
+    <footer class="border-t border-border text-muted-foreground">
+      <div class="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs sm:px-8">
+        <span>{SITE.title} is free and open source.</span>
+        <a href={SITE.repo} class="hover:text-foreground">
+          Source on GitHub
+        </a>
+      </div>
+    </footer>
+  </body>
+</html>
