@@ -44,13 +44,17 @@ Events are declared in `src/lib/events.ts`; `track()` accepts only those names. 
 
 ## Deployment
 
-`.github/workflows/site.yml` deploys to the Cloudflare Pages project `statglass`
-(https://statglass.steamfield.io, a proxied CNAME to `statglass.pages.dev` in the
-`steamfield.io` zone) on every push to main that touches `docs-site/` or the app
-sources the site renders. It runs `make install lint check test build` on Linux,
-then `wrangler pages deploy dist`.
+Cloudflare Pages builds and serves the site: project `statglass`, connected to
+the GitHub repository, at https://statglass.steamfield.io (a proxied CNAME to
+`statglass.pages.dev` in the `steamfield.io` zone). Pushes to main deploy to
+production and other branches get preview URLs, but only when a push touches
+`docs-site/` or the app sources the site renders (`src/`, `index.html`,
+`vite.config.ts`, `tsconfig*.json`, `package.json`, `bun.lock`). The build runs
+from `docs-site/` with `BUN_VERSION` and `NODE_VERSION` set in the project:
+root and site `bun install --frozen-lockfile`, `bun scripts/build-demo.mjs`,
+`bunx astro build`, output `dist`. The build settings live in the Cloudflare
+dashboard, not in this repository; keep them in step with the `build` target.
 
 ## Pending user actions
 
-- Add the `CLOUDFLARE_API_TOKEN` repository secret (Account > Cloudflare Pages > Edit); the deploy step fails with that message until it exists.
-- Create a PostHog project and set the `PUBLIC_POSTHOG_KEY` repository variable.
+- Create a PostHog project and set `PUBLIC_POSTHOG_KEY` as an environment variable on the Pages project.

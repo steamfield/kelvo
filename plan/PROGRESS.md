@@ -20,11 +20,9 @@ sidebar and table of contents current item) were removed and the
 Scroll reveals follow stacks-api's pattern (`docs-site/src/styles/motion.css`,
 one IntersectionObserver in the layout, nothing hidden without JS or with
 reduced motion): the hero staggers in and the popover opens from the menu bar
-item; benchmark bars (`MeterTrack`) wipe in. `.github/workflows/site.yml`
-(Linux) deploys to the Cloudflare Pages project `statglass` on pushes to main
-that touch the site or the app sources it renders; `statglass.steamfield.io`
-is a proxied CNAME to `statglass.pages.dev`. Needs the `CLOUDFLARE_API_TOKEN`
-repository secret before the first deploy.
+item; benchmark bars (`MeterTrack`) wipe in. Cloudflare Pages (project `statglass`, Git-connected) builds `docs-site/` on
+pushes that touch the site or the app sources it renders; main is production
+at `statglass.steamfield.io` (a proxied CNAME to `statglass.pages.dev`).
 
 ## Docs site, phases A to C (2026-11-01, locally merged)
 
