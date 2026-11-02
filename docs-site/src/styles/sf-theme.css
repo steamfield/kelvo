@@ -1,0 +1,64 @@
+/*
+ * Maps StatGlass's tokens onto @steamfield/ui and pulls in the library's
+ * stylesheets. The app's tokens change under `.dark`, so every `--sf-*` alias
+ * below follows light and dark without a second set of rules.
+ */
+@import "@steamfield/ui/reveal/styles.css";
+@import "@steamfield/ui/markdown/styles.css";
+@import "@steamfield/ui/copy/styles.css";
+
+:root {
+  --sf-fg: var(--color-foreground);
+  --sf-muted: var(--color-muted-foreground);
+  --sf-accent: var(--color-ring);
+  --sf-border: var(--color-border);
+  --sf-fail: var(--color-destructive);
+  --sf-focus: var(--color-ring);
+  --sf-font: var(--font-mono);
+  --sf-radius: var(--radius-control);
+
+  /* Scroll reveals. These are the site's own timings from before the library; the
+     roles that differ are set on the role itself below. */
+  --sf-reveal-duration: 640ms;
+  --sf-reveal-step: 70ms;
+  --sf-reveal-ease: var(--ease-out);
+  --sf-reveal-lift: 14px;
+}
+
+/* Roles that keep their own timing and distance. Custom properties resolve at
+   the element, so each wins over the :root defaults for itself only. */
+[data-motion="card"] {
+  --sf-reveal-lift: 28px;
+  --sf-reveal-scale: 0.97;
+  transform-origin: 50% 50%;
+}
+[data-motion="drop"] {
+  --sf-reveal-lift: 10px;
+}
+[data-motion="popover"] {
+  --sf-reveal-lift: 6px;
+  --sf-reveal-scale: 0.94;
+  --sf-reveal-duration: 520ms;
+}
+[data-motion="wipe"] {
+  --sf-reveal-duration: 1200ms;
+  /* Even pace, so the eye can follow each bar to where it stops. */
+  --sf-reveal-ease: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* The default entrance and staggered rows rise out of a 3px blur (the library
+   uses 2px, and none on rows). */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion-ready]
+    [data-reveal]:not([data-revealed])
+    :is([data-motion=""], [data-motion-part]),
+  html[data-motion-ready] [data-reveal][data-motion=""]:not([data-revealed]) {
+    filter: blur(3px);
+  }
+}
+
+/* The copy button's wrapper keeps its width and centers its button. */
+[data-part="copy"] {
+  flex-shrink: 0;
+  align-items: center;
+}

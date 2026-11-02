@@ -27,7 +27,7 @@ Site code may import the app only through two aliases in `astro.config.mjs`: `@s
 ## Layout
 
 - `src/config.ts`: site title, description, repo and nav.
-- `src/content/docs/*.md` and `src/content.config.ts`: the docs collection. `src/lib/docs.ts` builds nav, pager links, Markdown exports and the llms files; `src/lib/markdown/` holds the hast plugins (code frames, callouts, heading anchors, tables).
+- `src/content/docs/*.md` and `src/content.config.ts`: the docs collection. `src/lib/docs.ts` configures `@steamfield/ui/docs` for nav, pager links, Markdown exports and the llms files; the hast plugins (code frames, callouts, heading anchors, tables) come from `@steamfield/ui/markdown`, and `src/styles/sf-theme.css` maps the site tokens onto the library's styles.
 - `src/layouts/BaseLayout.astro` and `src/pages/` are the only `.astro` files; components are `.tsx` in `src/components/` with colocated tests.
 - `scripts/build-demo.mjs` builds the demo; the iframe talks to the page through the mock-only bridge in `../src/core/mock/embed-bridge.ts`.
 - `tests/docs-pages.test.ts` builds the site and checks every docs page, link, anchor and Markdown export.

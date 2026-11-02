@@ -1,13 +1,16 @@
 import { createSatteriMarkdownProcessor } from "@astrojs/markdown-satteri";
 import { describe, expect, it } from "vitest";
-import { parseFenceMeta } from "./code-meta";
-import { docsHastPlugins, docsShikiConfig } from "./index";
+import {
+  createHastPlugins,
+  createShikiConfig,
+  parseFenceMeta,
+} from "@steamfield/ui/markdown";
 
 // The same processor and plugins astro.config.mjs hands the docs collection.
 const processor = await createSatteriMarkdownProcessor({
   syntaxHighlight: "shiki",
-  shikiConfig: docsShikiConfig,
-  hastPlugins: docsHastPlugins,
+  shikiConfig: createShikiConfig(),
+  hastPlugins: createHastPlugins(),
   features: { smartPunctuation: false },
 });
 

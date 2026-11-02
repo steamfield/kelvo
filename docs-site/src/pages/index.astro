@@ -93,10 +93,10 @@ const primaryButton =
       </p>
     </div>
     <div class="flex w-full max-w-[360px] flex-col gap-1.5 justify-self-center">
-      <div data-motion="drop" style="--motion-delay: 260ms">
+      <div data-motion="drop" style="--sf-reveal-delay: 260ms">
         <MenuBarItem client:load />
       </div>
-      <div data-motion="popover" style="--motion-delay: 480ms">
+      <div data-motion="popover" style="--sf-reveal-delay: 480ms">
         <PopoverDemo client:load />
       </div>
     </div>
@@ -141,7 +141,7 @@ const primaryButton =
         <div
           data-motion
           class="space-y-3 self-end"
-          style="--motion-delay: 120ms"
+          style="--sf-reveal-delay: 120ms"
         >
           <table class="w-full text-sm">
             <caption class="pb-2 text-left text-xs text-muted-foreground">
@@ -218,7 +218,7 @@ const primaryButton =
           the page.
         </p>
       </div>
-      <div data-motion class="overflow-x-auto" style="--motion-delay: 120ms">
+      <div data-motion class="overflow-x-auto" style="--sf-reveal-delay: 120ms">
         <table class="w-full min-w-[620px] text-sm">
           <caption class="pb-3 text-left text-xs text-muted-foreground">
             M3 Max, macOS 27, plugged in, 2026-10-07. CPU time over 120 seconds,
@@ -258,7 +258,7 @@ const primaryButton =
                     <span
                       data-motion="wipe"
                       class="block w-32 sm:w-44"
-                      style={`--motion-delay: ${360 + i * 140}ms`}
+                      style={`--sf-reveal-delay: ${360 + i * 140}ms`}
                     >
                       <MeterTrack
                         fraction={Number.parseFloat(cpu) / maxCpu}
@@ -282,7 +282,7 @@ const primaryButton =
       <p
         data-motion
         class="max-w-2xl text-xs leading-relaxed text-muted-foreground"
-        style="--motion-delay: 200ms"
+        style="--sf-reveal-delay: 200ms"
       >
         Single runs on a busy machine, before remote monitoring existed, with
         Docker monitoring off. Activity Monitor had its window open, so compare

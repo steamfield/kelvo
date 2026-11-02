@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { COPIED_MS, enhanceCopyButtons } from "./copy-buttons";
+import { enhanceCopyButtons } from "@steamfield/ui/copy";
+
+const COPIED_MS = 2000;
 
 function setup() {
   document.body.innerHTML = `
@@ -69,9 +71,39 @@ describe("enhanceCopyButtons", () => {
 
     await vi.waitFor(() =>
       expect(result.textContent).toBe(
-        "Copy failed. The code is selected; press Cmd+C."
+        "Copy failed. The code is selected; press Cmd+C or Ctrl+C."
       )
     );
     expect(document.getSelection()?.toString()).toBe("bun install");
+  });
+});
+
+describe("when used again", () => {
+  it("puts back the idle label after a second click, not the copied one", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    const { button } = setup();
+
+    button.click();
+    await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Copied"));
+    button.click();
+    await vi.advanceTimersByTimeAsync(COPIED_MS);
+
+    expect(button.textContent?.trim()).toBe("Copy");
+  });
+
+  it("shows the failure message to everyone, marked as failed", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+    const { button, result } = setup();
+
+    button.click();
+
+    await vi.waitFor(() => expect(result.textContent).toMatch(/^Copy failed/));
+    expect(result).toHaveAttribute("data-state", "failed");
+    expect(button).toHaveAttribute("data-state", "failed");
   });
 });

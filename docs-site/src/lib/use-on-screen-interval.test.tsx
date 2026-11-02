@@ -22,6 +22,8 @@ function reducedMotion(reduce: boolean) {
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: reduce,
     media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
   }));
 }
 
@@ -75,11 +77,15 @@ it("pauses while the tab is hidden", () => {
   act(() => report([{ isIntersecting: true }]));
   const state = vi.spyOn(document, "visibilityState", "get");
   state.mockReturnValue("hidden");
-  document.dispatchEvent(new Event("visibilitychange"));
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
   vi.advanceTimersByTime(5000);
   expect(tick).not.toHaveBeenCalled();
   state.mockReturnValue("visible");
-  document.dispatchEvent(new Event("visibilitychange"));
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
   vi.advanceTimersByTime(1000);
   expect(tick).toHaveBeenCalledTimes(1);
 });

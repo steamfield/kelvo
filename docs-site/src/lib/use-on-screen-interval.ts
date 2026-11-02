@@ -1,4 +1,5 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { usePlayback } from "@steamfield/ui/react/playback";
+import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 
 /**
  * Calls `tick` every `intervalMs` while `target` is on screen and the tab is
@@ -12,31 +13,20 @@ export function useOnScreenInterval(
   const latest = useRef(tick);
   latest.current = tick;
 
+  // The gate holds the on-screen, tab and motion conditions. Reduced motion
+  // holds the first frame: it never plays, rather than jumping to an end.
+  const playback = usePlayback<Element>({
+    threshold: 0,
+    reducedPolicy: "hold",
+  });
+  useLayoutEffect(() => {
+    playback.ref.current = target.current;
+  });
+
+  const { playing } = playback;
   useEffect(() => {
-    const el = target.current;
-    if (!el) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let onScreen = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
-    const sync = () => {
-      const run = onScreen && document.visibilityState === "visible";
-      if (run && !timer)
-        timer = setInterval(() => latest.current(), intervalMs);
-      if (!run && timer) {
-        clearInterval(timer);
-        timer = undefined;
-      }
-    };
-    const observer = new IntersectionObserver(([entry]) => {
-      onScreen = entry?.isIntersecting ?? false;
-      sync();
-    });
-    observer.observe(el);
-    document.addEventListener("visibilitychange", sync);
-    return () => {
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", sync);
-      if (timer) clearInterval(timer);
-    };
-  }, [target, intervalMs]);
+    if (!playing) return;
+    const timer = setInterval(() => latest.current(), intervalMs);
+    return () => clearInterval(timer);
+  }, [playing, intervalMs]);
 }

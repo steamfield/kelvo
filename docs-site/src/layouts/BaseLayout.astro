@@ -73,42 +73,23 @@ const jsonLd = JSON.stringify({
         system.addEventListener("change", apply);
       })();
     </script>
-    <script is:inline>
-      // Scroll reveals (src/styles/motion.css). Without this script, or with
-      // reduced motion, every section is simply visible.
-      (() => {
-        if (
-          matchMedia("(prefers-reduced-motion: reduce)").matches ||
-          !("IntersectionObserver" in window)
-        )
-          return;
-        document.documentElement.dataset.motionReady = "";
-        document.addEventListener(
-          "DOMContentLoaded",
-          () => {
-            const observer = new IntersectionObserver(
-              (entries) => {
-                for (const entry of entries) {
-                  if (!entry.isIntersecting) continue;
-                  entry.target.setAttribute("data-revealed", "");
-                  observer.unobserve(entry.target);
-                }
-              },
-              { rootMargin: "0px 0px -12% 0px" }
-            );
-            for (const el of document.querySelectorAll("[data-reveal]"))
-              observer.observe(el);
-          },
-          { once: true }
-        );
-      })();
-    </script>
     <script>
       import { initAnalytics, track } from "@/lib/analytics";
       import { EVENTS } from "@/lib/events";
-      import { enhanceCopyButtons } from "@/lib/copy-buttons";
+      import { enhanceCopyButtons } from "@steamfield/ui/copy";
+      import { initReveal } from "@steamfield/ui/reveal";
       void initAnalytics();
-      enhanceCopyButtons(document);
+      // Scroll reveals (src/styles/sf-theme.css). Without this script, or with
+      // reduced motion, every section is simply visible.
+      initReveal();
+      enhanceCopyButtons(document, {
+        messages: {
+          failed: (subject, { hidden }) =>
+            hidden
+              ? `Copy failed. Open the ${subject} as Markdown and copy it from there.`
+              : `Copy failed. The ${subject} is selected; press Cmd+C or Ctrl+C.`,
+        },
+      });
       for (const link of document.querySelectorAll<HTMLElement>(
         "[data-track-install]"
       )) {

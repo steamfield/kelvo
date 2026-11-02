@@ -5,7 +5,7 @@ import { satteri } from "@astrojs/markdown-satteri";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
-import { docsHastPlugins, docsShikiConfig } from "./src/lib/markdown/index.ts";
+import { createHastPlugins, createShikiConfig } from "@steamfield/ui/markdown";
 
 const SITE_URL = "https://statglass.steamfield.io";
 
@@ -29,11 +29,11 @@ export default defineConfig({
   build: { format: "file" },
   integrations: [react(), sitemap()],
   // Docs markdown: fence titles and groups, callouts, heading links
-  // (src/lib/markdown/). Smart punctuation stays off so --flags stay intact.
+  // (@steamfield/ui/markdown). Smart punctuation stays off so --flags stay intact.
   markdown: {
-    shikiConfig: docsShikiConfig,
+    shikiConfig: createShikiConfig(),
     processor: satteri({
-      hastPlugins: docsHastPlugins,
+      hastPlugins: createHastPlugins(),
       features: { smartPunctuation: false },
     }),
   },

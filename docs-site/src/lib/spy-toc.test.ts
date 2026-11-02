@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { spyToc } from "./docs-enhance";
+import { spyToc } from "@steamfield/ui/docs";
 
 type Callback = (
   entries: Array<{ target: Element; isIntersecting: boolean }>

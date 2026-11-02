@@ -26,7 +26,9 @@ function frame() {
 
 function visibility(state: "visible" | "hidden") {
   vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
-  document.dispatchEvent(new Event("visibilitychange"));
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
 }
 
 function post(data: unknown, source: unknown, origin = window.location.origin) {
@@ -114,6 +116,7 @@ it("cancels a pending hide when the frame comes back on screen", () => {
 it("hides the demo while the tab is hidden and shows it again when visible", () => {
   const { ref, contentWindow } = frame();
   renderHook(() => useDemoFrame(ref, true, vi.fn()));
+  act(() => report([{ isIntersecting: true }]));
   visibility("hidden");
   expect(contentWindow.postMessage).toHaveBeenLastCalledWith(
     { type: "statglass-demo:hide" },

@@ -1,6 +1,6 @@
 export type DocHeading = { depth: number; slug: string; text: string };
 
-/** "On this page" for a page with at least three sections. docs-enhance marks the section in view. */
+/** "On this page" for a page with at least three sections. `spyToc` (@steamfield/ui/docs) marks the section in view. */
 export function TableOfContents({
   headings,
 }: {
