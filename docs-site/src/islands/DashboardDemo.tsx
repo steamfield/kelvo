@@ -49,7 +49,7 @@ export function DashboardDemo({ route }: { route: string }) {
   const mounted = fits && near;
   // The dashboard has nothing to report up; sizes and links stay inside it.
   const onMessage = useCallback((_: DemoMessage) => {}, []);
-  useDemoFrame(frame, mounted, onMessage);
+  const frameRef = useDemoFrame(frame, mounted, onMessage);
   const ready = useFrameReady(frame, mounted);
 
   const href = dashboardDemoUrl(route);
@@ -62,7 +62,7 @@ export function DashboardDemo({ route }: { route: string }) {
         >
           {mounted && (
             <iframe
-              ref={frame}
+              ref={frameRef}
               src={href}
               title="StatGlass dashboard, live demo"
               className={`block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}

@@ -1,4 +1,4 @@
-import { type RefObject, useState } from "react";
+import { useState } from "react";
 import { createCpuSampler, sampleHistory } from "@/lib/live-sample";
 import { useOnScreenInterval } from "@/lib/use-on-screen-interval";
 
@@ -7,17 +7,12 @@ import { useOnScreenInterval } from "@/lib/use-on-screen-interval";
  * is on screen and the tab is visible. Under reduced motion it stays on its
  * first frame. `tEndMs` is the last sample's time, as StreamArea expects.
  */
-export function useLiveSeries(
-  target: RefObject<Element | null>,
-  length: number,
-  intervalMs = 1000
-) {
+export function useLiveSeries(length: number, intervalMs = 1000) {
   const [state, setState] = useState(() => {
     const next = createCpuSampler();
     return { next, values: sampleHistory(next, length), tEndMs: 0 };
   });
-  useOnScreenInterval(
-    target,
+  const ref = useOnScreenInterval(
     () =>
       setState((s) => ({
         ...s,
@@ -26,5 +21,5 @@ export function useLiveSeries(
       })),
     intervalMs
   );
-  return { values: state.values, tEndMs: state.tEndMs };
+  return { ref, values: state.values, tEndMs: state.tEndMs };
 }

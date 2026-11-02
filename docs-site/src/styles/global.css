@@ -1,6 +1,7 @@
-/* The shared library's layer goes first, so Tailwind utilities and this
-   site's own CSS win over it. */
-@layer sf, theme, base, components, utilities;
+/* The shared library's layer sits after Tailwind's reset and before its
+   utilities, so the reset doesn't strip the library's borders and the site's
+   utilities and CSS win over it. */
+@layer theme, base, sf, components, utilities;
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 

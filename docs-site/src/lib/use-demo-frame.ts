@@ -1,5 +1,5 @@
 import { usePlayback } from "@steamfield/ui/react/playback";
-import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { type DemoMessage, readDemoMessage, setDemoVisible } from "@/lib/demo";
 
 /**
@@ -19,20 +19,22 @@ export function useDemoFrame(
   mounted: boolean,
   onMessage: (message: DemoMessage) => void
 ) {
-  // The frame renders after this hook first runs, and the gate reads its
-  // element when it is created. Hand it the frame once there is one: `mounted`
-  // is a gate option, so flipping it builds a gate over the real element.
   const playback = usePlayback<HTMLIFrameElement>({
-    autoStart: mounted,
     // Any part of the frame counts, as the page's own observer did.
     threshold: 0,
     leaveGraceMs: OFFSCREEN_GRACE_MS,
     // The demo is not an animation: reduced motion does not hide it.
     motion: "full",
   });
-  useLayoutEffect(() => {
-    playback.ref.current = mounted ? frame.current : null;
-  });
+  // One ref for the caller's frame ref and the gate; the frame may mount late.
+  const gateRef = playback.ref;
+  const attach = useCallback(
+    (el: HTMLIFrameElement | null) => {
+      frame.current = el;
+      gateRef(el);
+    },
+    [frame, gateRef]
+  );
 
   // The gate reports "not playing" until the observer's first report, and
   // the demo starts out running. So a frame that has never been seen is hidden
@@ -72,4 +74,5 @@ export function useDemoFrame(
     window.addEventListener("message", onWindowMessage);
     return () => window.removeEventListener("message", onWindowMessage);
   }, [frame, mounted, onMessage]);
+  return attach;
 }

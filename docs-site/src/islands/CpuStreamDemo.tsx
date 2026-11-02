@@ -1,5 +1,4 @@
 import { InlineBar, ModuleCard, StreamArea } from "@statglass/widgets";
-import { useRef } from "react";
 import { useLiveSeries } from "@/lib/use-live-series";
 
 const SAMPLES = 60;
@@ -10,8 +9,7 @@ const SAMPLES = 60;
  * heavy to load unasked.
  */
 export function CpuStreamDemo() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { values, tEndMs } = useLiveSeries(ref, SAMPLES);
+  const { ref, values, tEndMs } = useLiveSeries(SAMPLES);
   const total = values.at(-1) ?? 0;
   // A rough user/system split, enough for the bars to move with the total.
   const user = Math.round(total * 0.68 * 10) / 10;

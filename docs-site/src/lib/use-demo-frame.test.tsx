@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { RefObject } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { DemoMessage } from "./demo";
 import { OFFSCREEN_GRACE_MS, useDemoFrame } from "./use-demo-frame";
 
 type Entry = { isIntersecting: boolean };
@@ -22,6 +23,19 @@ function frame() {
     current: { contentWindow } as unknown as HTMLIFrameElement,
   } as RefObject<HTMLIFrameElement | null>;
   return { ref, contentWindow };
+}
+
+/** Renders the hook and attaches its ref to the frame, as the iframe's JSX does. */
+function mount(
+  ref: RefObject<HTMLIFrameElement | null>,
+  mounted: boolean,
+  onMessage: (message: DemoMessage) => void
+) {
+  const hook = renderHook(() => useDemoFrame(ref, mounted, onMessage));
+  act(() => {
+    hook.result.current(ref.current);
+  });
+  return hook;
 }
 
 function visibility(state: "visible" | "hidden") {
@@ -57,7 +71,7 @@ afterEach(() => {
 it("hands the frame's messages to the callback, and ignores anyone else's", () => {
   const { ref, contentWindow } = frame();
   const onMessage = vi.fn();
-  renderHook(() => useDemoFrame(ref, true, onMessage));
+  mount(ref, true, onMessage);
 
   post({ type: "statglass-demo:size", height: 400 }, contentWindow);
   expect(onMessage).toHaveBeenCalledWith({ type: "size", height: 400 });
@@ -76,14 +90,14 @@ it("hands the frame's messages to the callback, and ignores anyone else's", () =
 it("does nothing until the frame is mounted", () => {
   const { ref, contentWindow } = frame();
   const onMessage = vi.fn();
-  renderHook(() => useDemoFrame(ref, false, onMessage));
+  mount(ref, false, onMessage);
   post({ type: "statglass-demo:size", height: 400 }, contentWindow);
   expect(onMessage).not.toHaveBeenCalled();
 });
 
 it("shows the demo at once on scrolling back, and hides it only after the grace period", () => {
   const { ref, contentWindow } = frame();
-  renderHook(() => useDemoFrame(ref, true, vi.fn()));
+  mount(ref, true, vi.fn());
   const origin = window.location.origin;
 
   act(() => report([{ isIntersecting: false }]));
@@ -104,7 +118,7 @@ it("shows the demo at once on scrolling back, and hides it only after the grace 
 
 it("cancels a pending hide when the frame comes back on screen", () => {
   const { ref, contentWindow } = frame();
-  renderHook(() => useDemoFrame(ref, true, vi.fn()));
+  mount(ref, true, vi.fn());
   act(() => report([{ isIntersecting: false }]));
   vi.advanceTimersByTime(OFFSCREEN_GRACE_MS - 100);
   act(() => report([{ isIntersecting: true }]));
@@ -115,7 +129,7 @@ it("cancels a pending hide when the frame comes back on screen", () => {
 
 it("hides the demo while the tab is hidden and shows it again when visible", () => {
   const { ref, contentWindow } = frame();
-  renderHook(() => useDemoFrame(ref, true, vi.fn()));
+  mount(ref, true, vi.fn());
   act(() => report([{ isIntersecting: true }]));
   visibility("hidden");
   expect(contentWindow.postMessage).toHaveBeenLastCalledWith(
@@ -132,7 +146,7 @@ it("hides the demo while the tab is hidden and shows it again when visible", () 
 it("stops listening and disconnects on unmount", () => {
   const { ref, contentWindow } = frame();
   const onMessage = vi.fn();
-  const { unmount } = renderHook(() => useDemoFrame(ref, true, onMessage));
+  const { unmount } = mount(ref, true, onMessage);
   unmount();
   expect(disconnected).toBe(true);
   post({ type: "statglass-demo:size", height: 400 }, contentWindow);

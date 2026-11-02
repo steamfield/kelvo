@@ -46,14 +46,17 @@
   --sf-reveal-ease: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* The default entrance and staggered rows rise out of a 3px blur (the library
-   uses 2px, and none on rows). */
+/* The default entrance and staggered rows rise out of a 3px blur. The library
+   blurs the default role by 2px and doesn't blur rows at all. */
+[data-motion=""],
+[data-motion-part] {
+  --sf-reveal-blur: 3px;
+}
 @media (prefers-reduced-motion: no-preference) {
   html[data-motion-ready]
     [data-reveal]:not([data-revealed])
-    :is([data-motion=""], [data-motion-part]),
-  html[data-motion-ready] [data-reveal][data-motion=""]:not([data-revealed]) {
-    filter: blur(3px);
+    [data-motion-part] {
+    filter: blur(var(--sf-reveal-blur));
   }
 }
 

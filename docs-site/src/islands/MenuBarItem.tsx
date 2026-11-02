@@ -1,5 +1,4 @@
 import { TrayPreview, trayLayout, trayStyleMenuBar } from "@statglass/widgets";
-import { useRef } from "react";
 import { UNITS } from "@/lib/tray-sample";
 import { useLiveTray } from "@/lib/use-live-tray";
 
@@ -9,8 +8,7 @@ import { useLiveTray } from "@/lib/use-live-tray";
  * the way the real item sits above the real popover.
  */
 export function MenuBarItem() {
-  const ref = useRef<HTMLDivElement>(null);
-  const readings = useLiveTray(ref);
+  const { ref, readings } = useLiveTray();
   const layout = trayLayout(
     trayStyleMenuBar("combined"),
     () => true,

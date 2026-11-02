@@ -1,4 +1,5 @@
 ---
+import { revealGateScript } from "@steamfield/ui/reveal";
 import "@/styles/global.css";
 import { SITE } from "@/config";
 
@@ -63,6 +64,7 @@ const jsonLd = JSON.stringify({
     <meta property="og:image" content={ogUrl} />
     <meta name="twitter:card" content="summary_large_image" />
     {path === "/" && <script type="application/ld+json" set:html={jsonLd} />}
+    <script is:inline set:html={revealGateScript} />
     <script is:inline>
       // Follow the system appearance, as the app does; no site toggle.
       (() => {

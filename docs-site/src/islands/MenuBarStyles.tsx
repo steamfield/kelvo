@@ -4,7 +4,6 @@ import {
   trayLayout,
   trayStyleMenuBar,
 } from "@statglass/widgets";
-import { useRef } from "react";
 import { UNITS } from "@/lib/tray-sample";
 import { useLiveTray } from "@/lib/use-live-tray";
 
@@ -44,8 +43,7 @@ const STYLES: { name: string; detail: string; menuBar: MenuBar }[] = [
 
 /** Each menu bar style, live on the same simulated readings. */
 export function MenuBarStyles() {
-  const ref = useRef<HTMLDListElement>(null);
-  const readings = useLiveTray(ref);
+  const { ref, readings } = useLiveTray();
   return (
     <dl ref={ref} className="divide-y divide-border border-y border-border">
       {STYLES.map(({ name, detail, menuBar }) => (

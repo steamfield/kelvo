@@ -42,7 +42,7 @@ export function PopoverDemo() {
       window.open(dashboardDemoUrl(message.route), "_blank", "noopener");
     }
   }, []);
-  useDemoFrame(frame, wanted, onMessage);
+  const frameRef = useDemoFrame(frame, wanted, onMessage);
   const ready = useFrameReady(frame, wanted);
 
   return (
@@ -53,7 +53,7 @@ export function PopoverDemo() {
       >
         {wanted && (
           <iframe
-            ref={frame}
+            ref={frameRef}
             src={popoverDemoUrl()}
             title="StatGlass popover, live demo"
             className={`block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
