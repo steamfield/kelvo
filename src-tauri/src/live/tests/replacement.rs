@@ -163,6 +163,67 @@ struct RecordingSource {
     detail: Arc<Mutex<Vec<bool>>>,
 }
 
+#[tokio::test(start_paused = true)]
+async fn a_remote_screen_lock_does_not_suspend_the_controllers_live_frames() {
+    for is_local in [false, true] {
+        let record: statglass_schema::HostRecord = serde_json::from_value(serde_json::json!({
+            "id": Uuid::new_v4(), "is_local": is_local, "display_name": "test",
+            "info": {"os": "mac_os", "os_version": "test", "model": null, "chip": null,
+            "chip_known": false, "cpu_topology": [], "mem_total_bytes": 1024, "boot_time_ms": 0}
+        }))
+        .unwrap();
+        let source = Arc::new(RecordingSource {
+            record: record.clone(),
+            detail: Arc::default(),
+        });
+        let hosts = crate::hosts::HostRegistry::new();
+        let host = hosts.insert(record, source);
+        host.hub().publish(BusMsg::Status(EngineStatus {
+            interval_ms: 1000,
+            ..Default::default()
+        }));
+        let reg = registry(&["dashboard"]);
+        let (sink, rx, _) = sink();
+        reg.subscribe("dashboard", host.clone(), sink, req(0))
+            .unwrap();
+        drain_raw(&rx).await;
+        host.hub().publish(BusMsg::Status(EngineStatus {
+            interval_ms: 1000,
+            display_idle: true,
+            ..Default::default()
+        }));
+        settle().await;
+        host.hub().publish(BusMsg::Frame(Arc::new(LiveFrame {
+            ts_ms: 1000,
+            interval_ms: 1000,
+            layout: layout(1, 1),
+            timeline: 0,
+            values: vec![42.0].into(),
+            held: vec![42.0].into(),
+            holds: vec![2500].into(),
+        })));
+        let messages = drain_raw(&rx).await;
+        assert_eq!(
+            messages
+                .iter()
+                .any(|m| matches!(m, LiveMsg::Frame { ts_ms: 1000, .. })),
+            !is_local,
+            "only this Mac's display may suspend a visible window's frames"
+        );
+        assert_eq!(
+            messages
+                .iter()
+                .any(|m| matches!(m, LiveMsg::Status(s) if s.display_idle)),
+            is_local
+        );
+        assert!(
+            host.hub().status().display_idle,
+            "the source's actual state stays intact"
+        );
+        reg.window_closed("dashboard");
+    }
+}
+
 impl statglass_engine::Source for RecordingSource {
     fn host(&self) -> statglass_schema::HostRecord {
         self.record.clone()

@@ -58,6 +58,11 @@ use crate::process_signal::SignalRefusal;
 /// One host's live data, as a stream needs it.
 pub trait LiveFeed: Send + Sync + 'static {
     fn host(&self) -> HostId;
+    /// Only this Mac's display can suspend delivery to its windows. A remote
+    /// host's locked or sleeping display does not stop its live samples.
+    fn is_local(&self) -> bool {
+        true
+    }
     /// The host's hub: bus, ring buffer, latest frame and status. Times in it are on the
     /// source's clock, so a remote host's backfill window is measured on its own clock.
     fn hub(&self) -> &LiveHub;
@@ -426,7 +431,9 @@ impl Stream {
 
     fn send_status(&mut self, s: &EngineStatus) -> Result<(), Closed> {
         self.performance = s.performance;
-        let status = status_msg(s, self.min_period_ms);
+        let mut status = status_msg(s, self.min_period_ms);
+        status.display_idle &= self.feed.is_local();
+        self.display_idle = status.display_idle;
         if self.status.as_ref() != Some(&status) {
             self.status = Some(status.clone());
             self.send(LiveMsg::Status(status))?;
@@ -474,7 +481,6 @@ impl Stream {
     fn catch_up(&mut self) -> Result<CatchUp, Closed> {
         self.send_caps(self.feed.capabilities())?;
         let status = self.feed.status();
-        self.display_idle = status.display_idle;
         self.send_status(&status)?;
 
         let mut out = CatchUp::default();
@@ -687,9 +693,8 @@ impl Stream {
             BusMsg::Caps(c) => self.send_caps((*c).clone())?,
             BusMsg::Status(s) => {
                 let was_idle = self.display_idle;
-                self.display_idle = s.display_idle;
                 self.send_status(&s)?;
-                if was_idle && !s.display_idle {
+                if was_idle && !self.display_idle {
                     self.catch_up()?;
                 }
             }

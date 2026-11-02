@@ -25,68 +25,9 @@ export const BLOCKED_REMOTE_UPDATE = {
     "This release needs a coordinated upgrade. Update connected controllers, then reinstall this agent while keeping its data. Update agent cannot apply it.",
 };
 
-export type ScenarioName =
-  | "disk-io-comparison"
-  | "disk-io-no-ops"
-  | "disk-io-unavailable"
-  | "disk-io-gap"
-  | "disk-space-eject"
-  | "disk-space-boot-only"
-  | "ssh-auth"
-  | "ssh-no-config"
-  | "ssh-untrusted"
-  | "multi-host"
-  | "remote-update-blocked"
-  | "linux"
-  | "linux-host"
-  | "linux-agent-update"
-  | "linux-identity-changed"
-  | "hosts-outdated"
-  | "host-incompatible"
-  | "host-newer"
-  | "popover-compact"
-  | "power-disabled"
-  | "default"
-  | "sleep-gap"
-  | "unknown-chip"
-  | "no-battery"
-  | "no-fans"
-  | "paused"
-  | "stale"
-  | "history-unavailable"
-  | "low-disk"
-  | "history-trimmed"
-  | "history-locked"
-  | "history-corrupt"
-  | "history-too-new"
-  | "appstore"
-  | "clock-step"
-  | "cpu-power-uncalibrated"
-  | "cpu-power-seeded"
-  | "cpu-power-calibrated"
-  | "wide-layout"
-  | "hidden-resume"
-  | "no-process-network"
-  | "no-process-gpu"
-  | "low-power-mode"
-  | "performance-mode"
-  | "vpn"
-  | "docker-0"
-  | "docker-11"
-  | "docker-1"
-  | "docker-32"
-  | "docker-128"
-  | "docker-200"
-  | "docker-retained"
-  | "docker-unavailable"
-  | "docker-idle"
-  | "docker-history-gap"
-  | "docker-events-gap"
-  | "docker-save-failed"
-  | "docker-stop-failed"
-  | "docker-rerank";
+export type ScenarioName = (typeof SCENARIOS)[number];
 
-export const SCENARIOS: readonly ScenarioName[] = [
+export const SCENARIOS = [
   "disk-io-comparison",
   "disk-io-no-ops",
   "disk-io-unavailable",
@@ -105,6 +46,7 @@ export const SCENARIOS: readonly ScenarioName[] = [
   "hosts-outdated",
   "host-incompatible",
   "host-newer",
+  "host-unreachable",
   "linux-identity-changed",
   "popover-compact",
   "power-disabled",
@@ -147,7 +89,7 @@ export const SCENARIOS: readonly ScenarioName[] = [
   "docker-save-failed",
   "docker-stop-failed",
   "docker-rerank",
-];
+] as const;
 
 /** The schema version the mock's "newer StatGlass" wrote, and the one it reads. */
 export const MOCK_SCHEMA = { found: 4, supported: 2 } as const;

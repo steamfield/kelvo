@@ -4,6 +4,45 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Remote connection recovery (2026-11-01, implemented)
+
+The copied Linux connection settings pointed at StatGlass before the hosts had
+been upgraded. Manually installed the matching renamed agents on Live Oak and
+m1-linux, copied their databases and settings, and rebound the system agent's
+machine fingerprints without changing either host UUID. Database integrity,
+foreign keys and every table's row count matched before starting the new services.
+Old binaries and data remain; old services and update timers are disabled. Live
+Oak's user service now has linger enabled so logging out does not stop collection.
+Both hosts reconnect in the installed app.
+
+A never-connected remote reports zero cadence. Charts now use a finite empty
+display grid until a real cadence arrives, without inventing samples; the stale
+watchdog does not start zero-delay timers. Connection failures get an undimmed
+notice with Retry connection, Open Hosts and expandable diagnostics. Unexpected
+render failures keep the dashboard sidebar and offer retry or host navigation.
+Pending streams say Connecting rather than Live or Sampling every 0s.
+
+M4 Mini had a separate sleep issue: its engine logged sleep at 18:35, while later
+SSH/background wakes did not resume sampling. A one-off full wake at 19:02 resumed
+the engine; existing sleep-prevention processes and permanent settings were left
+as found. Its screen remained locked. The controller also incorrectly used the
+remote display-idle flag to suppress incoming frames. Local stream delivery now
+applies that flag only to this Mac's own source, preserving local idle behavior
+and the remote source's actual status. Actual system sleep still stops collection.
+
+Terra code review approved both fixes. Regression tests failed on the original
+array allocation, timer, boundary and remote-display behavior and pass with the
+fixes. Frontend checks passed 1,389 tests; the focused Chromium/WebKit host and
+recovery flows passed 28 cases. Both themes were compared with Hosts and the dev
+gallery: existing tokens, controls and spacing remain; the larger error heading,
+persistent sidebar and undimmed recovery actions are deliberate. Evidence and
+the one-off remote migration helper are under `target/qa/remote-host-recovery/`.
+The final `make check` passed, including native performance gates. The app build,
+deep code signature and system-only dependency checks passed. Installed the verified
+build in `/Applications/StatGlass.app`, retaining the previous app in the primary
+checkout's QA directory. Native acceptance shows M4's changing live CPU readings
+while its screen is locked, plus the explicit 18:35–19:02 sleep gap in history.
+
 ## Rename to StatGlass (2026-11-01, locally merged)
 
 The [approved rename](rename-statglass.md) uses fresh app and agent identities,

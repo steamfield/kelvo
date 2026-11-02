@@ -371,8 +371,14 @@ export class MockRemotes {
     return ok(null);
   };
   readonly retryRemoteHost: MockTransport["retryRemoteHost"] = async (id) => {
+    this.commands.record("retry_remote_host", id);
     const remote = this.remotes.get(id);
     if (!remote) return err({ kind: "unknown_host", host: id });
+    if (
+      this.options.scenarios?.includes("host-unreachable") &&
+      id === "remote-unreachable"
+    )
+      return ok(null);
     remote.record.status.state = "connected";
     return ok(null);
   };

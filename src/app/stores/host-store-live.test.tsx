@@ -196,6 +196,30 @@ describe("no frames by design is not stale (#13)", () => {
     vi.restoreAllMocks();
   });
 
+  it("does not start a zero-delay retry loop before a remote reports its cadence", async () => {
+    const t = createMockTransport({ autoTick: false });
+    const view = mount(t);
+    await wait(0);
+    act(() =>
+      t.push({
+        kind: "status",
+        interval_ms: 0,
+        frame_period_ms: 0,
+        paused: false,
+        display_idle: false,
+        on_battery: false,
+        performance: "off",
+        power_source: "unknown",
+        primary_iface: null,
+      })
+    );
+    await wait(1000);
+    expect(subscribes(t)).toHaveLength(1);
+    expect(view.getByTestId("state")).not.toHaveTextContent("reconnecting");
+    view.unmount();
+    t.dispose();
+  });
+
   it("neither goes stale nor resubscribes while the display sleeps, and fills the gap on wake", async () => {
     const t = createMockTransport({ autoTick: false });
     const { getByTestId } = mount(t, HOUR, <LastTwoMinutes />);

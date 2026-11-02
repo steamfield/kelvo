@@ -209,6 +209,7 @@ export function LiveSidebar() {
         intervalMs: sampling.intervalMs ?? configuredMs ?? 1000,
         paused: sampling.paused,
         stale: sampling.stale,
+        connection: sampling.connection,
         onBattery: batteryBackoff({
           onBattery: sampling.onBattery,
           intervalMs: sampling.intervalMs,

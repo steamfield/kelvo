@@ -198,6 +198,10 @@ impl LiveFeed for HostEntry {
         self.record.read_ok().id
     }
 
+    fn is_local(&self) -> bool {
+        self.record.read_ok().is_local
+    }
+
     fn hub(&self) -> &LiveHub {
         &self.live
     }

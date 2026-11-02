@@ -1,3 +1,4 @@
+import type { Connection } from "@core/live-state";
 import { Pause } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -55,6 +56,7 @@ export interface SidebarStatus {
   onBattery: boolean;
   /** No frame for three intervals while not paused (plan 4.17). */
   stale?: boolean;
+  connection?: Connection;
 }
 
 export interface SidebarProps {
@@ -250,14 +252,20 @@ export function Sidebar({
                 Paused
               </span>
             </>
-          ) : status.stale ? (
+          ) : status.stale ||
+            status.connection === "connecting" ||
+            status.connection === "reconnecting" ? (
             <>
               <span
                 aria-hidden
                 className="size-1.5 rounded-full border border-muted-foreground"
               />
               <span className="min-w-0 truncate font-normal text-[11px] text-muted-foreground">
-                Stale · no new data
+                {status.connection === "connecting"
+                  ? "Connecting…"
+                  : status.connection === "reconnecting"
+                    ? "Reconnecting…"
+                    : "Stale · no new data"}
               </span>
             </>
           ) : (

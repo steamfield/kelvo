@@ -476,7 +476,10 @@ export function gridIntervalMs(
   status: Pick<LiveStatus, "interval_ms" | "frame_period_ms"> | null
 ): number {
   if (!status) return 1000;
-  return Math.max(status.interval_ms, status.frame_period_ms);
+  const interval = Math.max(status.interval_ms, status.frame_period_ms);
+  // An unconnected remote has no cadence yet. Keep the empty chart's grid
+  // finite, just as before the first status; this does not create samples.
+  return Number.isFinite(interval) && interval > 0 ? interval : 1000;
 }
 
 export interface SeriesWindow {
