@@ -10,9 +10,7 @@ StatGlass runs on Apple Silicon Macs (M1 or newer) with macOS 26 or newer.
 
 ## Install the app
 
-The first StatGlass binary release has not been published yet. Until it is, [build it from source](#build-from-source). Once a StatGlass DMG is published:
-
-1. Download it from [Releases](https://github.com/steamfield/statglass/releases).
+1. Download StatGlass_aarch64.dmg from the [latest release](https://github.com/steamfield/statglass/releases/latest).
 2. Open the DMG and drag StatGlass into Applications.
 3. Eject the DMG, then open StatGlass from Applications.
 4. If macOS blocks the first launch, go to System Settings → Privacy & Security → Open Anyway, then confirm Open.
@@ -21,6 +19,9 @@ The first StatGlass binary release has not been published yet. Until it is, [bui
 > StatGlass is ad-hoc signed, without Apple notarization, so the first-launch approval is expected. You do not need an Apple Developer account. Managed Macs may restrict this approval; see [Apple's instructions](https://support.apple.com/en-us/102445).
 
 StatGlass appears in the menu bar and asks you to choose a menu bar style. [The menu bar and windows](/docs/menu-bar-and-windows) explains the choices.
+
+> [!NOTE]
+> StatGlass was called Kelvo before 0.4.0 and installs as a separate app. Kelvo does not update to it, and its settings and history are not imported. Quit Kelvo and stop its remote agents before switching, then install StatGlass on each host and add the hosts again.
 
 ## Build from source
 

@@ -14,18 +14,7 @@ See the [changelog](CHANGELOG.md) for release history, and
 
 You need an Apple Silicon Mac (M1 or newer) on macOS 26 or newer. Intel Macs aren't supported because the power and sensor readings come from interfaces only Apple Silicon has.
 
-The first StatGlass binary release has not been published. [Build it yourself](#build-it-yourself)
-to run the renamed app. [Earlier releases](https://github.com/steamfield/statglass/releases)
-remain available under their original names.
-
-StatGlass uses a separate installation and update channel. Previous settings and
-history remain in their old locations and are not imported. Quit the previous app
-and stop its remote agents before switching, then install StatGlass on each host
-and add the hosts again.
-
-Once a StatGlass DMG is published:
-
-1. Download it from [Releases](https://github.com/steamfield/statglass/releases).
+1. Download **StatGlass_aarch64.dmg** from the [latest release](https://github.com/steamfield/statglass/releases/latest).
 2. Open the DMG and drag **StatGlass** into **Applications**.
 3. Eject the DMG, then open **StatGlass** from Applications.
 4. If macOS blocks the first launch, go to **System Settings → Privacy & Security → Open Anyway**, then confirm **Open**.
@@ -35,6 +24,11 @@ approval is expected. You do not need an Apple Developer account. Managed Macs m
 restrict this approval; see [Apple’s instructions](https://support.apple.com/en-us/102445).
 
 StatGlass appears in the menu bar and asks you to choose a menu bar style.
+
+StatGlass was called Kelvo before 0.4.0 and installs as a separate app. Kelvo does
+not update to it, and its settings and history are not imported. Quit Kelvo and stop
+its remote agents before switching, then install StatGlass on each host and add the
+hosts again.
 
 ### Updates
 
@@ -242,7 +236,7 @@ remote host. This sharing uses SSH directly, with no StatGlass backend.
 
 ### Is there a Homebrew or Mac App Store version?
 
-Use the [source build](#build-it-yourself) until the first StatGlass DMG is published.
+Not yet. Install the DMG from [Releases](https://github.com/steamfield/statglass/releases/latest) or use the [source build](#build-it-yourself).
 Homebrew and Mac App Store distribution are not part of this release.
 StatGlass remains free; Apple notarization may be added later.
 
