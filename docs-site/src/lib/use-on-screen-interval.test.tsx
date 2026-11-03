@@ -9,8 +9,11 @@ let disconnected = false;
 // longer watches, so the fake reports for the element it last observed.
 class FakeObserver {
   target: Element | undefined;
-  constructor(callback: (entries: (Entry & { target?: Element })[]) => void) {
-    report = (entries) => callback(entries.map((entry) => ({ target: this.target, ...entry })));
+  constructor(
+    callback: (entries: (Entry & { target?: Element | undefined })[]) => void
+  ) {
+    report = (entries) =>
+      callback(entries.map((entry) => ({ target: this.target, ...entry })));
   }
   observe(element: Element) {
     this.target = element;
