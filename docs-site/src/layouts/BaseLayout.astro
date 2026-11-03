@@ -52,6 +52,8 @@ const jsonLd = JSON.stringify({
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.webp" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     {alternate && (
       <link rel="alternate" type="text/markdown" href={alternate} />
@@ -62,7 +64,16 @@ const jsonLd = JSON.stringify({
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogUrl} />
+    {ogImage === SITE.ogImage && (
+      <>
+        <meta property="og:image:type" content="image/webp" />
+        <meta property="og:image:width" content="2560" />
+        <meta property="og:image:height" content="1340" />
+        <meta property="og:image:alt" content={SITE.ogImageAlt} />
+      </>
+    )}
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={ogUrl} />
     {path === "/" && <script type="application/ld+json" set:html={jsonLd} />}
     <script is:inline set:html={revealGateScript} />
     <script is:inline>
