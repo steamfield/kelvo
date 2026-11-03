@@ -7,11 +7,16 @@ import { OFFSCREEN_GRACE_MS, useDemoFrame } from "./use-demo-frame";
 type Entry = { isIntersecting: boolean };
 let report: (entries: Entry[]) => void = () => undefined;
 let disconnected = false;
+// Real observers report each entry with its target; the gate ignores entries for elements it no
+// longer watches, so the fake reports for the element it last observed.
 class FakeObserver {
-  constructor(callback: (entries: Entry[]) => void) {
-    report = callback;
+  target: Element | undefined;
+  constructor(callback: (entries: (Entry & { target?: Element })[]) => void) {
+    report = (entries) => callback(entries.map((entry) => ({ target: this.target, ...entry })));
   }
-  observe() {}
+  observe(element: Element) {
+    this.target = element;
+  }
   disconnect() {
     disconnected = true;
   }
