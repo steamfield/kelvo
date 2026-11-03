@@ -1,28 +1,21 @@
-# StatGlass 0.4.0
+# StatGlass 0.4.1
 
 StatGlass is a free, open-source system monitor for Apple Silicon Macs running macOS
 26 or later.
 
-Kelvo is now StatGlass. This is the first release under the new name, and it installs as
-a separate app with its own settings, history and update channel.
+- The Linux agent no longer runs out of memory on busy hosts. With a dashboard open on
+  a host that starts many short-lived processes, the agent could grow past its service
+  memory limit and be stopped by the system. It now keeps less recent history in
+  memory once that history is saved to disk.
 
-- When a remote host can't connect, the dashboard shows a notice with **Retry
-  connection**, **Open Hosts** and expandable diagnostics, instead of an empty page.
-- A host that has never connected shows **Connecting** rather than Live or
-  "Sampling every 0s", and its charts stay empty until real samples arrive.
-- A remote Mac whose screen is locked keeps streaming live readings. Previously the
-  controlling Mac stopped showing its incoming data while the display was idle.
-- An unexpected error on a dashboard page keeps the sidebar and offers to retry or go
-  to another host.
+Linux hosts with automatic updates enabled pick this up from their daily update
+check. Others can update from **Hosts → Update agent**.
 
 ## Moving from Kelvo
 
-Kelvo does not update to StatGlass automatically. Install StatGlass from the DMG below.
-Kelvo's settings and history stay where they are and are not imported.
-
-Quit Kelvo and stop its remote agents before switching. Then install StatGlass on each
-remote host from **Add host** and add the hosts again. Once you no longer need Kelvo,
-delete `/Applications/Kelvo.app`.
+StatGlass was called Kelvo before 0.4.0. Kelvo does not update to StatGlass
+automatically: install StatGlass from the DMG below, then add your remote hosts again
+from **Add host**. Kelvo's settings and history are not imported.
 
 ## Install
 

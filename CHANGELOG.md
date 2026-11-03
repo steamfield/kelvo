@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.1](https://github.com/steamfield/statglass/compare/v0.4.0...v0.4.1) - 2026-11-03
+
+### Fixed
+
+- The Linux agent's memory stays bounded on hosts that start many short-lived
+  processes while a dashboard is open. Recent usage buckets leave memory once they are
+  saved, and saved container buckets no longer stay for the full hour. Before, the
+  agent could exceed its service memory limit and be killed by systemd-oomd.
+
 ## [0.4.0](https://github.com/steamfield/statglass/compare/v0.3.2...v0.4.0) - 2026-11-03
 
 ### Changed
