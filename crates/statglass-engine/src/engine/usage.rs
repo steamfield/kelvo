@@ -2,6 +2,7 @@
 use super::Engine;
 use statglass_collect::{ProcessSample, Tick};
 use statglass_schema::Module;
+use statglass_store::Writer;
 use statglass_store::usage::{USAGE_BUCKET_MS, UsageBucket};
 
 pub(super) fn next_bucket(at: i64) -> i64 {
@@ -52,10 +53,20 @@ impl Engine {
         let closed = usage
             .recorder
             .close_before(tick.wall_ms.saturating_sub(grace));
-        // Retain before enqueueing and hold the source lock through the queue write.
-        // Clear-history takes this lock before its delete, so old writes precede it.
-        usage.update_owned(closed.iter().cloned(), tick.wall_ms);
-        self.write_usage(closed, tick.wall_ms);
+        // Hold the source lock through the queue write and the retain. Clear-history
+        // takes this lock before its delete, so old writes precede it, and a reader
+        // waits for the retain before it reads recent facts.
+        let commits = self.sink.store.as_ref().map(Writer::usage_commits);
+        let kept: Vec<_> = closed
+            .into_iter()
+            .map(|bucket| {
+                (
+                    self.write_usage_bucket(bucket.clone(), tick.wall_ms),
+                    bucket,
+                )
+            })
+            .collect();
+        usage.update_owned(kept, tick.wall_ms, commits);
     }
     pub(super) fn flush_usage(&mut self, now: i64) {
         self.sync_usage_generation(now);
@@ -65,7 +76,9 @@ impl Engine {
             return;
         }
         if self.persist_from.is_none() {
-            self.write_usage(usage.recorder.snapshots(), now);
+            for bucket in usage.recorder.snapshots() {
+                self.write_usage_bucket(bucket, now);
+            }
         }
     }
     pub(super) fn sync_usage_generation(&mut self, now: i64) {
@@ -88,13 +101,13 @@ impl Engine {
             }
         }
     }
-    fn write_usage(&mut self, buckets: Vec<UsageBucket>, now: i64) {
-        if let Some(store) = self.sink.store.clone() {
-            for bucket in buckets {
-                let result = store.write_usage_bucket(self.host, bucket);
-                self.store_result("usage bucket", result, now);
-            }
-        }
+    /// Queues `bucket`, returning its ticket once the writer accepted it.
+    fn write_usage_bucket(&mut self, bucket: UsageBucket, now: i64) -> Option<u64> {
+        let store = self.sink.store.clone()?;
+        let result = store.write_usage_bucket(self.host, bucket);
+        let ticket = result.as_ref().ok().copied();
+        self.store_result("usage bucket", result.map(drop), now);
+        ticket
     }
 }
 use statglass_schema::lock::LockExt;

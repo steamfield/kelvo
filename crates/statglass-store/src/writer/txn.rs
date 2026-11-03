@@ -87,6 +87,7 @@ impl State {
             let _ = self.conn.execute_batch("ROLLBACK");
             self.clear_caches();
             self.usage_pending.clear();
+            self.usage_batch.finish(false);
             for p in std::mem::take(&mut self.docker_pending) {
                 p.finish(DockerOutcome::Failed, Some(e.to_string()));
             }
@@ -94,6 +95,7 @@ impl State {
             return Err(e.into());
         }
         self.batch_span.clear();
+        self.usage_batch.finish(true);
         if host_loss_recorded {
             self.lost.clear();
         }

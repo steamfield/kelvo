@@ -171,7 +171,7 @@ fn exact_network_bytes_are_conserved_and_late_bytes_stay_out_of_exact_totals() {
         7
     );
     let mut ring = UsageRecent::default();
-    ring.update_owned(snapshots.iter().cloned(), 30_000);
+    ring.update_owned(snapshots.iter().cloned().map(|b| (None, b)), 30_000, None);
     assert_eq!(ring.snapshot(0, 30_000), snapshots);
     let selected = ring.snapshot(0, 10_000);
     assert!(
@@ -294,4 +294,88 @@ fn late_app_resolution_preserves_each_observed_membership_within_one_bucket() {
         assert_eq!(app.facts.cpu_seconds, process.facts.cpu_seconds);
         assert_eq!(process.facts.coverage[0].measured_ms, 5_000);
     }
+}
+
+fn closed_bucket(from_ms: i64) -> UsageBucket {
+    UsageBucket {
+        from_ms,
+        to_ms: from_ms + 10_000,
+        source: UsageFacts::default().coverage,
+        apps: Vec::new(),
+        processes: Vec::new(),
+        uncertain_network: Vec::new(),
+    }
+}
+
+fn kept(ring: &UsageRecent) -> Vec<i64> {
+    ring.snapshot(0, i64::MAX)
+        .iter()
+        .map(|b| b.from_ms)
+        .collect()
+}
+
+#[test]
+fn recent_buckets_drop_one_update_after_their_commit() {
+    use statglass_store::usage::UsageCommits;
+    let mut ring = UsageRecent::default();
+    let none = UsageCommits::default();
+    ring.update_owned(
+        [
+            (Some(1), closed_bucket(0)),
+            (Some(2), closed_bucket(10_000)),
+        ],
+        20_000,
+        Some(none),
+    );
+    let first = UsageCommits {
+        committed: 1,
+        failed_through: 0,
+    };
+    ring.update_owned([], 21_000, Some(first));
+    assert_eq!(
+        kept(&ring),
+        [0, 10_000],
+        "a reader may still hold the pre-commit disk snapshot"
+    );
+    ring.update_owned([], 22_000, Some(first));
+    assert_eq!(kept(&ring), [10_000], "committed one update ago");
+}
+
+#[test]
+fn recent_buckets_of_a_failed_batch_stay_until_they_age_out() {
+    use statglass_store::usage::UsageCommits;
+    let mut ring = UsageRecent::default();
+    let failed = UsageCommits {
+        committed: 2,
+        failed_through: 1,
+    };
+    ring.update_owned(
+        [
+            (Some(1), closed_bucket(0)),
+            (Some(2), closed_bucket(10_000)),
+        ],
+        20_000,
+        Some(failed),
+    );
+    ring.update_owned([], 21_000, Some(failed));
+    assert_eq!(
+        kept(&ring),
+        [0],
+        "only the bucket that reached disk is dropped"
+    );
+    ring.update_owned([], 10_000 + 900_001, Some(failed));
+    assert!(
+        kept(&ring).is_empty(),
+        "the failed bucket ages out after 15 min"
+    );
+}
+
+#[test]
+fn recent_buckets_without_a_store_keep_fifteen_minutes() {
+    let mut ring = UsageRecent::default();
+    ring.update_owned([(None, closed_bucket(0))], 20_000, None);
+    ring.update_owned([], 910_000, None);
+    assert_eq!(kept(&ring), [0]);
+    ring.update_owned([], 910_001, None);
+    assert!(kept(&ring).is_empty());
 }

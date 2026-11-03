@@ -211,6 +211,23 @@ pub(crate) fn validate_bucket(bucket: &UsageBucket) -> crate::Result<()> {
     Ok(())
 }
 
+/// How far queued usage buckets are on disk ([`crate::Writer::usage_commits`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct UsageCommits {
+    /// Every ticket up to here was in a committed batch, unless it failed.
+    pub committed: u64,
+    /// Tickets up to here may have failed; only later ones are known durable.
+    pub failed_through: u64,
+}
+
+impl UsageCommits {
+    /// Whether the bucket queued with `ticket` is committed: a reader that starts now
+    /// finds it on disk.
+    pub fn durable(self, ticket: u64) -> bool {
+        ticket <= self.committed && ticket > self.failed_through
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -34,6 +34,9 @@ use writes::{drain, queue, requeue};
 use writes::{drain_at, should_warn};
 
 const RING_BYTES: usize = 64 * 1024 * 1024;
+/// How long a bucket stays in the ring once persisted: past the 60 s span cap on late
+/// observations, with slack.
+const PERSISTED_KEEP_MS: i64 = 120_000;
 const HOUR: i64 = 3_600_000;
 type Key = (String, String, i64);
 #[derive(Clone)]

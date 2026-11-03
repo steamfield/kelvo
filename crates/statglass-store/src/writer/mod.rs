@@ -56,7 +56,7 @@ pub use intern::NET_NEW_NAMES_PER_HOUR;
 type Reply<T> = mpsc::SyncSender<Result<T>>;
 
 enum Op {
-    Usage(HostId, crate::usage::UsageBucket),
+    Usage(HostId, crate::usage::UsageBucket, u64),
     Docker(Box<docker::Pending>),
     ResetDocker(HostId, i64, Reply<()>),
     UpsertHost(HostRecord, Reply<()>),
@@ -136,6 +136,7 @@ pub struct Writer {
     tx: mpsc::Sender<Op>,
     docker_admission: Arc<std::sync::Mutex<docker::Admission>>,
     docker_coordination: Arc<std::sync::Mutex<()>>,
+    usage_tickets: Arc<usage::UsageTickets>,
     /// Low-disk mode: S10 buckets are dropped before they are queued.
     s10_paused: Arc<AtomicBool>,
     /// Test support: every commit fails while set ([`Writer::set_fail_commits`]).
@@ -421,6 +422,7 @@ pub(crate) fn spawn(
     let fail_commits = Arc::clone(&state.fail_commits);
     let docker_admission = Arc::clone(&state.docker_admission);
     let docker_coordination = Arc::clone(&state.docker_coordination);
+    let usage_tickets = Arc::clone(&state.usage_batch.tickets);
     let handle = std::thread::Builder::new()
         .name("statglass-store-writer".into())
         .spawn(move || state.run())?;
@@ -429,6 +431,7 @@ pub(crate) fn spawn(
             tx,
             docker_admission,
             docker_coordination,
+            usage_tickets,
             s10_paused: Arc::new(AtomicBool::new(false)),
             #[cfg(feature = "write-stats")]
             fail_commits,
@@ -442,6 +445,7 @@ struct State {
     docker_coordination: Arc<std::sync::Mutex<()>>,
     docker_pending: Vec<docker::Applied>,
     usage_pending: usage::Pending,
+    usage_batch: usage::Batch,
     conn: Connection,
     rx: mpsc::Receiver<Op>,
     /// The database file, for measuring its size on disk.
@@ -522,6 +526,7 @@ impl State {
             docker_coordination: Arc::new(std::sync::Mutex::new(())),
             docker_pending: Vec::new(),
             usage_pending: Default::default(),
+            usage_batch: usage::Batch::default(),
             conn,
             rx,
             path,
@@ -603,15 +608,7 @@ impl State {
             Op::BeginSession(host, now, r) => {
                 let _ = r.send(self.apply(|s| s.begin_session(host, now)));
             }
-            Op::Usage(host, bucket) => {
-                let from = bucket.from_ms;
-                let to = bucket.to_ms;
-                let res = self.apply(|s| s.write_usage(host, &bucket));
-                if res.is_ok() {
-                    widen(&mut self.batch_span, host, from, to);
-                }
-                log_queued("usage", res);
-            }
+            Op::Usage(host, bucket, ticket) => self.queued_usage(host, &bucket, ticket),
             Op::Bucket(row) => {
                 let res = self.apply(|s| s.write_bucket(&row).map(|_| ()));
                 if res.is_ok()

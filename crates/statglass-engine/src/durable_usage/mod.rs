@@ -72,19 +72,19 @@ struct Open {
     processes: HashMap<(i32, i64, Arc<str>), (usize, Coverage)>,
 }
 impl Open {
-    fn new(from_ms: i64, capacity: usize) -> Self {
+    fn new(from_ms: i64, size: Sizes) -> Self {
         Self {
             bucket: UsageBucket {
                 from_ms,
                 to_ms: from_ms + USAGE_BUCKET_MS,
                 source: Default::default(),
-                apps: Vec::with_capacity(capacity),
-                processes: Vec::with_capacity(capacity),
+                apps: Vec::with_capacity(size.apps),
+                processes: Vec::with_capacity(size.processes),
                 uncertain_network: Vec::new(),
             },
             source: Coverage::default(),
-            apps: HashMap::with_capacity(capacity),
-            processes: HashMap::with_capacity(capacity),
+            apps: HashMap::with_capacity(size.apps),
+            processes: HashMap::with_capacity(size.processes),
         }
     }
     fn app(&mut self, name: &Arc<str>) -> (&mut UsageFacts, &mut Coverage) {
@@ -135,8 +135,16 @@ pub(crate) struct UsageRecorder {
     open: BTreeMap<i64, Open>,
     minimum_ms: i64,
     concurrent: HashMap<(i64, Arc<str>), u64>,
-    capacity: usize,
+    /// How many apps and processes the last closed bucket held: the next one's size.
+    size: Sizes,
     spare: Vec<Open>,
+}
+
+/// Entry counts to preallocate an open bucket with.
+#[derive(Clone, Copy, Default)]
+struct Sizes {
+    apps: usize,
+    processes: usize,
 }
 impl UsageRecorder {
     pub fn restart(&mut self, minimum_ms: i64) {
@@ -164,21 +172,21 @@ impl UsageRecorder {
         })
     }
     fn slot(&mut self, start: i64) -> &mut Open {
-        let capacity = self.capacity;
+        let size = self.size;
         let spare = &mut self.spare;
         self.open.entry(start).or_insert_with(|| {
             if let Some(mut slot) = spare.pop() {
                 slot.bucket.from_ms = start;
                 slot.bucket.to_ms = start + USAGE_BUCKET_MS;
                 slot.bucket.source = Default::default();
-                slot.bucket.apps = Vec::with_capacity(capacity);
-                slot.bucket.processes = Vec::with_capacity(capacity);
+                slot.bucket.apps = Vec::with_capacity(size.apps);
+                slot.bucket.processes = Vec::with_capacity(size.processes);
                 slot.source = Coverage::default();
                 slot.apps.clear();
                 slot.processes.clear();
                 slot
             } else {
-                Open::new(start, capacity)
+                Open::new(start, size)
             }
         })
     }
@@ -191,7 +199,6 @@ impl UsageRecorder {
         enabled: [bool; 5],
         supported: [bool; 5],
     ) {
-        self.capacity = self.capacity.max(rows.len());
         self.sources(tick.wall_ms, buf, enabled, supported);
         self.processes(tick.wall_ms, rows, buf, enabled, supported);
         self.network(tick, buf, enabled[4], supported[4]);
@@ -374,6 +381,7 @@ impl UsageRecorder {
     }
     pub fn close_before(&mut self, before: i64) -> Vec<UsageBucket> {
         let spare = &mut self.spare;
+        let size = &mut self.size;
         self.open
             .extract_if(.., |_, slot| slot.bucket.to_ms <= before)
             .map(|(_, mut slot)| {
@@ -389,6 +397,10 @@ impl UsageRecorder {
                     },
                 );
                 spare.push(slot);
+                *size = Sizes {
+                    apps: bucket.apps.len(),
+                    processes: bucket.processes.len(),
+                };
                 bucket
             })
             .collect()
