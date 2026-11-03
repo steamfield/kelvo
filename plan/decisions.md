@@ -3700,6 +3700,20 @@ from 53.85 to 54.15 MB anonymous memory, with the same zero counters. Exact bina
 hashes, smaps, cache/slab and pressure observations are retained with the landing
 evidence.
 
+Retention under process churn (amended 2026-11-03): on a host starting about 8
+processes a second (a CI runner and its containers), systemd-oomd killed the agent 26
+times. A window watching the host makes the processes collector sample every second, so
+nearly every short-lived process gets durable usage facts, and the engine kept 15
+minutes of them in memory regardless of the store. Above `MemoryHigh` the kernel
+throttled reclaim; those stalls alone pushed `system.slice` past oomd's 80% pressure
+limit. Recent usage buckets now carry a store ticket and leave memory one update after
+their batch commits (failed batches keep the 15-minute bound), open buckets are sized
+from the last closed one, and persisted Docker buckets leave the ring two minutes after
+they end instead of an hour (late observations reach back at most 60 s). The Docker
+ring's 64 MiB cap stays: it still has to hold an unpersisted hour for 128 containers.
+`tests/memory_gates.rs` gates the retained heap of that churn at 1 s ticks
+(`engine.memory`).
+
 Two container models coexist: the local Docker page keeps its own clock and history
 (D-103); a Linux host's Containers page reads `cgroup.*` series. Converging them is a
 later decision.

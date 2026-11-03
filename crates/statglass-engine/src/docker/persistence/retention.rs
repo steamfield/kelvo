@@ -156,14 +156,22 @@ pub(super) fn recount_aux(s: &mut State) {
         + s.restored_coverage.len() * 320
         + s.coverage.values().map(|g| g.len() * 512).sum::<usize>();
 }
-pub(super) fn evict(s: &mut State, now: i64) {
-    let keys: Vec<_> = s
-        .entries
+/// Unpinned entries past their retention. A persisted bucket is on disk, where every
+/// reader also looks: it stays only until no late observation can reach it (spans are
+/// capped at 60 s). Unpersisted ones stay the hour.
+fn expired(s: &State, now: i64) -> Vec<Key> {
+    s.entries
         .iter()
-        .filter(|((_, _, t), e)| t.saturating_add(10_000) <= now - HOUR && e.pins == 0)
+        .filter(|((_, _, t), e)| {
+            let end = t.saturating_add(10_000);
+            let persisted = e.bucket.revision <= e.durable;
+            e.pins == 0 && (end <= now - HOUR || persisted && end <= now - PERSISTED_KEEP_MS)
+        })
         .map(|(k, _)| k.clone())
-        .collect();
-    for key in keys {
+        .collect()
+}
+pub(super) fn evict(s: &mut State, now: i64) {
+    for key in expired(s, now) {
         evict_entry(s, &key);
     }
     s.events.retain(|e| e.time_ms >= now - HOUR);

@@ -307,3 +307,74 @@ fn churn_accounts_for_metadata_and_engine_maps_and_expires_them() {
     assert!(state.runtime.is_empty());
     assert!(state.bytes + state.aux_bytes + state.reader_bytes <= RING_BYTES);
 }
+
+#[test]
+fn persisted_buckets_leave_the_ring_once_no_observation_can_reach_them() {
+    let (_dir, store, r) = setup();
+    r.record(&fixture(10_000));
+    r.record(&fixture(20_000));
+    store.writer().flush().unwrap();
+    let mut s = r.state.lock_ok();
+    drain(&mut s);
+    let key = ("daemon".to_owned(), "c".to_owned(), 0);
+    assert!(
+        s.entries
+            .get(&key)
+            .is_some_and(|e| e.bucket.revision <= e.durable)
+    );
+    evict(&mut s, 10_000 + PERSISTED_KEEP_MS - 1);
+    assert!(
+        s.entries.contains_key(&key),
+        "a late observation could still reach it"
+    );
+    evict(&mut s, 10_000 + PERSISTED_KEEP_MS);
+    assert!(!s.entries.contains_key(&key));
+    assert!(
+        s.retry.is_empty(),
+        "a persisted bucket leaves no loss behind"
+    );
+}
+
+#[test]
+fn unpersisted_buckets_stay_the_hour() {
+    let r = DockerRecorder::new(host().id);
+    r.record(&fixture(10_000));
+    let mut s = r.state.lock_ok();
+    let key = ("daemon".to_owned(), "c".to_owned(), 0);
+    evict(&mut s, 10_000 + PERSISTED_KEEP_MS);
+    assert!(s.entries.contains_key(&key));
+}
+
+#[test]
+fn a_persisting_ring_holds_minutes_not_the_hour() {
+    let (_dir, store, r) = setup();
+    let mut snapshot = fixture(10_000);
+    let template = snapshot.containers[0].clone();
+    snapshot.containers = (0..30)
+        .map(|n| {
+            let mut c = template.clone();
+            c.id = format!("c{n:02}");
+            c
+        })
+        .collect();
+    let mut peak = 0;
+    for step in 1..=180 {
+        let time = step * 10_000;
+        at(&mut snapshot, time, 10_000);
+        r.record(&snapshot);
+        if time % 300_000 == 0 {
+            store.writer().flush().unwrap();
+        }
+        peak = peak.max(r.state.lock_ok().bytes);
+    }
+    let per_bucket = {
+        let s = r.state.lock_ok();
+        s.bytes / s.entries.len()
+    };
+    let buckets = peak / per_bucket;
+    eprintln!(
+        "30 containers over 30 min, commit every 5 min: ring peak {peak} bytes, about {buckets} buckets"
+    );
+    // Five minutes uncommitted plus two persisted, per container and the aggregate.
+    assert!(buckets <= 31 * (30 + 12 + 2), "{buckets} buckets held");
+}

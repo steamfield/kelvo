@@ -4,6 +4,22 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Agent memory under process churn (2026-11-03, branch `fix/agent-memory-retention`)
+
+The Linux agent on m1-linux was killed 26 times by systemd-oomd at 140 to 155 MB
+cgroup peaks, above its 128 MB `MemoryHigh`. The host starts about 8 processes a
+second, and with a window open every one of them reaches durable usage. Fixes
+(D-116 amendment): recent usage buckets leave memory once committed, using store
+tickets (`Writer::usage_commits`); open usage buckets are sized from the last
+closed one; persisted Docker ring buckets leave after two minutes.
+
+The new `memory_gates.rs` gate (300 steady processes, 8 new a second, 1 s ticks,
+30 min of fake time) measured 16.4 MiB retained heap before and 10.3 MiB after;
+recent usage buckets fell from 91 to 33. It fails on the old code. The Docker ring
+test measured 5,585 held buckets (5.5 MB accounted) before and 930 (0.9 MB) after
+for 30 containers over 30 minutes. Not yet verified on m1-linux itself: the agent
+there needs this build and a window open on it for an hour.
+
 ## Landing page (2026-11-01, branch `feat/landing-page`, uncommitted)
 
 The landing page embeds the live popover (collapsed scenario, height locked at

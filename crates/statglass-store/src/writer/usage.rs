@@ -1,15 +1,68 @@
 //! Persist every usage identity and sufficient statistic before interval ranking.
 use std::collections::BTreeMap;
 
-use rusqlite::{OptionalExtension, params};
-use statglass_schema::HostId;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
-use super::{Op, State, Writer};
-use crate::usage::{UsageBucket, UsageFacts, frames};
+use rusqlite::{OptionalExtension, params};
+use statglass_schema::{HostId, lock::LockExt};
+
+use super::{Op, State, Writer, log_queued, widen};
+use crate::usage::{UsageBucket, UsageCommits, UsageFacts, frames};
 pub(super) type Pending = BTreeMap<(i64, i64), BTreeMap<i64, [Vec<(u64, UsageFacts)>; 3]>>;
 use crate::{Result, StoreError};
 
+/// Tickets for queued usage buckets, numbered in queue order, and how far they are on
+/// disk. Lets the engine drop a recent bucket once it is durable instead of holding
+/// every bucket for a fixed span.
+#[derive(Default)]
+pub(super) struct UsageTickets {
+    next: Mutex<u64>,
+    committed: AtomicU64,
+    failed_through: AtomicU64,
+}
+
+impl UsageTickets {
+    /// A write or the batch holding tickets up to `through` failed: those buckets are
+    /// not on disk.
+    fn failed(&self, through: u64) {
+        self.failed_through.fetch_max(through, Ordering::Release);
+    }
+}
+
+/// The writer's side of [`UsageTickets`]: the newest ticket in the open batch.
+#[derive(Default)]
+pub(super) struct Batch {
+    pub(super) tickets: Arc<UsageTickets>,
+    newest: Option<u64>,
+}
+
+impl Batch {
+    /// The open batch committed (`true`) or was rolled back.
+    pub(super) fn finish(&mut self, committed: bool) {
+        if let Some(ticket) = self.newest.take() {
+            if committed {
+                self.tickets.committed.fetch_max(ticket, Ordering::Release);
+            } else {
+                self.tickets.failed(ticket);
+            }
+        }
+    }
+}
+
 impl State {
+    /// [`Op::Usage`]: writes a queued bucket into the open batch.
+    pub(super) fn queued_usage(&mut self, host: HostId, bucket: &UsageBucket, ticket: u64) {
+        let res = self.apply(|s| s.write_usage(host, bucket));
+        if res.is_ok() {
+            widen(&mut self.batch_span, host, bucket.from_ms, bucket.to_ms);
+            self.usage_batch.newest = Some(ticket);
+        } else {
+            self.usage_batch.tickets.failed(ticket);
+        }
+        log_queued("usage", res);
+    }
+
     pub(super) fn write_usage(&mut self, host: HostId, bucket: &UsageBucket) -> Result<()> {
         let host = self.host_ref(host)?;
         self.conn.execute("INSERT INTO usage_recording_start(host_id,from_ms) VALUES(?1,?2) ON CONFLICT(host_id) DO UPDATE SET from_ms=min(from_ms,excluded.from_ms)",params![host,bucket.from_ms])?;
@@ -162,12 +215,25 @@ fn signed(value: u64) -> Result<i64> {
 
 impl Writer {
     /// Queue complete finest-resolution usage facts, before any floor or ranking.
+    /// Returns the bucket's ticket for [`Writer::usage_commits`].
     pub fn write_usage_bucket(
         &self,
         host: HostId,
         bucket: crate::usage::UsageBucket,
-    ) -> Result<()> {
+    ) -> Result<u64> {
         crate::usage::validate_bucket(&bucket)?;
-        self.queue(Op::Usage(host, bucket))
+        // Numbered and sent under one lock, so tickets reach the writer in order.
+        let mut next = self.usage_tickets.next.lock_ok();
+        *next += 1;
+        self.queue(Op::Usage(host, bucket, *next))?;
+        Ok(*next)
+    }
+
+    /// How far queued usage buckets are on disk.
+    pub fn usage_commits(&self) -> UsageCommits {
+        UsageCommits {
+            committed: self.usage_tickets.committed.load(Ordering::Acquire),
+            failed_through: self.usage_tickets.failed_through.load(Ordering::Acquire),
+        }
     }
 }

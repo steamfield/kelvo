@@ -156,6 +156,11 @@
         "trayOnlyCpuPct": 0.38
       },
       "regressionPct": 30
+    },
+    "memory": {
+      "_doc": "Live Rust heap on a host with heavy process churn (300 steady processes, 8 new a second living 3 s, a new app scope a minute) with a window open: 1 s ticks, durable usage, a 285-series ring, commits every 5 min, 30 min of fake time (crates/statglass-engine/tests/memory_gates.rs). churnRetainedMiB: peak minus the heap at 2 min. churnLateGrowthMiB: growth over the last 10 min, while the hour-long rings still fill. Measured 10.3 and 2.9 MiB after the 2026-11-03 retention fixes (16.4 before); the agent's cgroup has MemoryHigh=128M (D-116).",
+      "churnRetainedMiB": 13,
+      "churnLateGrowthMiB": 4
     }
   },
   "coalition": {
