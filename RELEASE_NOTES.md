@@ -1,28 +1,28 @@
-# StatGlass 0.3.2
+# StatGlass 0.4.0
 
 StatGlass is a free, open-source system monitor for Apple Silicon Macs running macOS
 26 or later.
 
-This patch makes it clear when connected hosts are running an older StatGlass than this
-Mac, and lets you update them from one place.
+Kelvo is now StatGlass. This is the first release under the new name, and it installs as
+a separate app with its own settings, history and update channel.
 
-- The Hosts page shows each host's StatGlass version and, when it is behind, the version
-  this Mac can install, with a link to what's new. Offline hosts show the version
-  they last reported.
-- When hosts fall behind, the Hosts sidebar entry shows a count and dashboard pages
-  show a notice linking to Hosts. Dismiss it and it stays hidden until the next
-  version. If this Mac has an update pending, the notice asks you to update this Mac
-  first.
-- **Update all** on the Hosts page updates every reachable Linux host in turn.
-- A host too old to connect now shows its version and can be updated from its row.
+- When a remote host can't connect, the dashboard shows a notice with **Retry
+  connection**, **Open Hosts** and expandable diagnostics, instead of an empty page.
+- A host that has never connected shows **Connecting** rather than Live or
+  "Sampling every 0s", and its charts stay empty until real samples arrive.
+- A remote Mac whose screen is locked keeps streaming live readings. Previously the
+  controlling Mac stopped showing its incoming data while the display was idle.
+- An unexpected error on a dashboard page keeps the sidebar and offers to retry or go
+  to another host.
 
-Mac hosts are updated by installing StatGlass on them again from **Add host**.
+## Moving from Kelvo
 
-## Updates
+Kelvo does not update to StatGlass automatically. Install StatGlass from the DMG below.
+Kelvo's settings and history stay where they are and are not imported.
 
-StatGlass 0.3.0 and later install this update automatically when automatic installation
-is on, or through **Settings → General → Check now**. History and settings are
-preserved.
+Quit Kelvo and stop its remote agents before switching. Then install StatGlass on each
+remote host from **Add host** and add the hosts again. Once you no longer need Kelvo,
+delete `/Applications/Kelvo.app`.
 
 ## Install
 

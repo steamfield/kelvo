@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/steamfield/statglass/compare/v0.3.2...v0.4.0) - 2026-11-03
+
+### Changed
+
+- Kelvo is renamed to StatGlass. The app, Linux agent, bundle identifier, data and
+  log paths, services and release files use the new name. StatGlass installs beside
+  Kelvo, does not import its settings or history, and does not replace it through the
+  updater.
+
+### Fixed
+
+- A remote host that fails to connect shows a notice with Retry connection, Open
+  Hosts and diagnostics, and dashboard render errors keep the sidebar with retry and
+  host navigation.
+- A never-connected host shows Connecting and keeps its charts empty until real
+  samples arrive, instead of reporting a 0 s cadence.
+- A remote Mac with a locked or idle display keeps streaming to the controller. The
+  controller applied the remote display-idle flag to its own stream delivery.
+
 ## [0.3.2](https://github.com/steamfield/kelvo/compare/v0.3.1...v0.3.2) - 2026-11-01
 
 ### Added
