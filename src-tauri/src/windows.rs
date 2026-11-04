@@ -2,7 +2,7 @@
 //!
 //! - `dashboard`: overlay title bar with the traffic lights inset over the sidebar,
 //!   minimum 1024 × 700, size and position remembered by tauri-plugin-window-state.
-//!   Closing hides it; after 5 minutes hidden it is destroyed. `open_dashboard(route)`
+//!   Closing hides it; after 10 seconds hidden it is destroyed. `open_dashboard(route)`
 //!   creates it at `route` (the URL path) or shows it and sends `NavigateRequested`.
 //! - `onboarding`: fixed 820 × 566, shown at launch while `onboarding.completed` is false.
 //!
@@ -26,8 +26,10 @@ use crate::state::AppState;
 pub const DASHBOARD: &str = "dashboard";
 pub const ONBOARDING: &str = "onboarding";
 const DEFAULT_ROUTE: &str = "/dashboard/overview";
-/// A hidden dashboard keeps its webview this long, so reopening is instant.
-const DESTROY_AFTER: Duration = Duration::from_secs(5 * 60);
+/// A hidden dashboard keeps its webview this long, so a close and quick reopen is instant
+/// (D-127). Longer costs 330 to 450 MB of WebContent while nothing is on screen; a cold
+/// open measured about 110 ms to the page's live subscription.
+const DESTROY_AFTER: Duration = Duration::from_secs(10);
 /// Traffic lights inset over the 220 px sidebar.
 const TRAFFIC_LIGHTS: LogicalPosition<f64> = LogicalPosition::new(18.0, 22.0);
 
@@ -158,7 +160,7 @@ pub fn hide_dashboard(window: &Window) {
         if let Some(w) = app.get_webview_window(DASHBOARD)
             && !w.is_visible().unwrap_or(true)
         {
-            tracing::info!("destroying the dashboard after 5 minutes hidden");
+            tracing::info!(after = ?DESTROY_AFTER, "destroying the hidden dashboard");
             if let Err(e) = w.destroy() {
                 tracing::warn!("destroying the dashboard: {e}");
             }

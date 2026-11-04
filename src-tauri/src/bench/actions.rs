@@ -13,6 +13,10 @@
 //! - `back`: the Timeline's Back button.
 //! - `live`: the Timeline's Live button.
 //! - `hide`: close the dashboard as its close button does.
+//! - `open=<route>`: open (or show) the dashboard at `<route>` (`/dashboard/cpu`).
+//! - `popover`: show the popover as a tray click does; `popover-hide`: hide it as an
+//!   outside click does. With `hide`, these trace what stays resident after a window
+//!   closes.
 //!
 //! Each step is logged ("bench action"); `zoom` and `back` also log whether the chart
 //! window changed, so a run where the page ignored them is visible in the log.
@@ -38,6 +42,9 @@ pub enum Action {
     Back,
     Live,
     Hide,
+    Open(String),
+    Popover,
+    PopoverHide,
 }
 
 /// Parses the `STATGLASS_BENCH_ACTIONS` list; the first bad step is the error.
@@ -56,7 +63,12 @@ pub fn parse(list: &str) -> Result<Vec<Action>, String> {
             None if step == "zoom" => Ok(Action::Zoom),
             None if step == "back" => Ok(Action::Back),
             None if step == "live" => Ok(Action::Live),
+            Some(("open", route)) if route.starts_with("/dashboard") => {
+                Ok(Action::Open(route.to_owned()))
+            }
             None if step == "hide" => Ok(Action::Hide),
+            None if step == "popover" => Ok(Action::Popover),
+            None if step == "popover-hide" => Ok(Action::PopoverHide),
             _ => Err(format!("unknown step: {step}")),
         })
         .collect()
@@ -98,6 +110,16 @@ pub fn run(app: &AppHandle, actions: &[Action]) {
             Action::Back => checked(app, action, &click_js("Back")),
             Action::Live => eval(app, &click_js("Live")),
             Action::Hide => hide(app),
+            Action::Open(route) => on_main(app, {
+                let route = route.clone();
+                move |app| {
+                    if let Err(e) = crate::windows::open_dashboard(app, Some(&route)) {
+                        tracing::warn!("bench action: opening {route}: {e:?}");
+                    }
+                }
+            }),
+            Action::Popover => on_main(app, popover_show),
+            Action::PopoverHide => on_main(app, crate::popover::hide),
         }
     }
     tracing::info!("bench actions done");
@@ -158,6 +180,21 @@ fn hide(app: &AppHandle) {
     }
 }
 
+fn on_main(app: &AppHandle, f: impl FnOnce(&AppHandle) + Send + 'static) {
+    let handle = app.clone();
+    if let Err(e) = app.run_on_main_thread(move || f(&handle)) {
+        tracing::warn!("bench action: {e}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn popover_show(app: &AppHandle) {
+    crate::popover::toggle(app, std::time::Instant::now(), crate::tray::TRAY_ID);
+}
+
+#[cfg(not(target_os = "macos"))]
+fn popover_show(_app: &AppHandle) {}
+
 /// Focus the Timeline cursor, extend a selection two buckets left, commit it. The gaps
 /// let React commit each keydown's state before the next one reads it.
 const ZOOM_JS: &str = "(() => { \
@@ -184,7 +221,9 @@ mod tests {
     #[test]
     fn parses_every_step() {
         assert_eq!(
-            parse("window=30d, zoom,wait=6,back,live,window=1h,window=24h,hide"),
+            parse(
+                "window=30d, zoom,wait=6,back,live,window=1h,window=24h,hide,open=/dashboard/cpu,popover,popover-hide"
+            ),
             Ok(vec![
                 Action::Window(ChartWindow::Relative(30 * DAY_MS)),
                 Action::Zoom,
@@ -194,6 +233,9 @@ mod tests {
                 Action::Window(ChartWindow::H1),
                 Action::Window(ChartWindow::Relative(24 * HOUR_MS)),
                 Action::Hide,
+                Action::Open("/dashboard/cpu".into()),
+                Action::Popover,
+                Action::PopoverHide,
             ])
         );
         assert_eq!(parse(""), Ok(vec![]));
@@ -207,6 +249,7 @@ mod tests {
             "window=2w",
             "window=91d",
             "window=h",
+            "open=/settings",
         ] {
             assert!(parse(bad).is_err(), "{bad}");
         }

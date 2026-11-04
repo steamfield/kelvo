@@ -1,7 +1,9 @@
 # RFC: Memory footprint
 
-Status: Phase 1 implemented and measured (see "Phase 1 results"); revised after review (see
-"Review outcome" at the end). Date: 2026-11-03. Decision entry: D-127 once accepted.
+Status: Phase 1 implemented and measured (see "Phase 1 results"). The GPU process, window
+lifecycle and client cache decisions are in D-127 (see "GPU process and lifecycle"); phase 3
+is superseded by them. Revised after review (see "Review outcome" at the end).
+Date: 2026-11-03, updated 2026-11-04.
 
 ## Problem
 
@@ -41,7 +43,7 @@ The data structures are compact and stay as they are. The live ring is one `Floa
 (`src/core/live-state.ts`). Process snapshots keep the top 30. The Processes and Containers tables are
 virtualized. uPlot instances are destroyed on unmount (`lane-plot.tsx`).
 `crates/statglass-engine/tests/memory_gates.rs` gates retained Rust heap. A hidden dashboard's webview
-is destroyed after 5 minutes (`src-tauri/src/windows.rs`, `DESTROY_AFTER`). The Memory route's by-app
+is destroyed after 10 seconds since D-127 (`src-tauri/src/windows.rs`, `DESTROY_AFTER`; 5 minutes when this was written). The Memory route's by-app
 table and the CLI already label their figure as the peak.
 
 What's missing: a gate on whole-process footprint, the spike's cause, and the source of the Rust heap
@@ -107,7 +109,10 @@ The fix follows phase 1's numbers. Review narrowed the candidates to three:
 - The Processes view, which was on screen during the spike. Its scenario in phase 1 runs with Memory
   sort.
 
-### Phase 3: release a hidden dashboard's content early (conditional)
+### Phase 3: release a hidden dashboard's content early (superseded by D-127)
+
+Not built. A cold dashboard open measured about 110 ms, so D-127 destroys a hidden dashboard
+after 10 s instead, which also frees the JS heap that this phase would have kept.
 
 This phase is built only if phase 1's "dashboard closed for 60 s" scenario shows the dashboard's
 WebContent and GPU process still well above idle. The post-spike readings (GPU at 50 MB) suggest WebKit
@@ -208,6 +213,51 @@ What this changes:
   GPU process at launch (270 MB), which is released within the warm-up.
 
 The baselines in `perf-budget.json` stay empty until five clean runs exist.
+
+## GPU process and lifecycle (2026-11-04, D-127)
+
+Bench-only tools added for this: `STATGLASS_BENCH_EVAL` (a script run in every webview),
+`STATGLASS_BENCH_WK_FEATURES` and `STATGLASS_BENCH_WK_DEFAULTS=0` (WebKit feature A/B), and
+the `open=<route>`, `popover` and `popover-hide` action steps, which let one launch go from
+background through each window and back.
+
+The GPU process's 250 MB is WebKit's accelerated drawing: `footprint` shows 28 allocations
+of 8 MB, and a page holding one ticking number reproduces them in either window, at any size.
+Hiding content, vibrancy, blur, the chart scroll layers and Performance mode changed nothing;
+a static page let them go within seconds. With `AcceleratedDrawingEnabled` off:
+
+| Window | Coalition | GPU process | CPU |
+|---|---:|---:|---:|
+| Popover, WebKit defaults | 407 to 426 MB | 265 MB | 4.5 to 4.8% |
+| Popover, accelerated drawing off | 163 to 180 MB | 8 to 16 MB | 5.0 to 5.3% |
+| Overview, WebKit defaults | 555 MB | 281 MB | 9.8% |
+| Overview, accelerated drawing off | 324 MB | 19 MB | 15.7% |
+
+So the popover is built with it off and the dashboard keeps it. Setting it on the live webview
+as the page loaded raced the first paint (the pool returned every 10 s on some launches);
+building the webview with a configuration that carries it held 8 MB on five of five launches.
+
+Lifecycle, one launch each, medians (fix build before the teardown change, then after D-127):
+
+| Phase | Before D-127 | After D-127 |
+|---|---:|---:|
+| Background, fresh launch | 111 MB | 109 MB |
+| Popover closed again | 152 MB | 133 MB |
+| Dashboard closed, first minutes | 452 MB for 5 min | 170 MB from 10 s after close |
+| Everything closed, settled | 199 MB | 169 MB |
+
+The after-close states settle at 0.3 to 0.5% CPU in both. The "after" run's open-window
+phases are not comparable: the machine was in use, and the windows were covered for part of
+the run. What still stays resident after everything closes, against a fresh launch: the warm
+popover's WebContent (46 to 68 MB once it has been opened), the `statglass` process (40 to
+64 MB after the Timeline's 30-day reads, down from 84 with the read pool capped at two idle
+connections), and the GPU process (8 to 23 MB).
+
+Open: the history payload is JSON objects per point; a columnar binary response (Tauri's raw
+`Response`) would cut parse time and heap, and changes the webview's data types, so it needs
+its own decision. WebContent growth on range switching (phase 2) is now bounded by `gcTime: 0`
+but was not re-measured. The popover with accelerated drawing off has not been compared by
+eye against the old rendering.
 
 ## Out of scope
 

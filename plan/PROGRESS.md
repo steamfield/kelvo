@@ -4,6 +4,25 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Memory footprint, GPU process and window lifecycle (2026-11-04, branch `perf/memory-footprint-bench`, D-127)
+
+The popover's webview is built without WebKit's accelerated drawing
+(`src-tauri/src/platform/webkit.rs`, WebKit SPI, left out of App Store builds): 250 MB less in
+the WebKit GPU process while it is open, for 0.3 to 0.5 points of CPU. The dashboard keeps it
+(off costs about 6 points). A closed dashboard is destroyed after 10 s instead of 5 minutes (cold
+open about 110 ms). The history read pool keeps at most two idle connections. TanStack Query's
+default `gcTime` is 0. Bench tooling: `STATGLASS_BENCH_EVAL`, `STATGLASS_BENCH_WK_FEATURES`,
+`STATGLASS_BENCH_WK_DEFAULTS=0`, and `open=`, `popover`, `popover-hide` action steps.
+
+Verified: the read-pool cap test fails without the cap, the frontend suite, clippy for default,
+`bench` and `appstore`, five popover launches at 8 MB GPU, and a lifecycle trace (everything
+closed settles at 169 MB, from 199; a closed dashboard is 170 MB from 10 s, from 452 MB for
+5 minutes). Numbers are in the RFC.
+
+Open: the popover without accelerated drawing has not been checked by eye (no screen-capture
+permission in the session). Columnar binary history payloads need a decision. The warm
+popover's WebContent and the `statglass` process still keep 20 to 25 MB each after use.
+
 ## Memory footprint, phase 1 (2026-11-04, branch `perf/memory-footprint-bench`)
 
 Implements phase 1 of [rfc-memory-footprint.md](rfc-memory-footprint.md). `make bench` now

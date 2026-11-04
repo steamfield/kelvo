@@ -64,7 +64,12 @@ pub fn create(app: &AppHandle) -> anyhow::Result<()> {
     app.manage(Popover::default());
     // Hidden from the start: no frames until the first show (D-049).
     set_visible(app, false);
-    let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App(ROUTE.into()))
+    let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App(ROUTE.into()));
+    // Accelerated drawing off: about 250 MB less in the WebKit GPU process while the
+    // popover is open (platform/webkit.rs).
+    #[cfg(not(feature = "appstore"))]
+    let builder = platform::webkit::configure(builder);
+    let win = builder
         .title("StatGlass")
         .inner_size(super::WIDTH_PT, super::HEIGHT_PT)
         .decorations(false)

@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 pub const DB_FILE: &str = "history.sqlite";
+/// Read connections kept open between reads. A burst opens as many as it needs; the rest
+/// close as they come back, with their page caches, so a Timeline's parallel reads do not
+/// stay resident in the backgrounded app (plan/rfc-memory-footprint.md).
+const MAX_IDLE_READERS: usize = 2;
 
 #[derive(Debug, thiserror::Error)]
 pub enum HistoryStoreError {
@@ -284,7 +288,7 @@ impl HistoryStore {
             return Ok(out?);
         }
         let mut inner = self.inner();
-        if inner.generation == generation {
+        if inner.generation == generation && inner.readers.len() < MAX_IDLE_READERS {
             inner.readers.push((generation, reader));
         }
         Ok(out?)
@@ -482,5 +486,26 @@ mod tests {
         let new_epoch = history.read(|r| Ok(r.epoch())).unwrap();
         assert_ne!(old_epoch, new_epoch);
         assert_eq!(history.read(|r| Ok(r.epoch())).unwrap(), new_epoch);
+    }
+
+    #[test]
+    fn a_burst_of_concurrent_reads_leaves_at_most_the_idle_cap_pooled() {
+        let temp = temp_dir("reader-cap");
+        let history = HistoryStore::open(temp.path());
+        // Six reads in flight at once, as the Timeline's lanes and heatmap issue them.
+        let barrier = std::sync::Barrier::new(6);
+        std::thread::scope(|s| {
+            for _ in 0..6 {
+                s.spawn(|| {
+                    history
+                        .read(|r| {
+                            barrier.wait();
+                            Ok(r.epoch())
+                        })
+                        .unwrap()
+                });
+            }
+        });
+        assert_eq!(history.inner().readers.len(), MAX_IDLE_READERS);
     }
 }
