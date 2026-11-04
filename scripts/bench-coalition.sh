@@ -13,6 +13,25 @@
 #   processes  the dashboard on /dashboard/processes
 #   disk       the dashboard on /dashboard/disk (opt-in)
 #   containers the dashboard on /dashboard/containers (opt-in; use DOCKER_SOCKET)
+#   cpu gpu memory power network battery timeline
+#              the dashboard on that route (opt-in)
+#   timeline-30d   the Timeline over a rolling 30 days (opt-in; SEED=1 first)
+#   zoom       the Timeline at 30 days, zoomed into two buckets and back five times
+#              through the animated preview (opt-in; SEED=1 first)
+#   range      CPU switched between 1 h and 24 h three times (opt-in)
+#   follow     the Timeline at 1 h following Live (opt-in)
+#   closed     Overview opened, then closed 15 s later; measures the hidden dashboard
+#              (opt-in)
+#   SCENARIOS=all runs every scenario above except containers (about 35 minutes at the
+#   default length). Interaction scenarios pass STATGLASS_BENCH_ACTIONS
+#   (src-tauri/src/bench/actions.rs); a step that left the chart window unchanged, or
+#   actions that did not finish, fail the run.
+#
+# Memory (plan/rfc-memory-footprint.md): every scenario prints the coalition's footprint
+# as a median over the measured span, at its end, and as the sum of each process's
+# lifetime peak (warm-up and startup included; each launch is fresh, and a helper that
+# predates the launch fails the run). scripts/bench-footprint.py compares them with
+# perf-budget.json's footprint section, advisory until footprint.blocking is true.
 #
 # Reports % of one core and phys_footprint per scenario and per process, the distance
 # of tray-only to perf-budget.json's coalition.target, and fails (exit 1) if tray-only
@@ -43,6 +62,10 @@
 #   NO_MOTION=1                zero popover motion tokens; sampling periods stay unchanged
 #   DOCKER_SOCKET=/absolute/path/to/docker.sock enables read-only Docker monitoring
 #                              in the isolated bench identity; empty leaves it off
+#   SEED=1                     before the scenarios, replace the bench identity's history
+#                              with 30 synthetic days (crates/statglass-store/examples/seed.rs;
+#                              the old file is kept beside it). A bench identity with no
+#                              recorded history yet runs the tray scenario for 330 s first
 #
 # Each scenario also prints the tray's drawn frames per minute inside the measured window
 # (scripts/tray-frames.py) and what one drawn frame costs: main-thread ms (main % × 600 /
@@ -56,6 +79,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SECS="${1:-120}"
 WARMUP="${WARMUP:-30}"
 SCENARIOS="${SCENARIOS:-tray popover overview processes}"
+if [ "$SCENARIOS" = all ]; then
+  SCENARIOS="tray popover overview processes cpu gpu memory power network disk battery timeline timeline-30d zoom range follow closed"
+fi
 BUDGET="$ROOT/perf-budget.json"
 APP="${APP:-$ROOT/target/release/bundle/macos/StatGlass.app}"
 BIN="$APP/Contents/MacOS/statglass"
@@ -115,9 +141,48 @@ route_of() {
     overview) echo "dashboard:/dashboard/overview" ;;
     processes) echo "dashboard:/dashboard/processes" ;;
     containers) echo "dashboard:/dashboard/containers" ;;
-    disk) echo "dashboard:/dashboard/disk" ;;
+    cpu|gpu|memory|power|network|disk|battery|timeline) echo "dashboard:/dashboard/$1" ;;
+    timeline-30d|zoom|follow) echo "dashboard:/dashboard/timeline" ;;
+    range) echo "dashboard:/dashboard/cpu" ;;
+    closed) echo "dashboard:/dashboard/overview" ;;
     *) echo "bench-coalition: unknown scenario $1" >&2; exit 2 ;;
   esac
+}
+
+# STATGLASS_BENCH_ACTIONS for a scenario (src-tauri/src/bench/actions.rs); empty for none.
+actions_of() {
+  local steps="" i
+  case "$1" in
+    timeline-30d) steps="window=30d" ;;
+    zoom)
+      steps="window=30d,wait=5"
+      for i in 1 2 3 4 5; do steps="$steps,zoom,wait=6,back,wait=6"; done
+      ;;
+    range)
+      steps="window=1h,wait=8"
+      for i in 1 2 3; do steps="$steps,window=24h,wait=10,window=1h,wait=10"; done
+      ;;
+    follow) steps="window=1h,live" ;;
+    closed) steps="wait=15,hide" ;;
+  esac
+  echo "$steps"
+}
+
+seed_history() {
+  local data="$HOME/Library/Application Support/$ID"
+  stop_app
+  (cd "$ROOT" && cargo build --quiet --release -p statglass-store --example seed)
+  local seed="$ROOT/target/release/examples/seed"
+  if ! "$seed" --dir "$data"; then
+    # Seeding copies the series a real run recorded. The store commits every 5 minutes
+    # and stop_app's SIGTERM skips the app's shutdown, so the launch has to outlast one
+    # commit for anything to be on disk.
+    echo "bench: no recorded bench history yet; running the app for 330 s so seeding has series to copy"
+    open -n --env "STATGLASS_BENCH_SCENARIO=tray" --env "STATGLASS_BENCH_DEFAULTS=$defaults" "$APP"
+    sleep 330
+    stop_app
+    "$seed" --dir "$data"
+  fi
 }
 
 field() { plutil -extract "$2" raw -o - "$1"; }
@@ -133,6 +198,7 @@ run_scenario() {
     --env "STATGLASS_BENCH_DEFAULTS=$defaults" --env "STATGLASS_BENCH_MENU_BAR=${MENU_BAR:-}" \
     --env "STATGLASS_BENCH_POPOVER=${POPOVER_DENSITY:-}" --env "STATGLASS_BENCH_NO_MOTION=${NO_MOTION:-0}" \
     --env "STATGLASS_BENCH_DOCKER_SOCKET=${DOCKER_SOCKET:-}" \
+    --env "STATGLASS_BENCH_ACTIONS=$(actions_of "$name")" \
     --env "RUST_LOG=info,statglass_lib::tray=debug,statglass_lib::popover=debug" --env "STATGLASS_BENCH_TRAY_COUNTERS_MS=5000" \
     "$APP"
   for _ in $(seq 1 50); do
@@ -149,16 +215,20 @@ run_scenario() {
   if [ "$name" = popover ]; then
     python3 "$ROOT/scripts/bench-popover-visible.py" "$LOGS" "$launch" "$measure_start" "$measure_end"
   fi
+  python3 "$ROOT/scripts/bench-footprint.py" check "$OUT/$name.json" "$LOGS" "$launch" \
+    "$measure_end" "$([ -n "$(actions_of "$name")" ] && echo 1 || echo 0)"
   python3 "$ROOT/scripts/tray-frames.py" "$OUT/$name.json" "$LOGS" \
     "$((t0 + WARMUP))" "$((t0 + WARMUP + SECS))"
-  printf 'bench: %-10s %6.3f%% CPU  %6.1f MB footprint  (%s processes)\n' "$name" \
-    "$(field "$OUT/$name.json" cpu_pct)" "$(field "$OUT/$name.json" footprint_mb)" \
+  printf 'bench: %-12s %6.3f%% CPU  footprint %6.1f MB median, %6.1f MB end, %7.1f MB peak  (%s processes)\n' "$name" \
+    "$(field "$OUT/$name.json" cpu_pct)" "$(field "$OUT/$name.json" footprint_median_mb)" \
+    "$(field "$OUT/$name.json" footprint_mb)" "$(field "$OUT/$name.json" footprint_peak_mb)" \
     "$(field "$OUT/$name.json" members)"
   if python3 - "$OUT/$name.json" <<'EOF'
 import json, sys
 d = json.load(open(sys.argv[1]))
 for n, v in sorted(d["processes"].items(), key=lambda kv: -kv[1]["cpu_pct"]):
-    print(f"         {n:<36} {v['cpu_pct']:6.3f}%  {v['footprint_mb']:6.1f} MB")
+    print(f"         {n:<36} {v['cpu_pct']:6.3f}%  {v['footprint_median_mb']:6.1f} MB median"
+          f"  {v['footprint_mb']:6.1f} MB end  {v['footprint_peak_mb']:7.1f} MB peak")
 for n, v in sorted(d["app_threads"].items(), key=lambda kv: -kv[1]):
     if v >= 0.001:
         print(f"           thread {n:<29} {v:6.3f}%")
@@ -179,10 +249,15 @@ EOF
 }
 
 echo "bench: $SECS s per scenario after $WARMUP s warm-up; load average $(sysctl -n vm.loadavg)"
+[ -n "${SEED:-}" ] && seed_history
 for s in $SCENARIOS; do
   run_scenario "$s"
 done
 echo "bench: load average $(sysctl -n vm.loadavg); JSON in $OUT"
+
+# Footprint against perf-budget.json's footprint section (plan/rfc-memory-footprint.md).
+footprint_failed=0
+python3 "$ROOT/scripts/bench-footprint.py" report "$BUDGET" "$OUT" $SCENARIOS || footprint_failed=1
 
 # Visible scenarios: a regression guard with no product target (D-088).
 visible_failed=0
@@ -207,7 +282,7 @@ done
 
 case " $SCENARIOS " in
   *" tray "*) ;;
-  *) exit "$visible_failed" ;;
+  *) exit "$((visible_failed | footprint_failed))" ;;
 esac
 
 target="$(field "$BUDGET" coalition.target.trayOnlyCpuPct)"
@@ -230,4 +305,4 @@ if awk -v c="$tray" -v m="$ceiling" 'BEGIN { exit !(c > m) }'; then
   fi
 fi
 echo "bench: tray-only pass (baseline ceiling $ceiling%)"
-exit "$visible_failed"
+exit "$((visible_failed | footprint_failed))"

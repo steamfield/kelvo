@@ -19,14 +19,32 @@
 //! - `STATGLASS_BENCH_BATTERY=1`: the engine sees the Mac on battery, with the battery
 //!   slowdown on, so the backed-off case measures on AC.
 //! - `STATGLASS_BENCH_NO_MOTION=1`: zero popover motion tokens without changing cadence.
+//! - `STATGLASS_BENCH_ACTIONS=window=30d,zoom,wait=6,back`: steps to run once the window
+//!   is open (Timeline zooms, range changes, closing the dashboard; [`actions`]).
+//! - `STATGLASS_BENCH_WK_FEATURES=AcceleratedDrawingEnabled=1`: WebKit features to
+//!   override on every webview, which then reloads (`bench::webkit`).
+//! - `STATGLASS_BENCH_WK_DEFAULTS=0`: leave WebKit's own feature defaults in place of
+//!   `platform::webkit::DEFAULTS`, for a before/after in the same build.
+//! - `STATGLASS_BENCH_EVAL=<js>`: evaluated once in every webview before the actions, to
+//!   isolate what a window's memory comes from (strip a layer, swap a style).
 
 use std::time::Duration;
 
 use tauri::AppHandle;
 
+// Without the feature nothing reads the actions; the parser stays compiled and tested.
+#[cfg_attr(not(feature = "bench"), allow(dead_code))]
+mod actions;
+#[cfg(all(feature = "bench", target_os = "macos"))]
+mod webkit;
+
 /// How long after setup the scenario's window opens: the popover's webview has to
 /// load first.
 const OPEN_AFTER: Duration = Duration::from_secs(3);
+/// How long after the window opens `STATGLASS_BENCH_ACTIONS` starts: the route loads
+/// and draws first.
+#[cfg_attr(not(feature = "bench"), allow(dead_code))]
+const SETTLE: Duration = Duration::from_secs(5);
 
 // Without the feature nothing constructs a scenario; the type and parser stay compiled
 // so the parser is tested in every build.
@@ -232,7 +250,46 @@ pub fn start(app: &AppHandle, scenario: Scenario) {
         if let Err(e) = r {
             tracing::warn!("bench scenario: {e}");
         }
+        run_actions(&app);
     });
+}
+
+/// `STATGLASS_BENCH_ACTIONS` (see [`actions`]), after [`SETTLE`].
+#[cfg(feature = "bench")]
+fn run_actions(app: &AppHandle) {
+    let steps = actions::from_env();
+    let script = std::env::var("STATGLASS_BENCH_EVAL").unwrap_or_default();
+    let features = std::env::var_os("STATGLASS_BENCH_WK_FEATURES").is_some();
+    if steps.is_empty() && script.is_empty() && !features {
+        return;
+    }
+    std::thread::sleep(SETTLE);
+    #[cfg(target_os = "macos")]
+    if features {
+        webkit::apply_from_env(app);
+        std::thread::sleep(SETTLE);
+    }
+    if !script.is_empty() {
+        use tauri::Manager;
+        for (label, w) in app.webview_windows() {
+            match w.eval(&script) {
+                Ok(()) => tracing::info!(%label, "bench eval"),
+                Err(e) => tracing::warn!(%label, "bench eval: {e}"),
+            }
+        }
+    }
+    actions::run(app, &steps);
+}
+
+#[cfg(not(feature = "bench"))]
+fn run_actions(_app: &AppHandle) {}
+
+/// Whether webviews get `platform::webkit::DEFAULTS`: always, except a bench launch
+/// with `STATGLASS_BENCH_WK_DEFAULTS=0`, which measures WebKit's own defaults.
+#[cfg_attr(feature = "appstore", allow(dead_code))] // App Store builds set no WebKit features.
+pub fn webkit_defaults() -> bool {
+    !(cfg!(feature = "bench")
+        && std::env::var("STATGLASS_BENCH_WK_DEFAULTS").is_ok_and(|v| v == "0"))
 }
 
 fn open(app: &AppHandle, scenario: &Scenario) {

@@ -73,7 +73,6 @@ export function useHistorySeries(
       );
     },
     enabled: enabled && stableKeys.length > 0,
-    gcTime: 60_000,
     placeholderData: (previous, query) =>
       end === null &&
       query?.queryKey[1] === hostId &&

@@ -897,7 +897,7 @@ On `Showing`, Rust sends a ring-buffer backfill for the span the channel missed 
 | Window | Label | Created | Live channel runs while |
 |---|---|---|---|
 | Popover | `popover` | at startup, hidden | visible and not occluded |
-| Dashboard | `dashboard` | on Open dashboard, kept after close (hidden) for 5 min, then destroyed | visible and not minimised |
+| Dashboard | `dashboard` | on Open dashboard, kept after close (hidden) for 10 s, then destroyed (D-127) | visible and not minimised |
 | Onboarding | `onboarding` | first run only | visible |
 | Desktop board (v2.1) | `board-<display>` | one per display when widgets exist | visible, not occluded, screen awake, not in a fullscreen Space |
 

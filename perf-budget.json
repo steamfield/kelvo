@@ -182,6 +182,15 @@
       "minSavingPp": {}
     }
   },
+  "footprint": {
+    "_doc": "Whole-app memory (plan/rfc-memory-footprint.md), scripts/bench-coalition.sh via scripts/bench-footprint.py: phys_footprint summed over the app and its WebKit helpers, in MB. Per scenario the median of 2 s samples over the measured span (medianMb) and the sum of each process's lifetime peak since the scenario's fresh launch (peakMb). target.trayOnlyMb is the coalition memory target from plan/architecture.md (warm panel included) and is fixed. baseline holds per-scenario { medianMb, peakMb } once five clean runs exist (empty until measured); a run more than regressionPct over either is reported, failing only once blocking is true. Raising a baseline needs a decision entry (D-060).",
+    "target": {
+      "trayOnlyMb": 150
+    },
+    "baseline": {},
+    "regressionPct": 20,
+    "blocking": false
+  },
   "store": {
     "_doc": "History reads on a 30-day synthetic fill of 150 series, release build (crates/statglass-store/tests/fill.rs `thirty_day_reads_meet_the_budget`; `make test-read-perf`, and CI through `make test-fill`). timeline30dMs: the Timeline's six 30d lane queries plus the 30-day heatmap, on new connections (v1.1 acceptance: first render under 500 ms). export30dMs: a 30-day CSV export of every series to a file (v1.1 acceptance: under 3 s).",
     "timeline30dMs": 500,

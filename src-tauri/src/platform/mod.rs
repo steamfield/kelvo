@@ -15,3 +15,6 @@ pub use other::*;
 
 #[cfg(target_os = "macos")]
 pub mod temperature;
+// WebKit SPI: left out of App Store builds entirely, so none of its selectors ship there.
+#[cfg(all(target_os = "macos", not(feature = "appstore")))]
+pub mod webkit;

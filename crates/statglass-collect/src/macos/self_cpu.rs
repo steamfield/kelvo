@@ -44,6 +44,8 @@ pub struct Member {
     pub cpu_ns: u64,
     /// `ri_phys_footprint`, the number Activity Monitor's Memory column shows.
     pub footprint_bytes: u64,
+    /// `ri_lifetime_max_phys_footprint`: the highest footprint since the process started.
+    pub peak_footprint_bytes: u64,
 }
 
 /// What a pid was found to be, and for a member, which process that was.
@@ -155,6 +157,7 @@ impl Coalition {
                 cpu_ns: (ri.ri_user_time.saturating_add(ri.ri_system_time) as f64
                     * self.ticks_to_ns) as u64,
                 footprint_bytes: ri.ri_phys_footprint,
+                peak_footprint_bytes: ri.ri_lifetime_max_phys_footprint,
             });
         }
         // Pids no longer listed are forgotten.

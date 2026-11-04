@@ -4024,3 +4024,39 @@ compatible, and a bundled binary (about 1.4 MB) plus a `~/.local/bin/statglass` 
 app manages. Revisit when users ask for StatGlass in Claude Desktop or another client
 with no shell (build the MCP wrapper), or if the App Store build (D-015) moves the
 socket into a sandbox container.
+
+## D-127: Memory footprint: popover drawing, a 10 s dashboard teardown, no client history cache
+
+Date: 2026-11-04. Measurements in [rfc-memory-footprint.md](rfc-memory-footprint.md).
+
+The popover's webview is built with WebKit's `AcceleratedDrawingEnabled` off. With it on,
+any webview that repaints every second makes the WebKit GPU process keep 28 GPU
+allocations of 8 MB resident (about 250 MB), whatever the window's size or content; a
+page with one ticking number reproduces it, and WebKit only releases them after a few
+seconds without a repaint. Off, the GPU process stays at 8 to 16 MB with the popover open,
+for 0.3 to 0.5 points more CPU (three paired 60 s runs). The feature is set on the
+`WKWebViewConfiguration` the webview is built with (`platform/webkit.rs`); setting it on
+the live webview as the page loaded raced the first paint and the pool came back every
+10 s on some launches. It is WebKit SPI, checked by selector, and left out of App Store
+builds.
+
+The dashboard keeps accelerated drawing. Off, it saves the same 250 MB but costs about
+6 points of CPU on Overview (9.8% to 15.7%), because it repaints far more area each
+second.
+
+A closed dashboard is destroyed after 10 s hidden instead of 5 minutes. Hidden, it held
+330 to 450 MB of WebContent with nothing on screen; a cold open measured about 110 ms from
+window creation to the page's live subscription (four launches). This replaces the RFC's
+phase 3 (unmounting a hidden dashboard's content), which would have kept the JS heap.
+
+History read connections beyond 2 idle ones are closed as they return to the pool, with
+their SQLite page caches, instead of staying open for the life of the store. TanStack
+Query's default `gcTime` is 0: a result nothing renders is dropped at once, since a read
+is a local IPC call. The public-address and Docker cleanup queries keep their own longer
+times. The Timeline's heatmap is read again when a metric is switched back to.
+
+Cost: a WebKit SPI dependency that a future WebKit may drop (the defaults then return,
+with the 250 MB); reopening the dashboard after 10 s is a cold load; switching back to a
+range refetches it. Revisit if a cold dashboard open becomes visibly slow, or if WebKit
+stops honouring the feature (the bench's `STATGLASS_BENCH_WK_DEFAULTS=0` measures the
+difference).

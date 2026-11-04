@@ -47,6 +47,10 @@ export function makeQueryClient() {
         // History below the last closed bucket does not change; the Timeline
         // appends new buckets itself while following Live.
         staleTime: 60 * 1000,
+        // Dropped as soon as nothing renders it: a read is a local IPC call, and
+        // a cache of ranges left behind is what grew the dashboard's WebContent
+        // (plan/rfc-memory-footprint.md). Queries that cost more opt back in.
+        gcTime: 0,
         // A window regaining focus is not a reason to re-read history.
         refetchOnWindowFocus: false,
         retry: shouldRetry,
