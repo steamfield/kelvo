@@ -33,7 +33,11 @@ const page = {
   markdownHref: markdownPath(entry.id),
   markdownUrl: new URL(markdownPath(entry.id), site).href,
 };
-const title = entry.id === "index" ? "Docs" : `${entry.data.title} | Docs`;
+const searchTitles: Record<string, string> = {
+  index: "Documentation",
+  install: "Download for Mac",
+};
+const title = searchTitles[entry.id] ?? `${entry.data.title} | Docs`;
 ---
 
 <BaseLayout

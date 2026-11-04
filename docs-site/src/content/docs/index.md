@@ -1,6 +1,6 @@
 ---
 title: StatGlass documentation
-description: What StatGlass monitors, what it needs to run, and where to start.
+description: Learn what StatGlass monitors on Apple Silicon Macs, how to use the menu bar and dashboard, and how local history and remote monitoring work.
 group: Getting started
 order: 0
 sidebarLabel: Introduction

@@ -57,10 +57,12 @@ export function MenuBarStyles() {
             <dd className="text-sm text-secondary-foreground">{detail}</dd>
           </div>
           <dd className="min-w-0">
-            <TrayPreview
-              layout={trayLayout(menuBar, () => true, readings, UNITS)}
-              className="sm:w-[240px]"
-            />
+            <div data-nosnippet="">
+              <TrayPreview
+                layout={trayLayout(menuBar, () => true, readings, UNITS)}
+                className="sm:w-[240px]"
+              />
+            </div>
           </dd>
         </div>
       ))}

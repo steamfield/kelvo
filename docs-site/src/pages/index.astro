@@ -59,7 +59,7 @@ const primaryButton =
   "inline-flex min-h-11 items-center rounded-control bg-primary px-5 text-sm font-[510] text-primary-foreground hover:opacity-90";
 ---
 
-<BaseLayout path="/" landing>
+<BaseLayout title="Menu Bar System Monitor for Mac" path="/" landing>
   <section
     data-reveal
     class={`${section} grid items-center gap-12 pt-8 pb-20 sm:pt-12 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-16 lg:pt-16 lg:pb-28`}
@@ -69,13 +69,12 @@ const primaryButton =
         data-motion-part
         class="text-[clamp(2.5rem,6vw,3.75rem)] leading-[1.04] font-[590] tracking-[-0.03em] text-balance"
       >
-        A menu bar system monitor that keeps history.
+        A Mac menu bar system monitor that keeps history.
       </h1>
       <p data-motion-part class={`${body} lg:text-lg`}>
-        StatGlass shows CPU, GPU, memory, power and sensors, network, disk and
-        battery once a second, and keeps up to 30 days of it on your Mac. When
-        the fans spun up at 3pm, you can scroll back and see which process did
-        it.
+        See live CPU, GPU, memory and power readings, then scroll back through
+        up to 30 days of local history. If the fans spun up at 3pm, you can see
+        which process was busy.
       </p>
       <div data-motion-part class="flex flex-wrap items-center gap-x-5 gap-y-3">
         <a href="/docs/install" class={primaryButton} data-track-install="hero">
@@ -92,7 +91,10 @@ const primaryButton =
         Free and open source. Apple Silicon Macs on macOS 26 or newer.
       </p>
     </div>
-    <div class="flex w-full max-w-[360px] flex-col gap-1.5 justify-self-center">
+    <div
+      data-nosnippet
+      class="flex w-full max-w-[360px] flex-col gap-1.5 justify-self-center"
+    >
       <div data-motion="drop" style="--sf-reveal-delay: 260ms">
         <MenuBarItem client:load />
       </div>
@@ -115,7 +117,14 @@ const primaryButton =
           You pick a style the first time StatGlass opens and can change it in
           Settings, down to which values the combined item shows. Settings warns
           you when that item gets wide enough to disappear behind a MacBook's
-          camera notch.
+          camera notch. The{" "}
+          <a
+            href="/docs/menu-bar-and-windows"
+            class="text-link underline underline-offset-2"
+          >
+            menu bar guide
+          </a>{" "}
+          shows each style.
         </p>
       </div>
       <MenuBarStyles client:visible />
@@ -189,7 +198,14 @@ const primaryButton =
       <div data-motion class="space-y-4">
         <h2 class={h2}>From per-core load to Docker containers.</h2>
         <p class={body}>
-          Each module has a card in the popover and a page in the dashboard.
+          Each module has a card in the popover and a page in the dashboard. The{" "}
+          <a
+            href="/docs/metrics"
+            class="text-link underline underline-offset-2"
+          >
+            metrics guide
+          </a>{" "}
+          lists what each one measures.
         </p>
       </div>
       <dl class="divide-y divide-border border-y border-border">

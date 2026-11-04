@@ -63,6 +63,128 @@ function page(path: string): Document {
   return document;
 }
 
+const jsonLdSelector = 'script[type="application/ld+json"]';
+
+function meta(document: Document, attribute: "name" | "property", key: string) {
+  return document.head
+    .querySelector(`meta[${attribute}="${key}"]`)
+    ?.getAttribute("content");
+}
+
+it("identifies the Mac menu bar monitor in the home heading and search metadata", () => {
+  const home = page("/");
+  expect(
+    Array.from(home.querySelectorAll("h1"), (h1) => h1.textContent?.trim())
+  ).toEqual(["A Mac menu bar system monitor that keeps history."]);
+  expect(home.title).toBe("Menu Bar System Monitor for Mac | StatGlass");
+  expect(meta(home, "name", "description")).toBe(
+    "StatGlass is a free, open-source menu bar system monitor for Apple Silicon Macs. Track CPU, GPU, memory and more, with up to 30 days of local history."
+  );
+  expect(page("/docs").title).toBe("Documentation | StatGlass");
+  expect(page("/docs/install").title).toBe("Download for Mac | StatGlass");
+});
+
+it.each(["/", ...pages.map(({ path }) => path)])(
+  "publishes matching search and social metadata for %s",
+  (path) => {
+    const document = page(path);
+    const canonical = `${site}${path}`;
+    expect(
+      Array.from(
+        document.head.querySelectorAll('link[rel="canonical"]'),
+        (link) => link.getAttribute("href")
+      )
+    ).toEqual([canonical]);
+    expect(meta(document, "name", "robots")).toBe(
+      "max-snippet:-1, max-image-preview:large"
+    );
+
+    const description = meta(document, "name", "description");
+    const image = meta(document, "property", "og:image");
+    const imageAlt = meta(document, "property", "og:image:alt");
+    expect(description).toMatch(/\S/);
+    expect(image).toMatch(/^https:\/\//);
+    expect(imageAlt).toMatch(/\S/);
+    expect(meta(document, "property", "og:url")).toBe(canonical);
+    expect(meta(document, "property", "og:title")).toBe(document.title);
+    expect(meta(document, "property", "og:description")).toBe(description);
+    expect(meta(document, "name", "twitter:card")).toBe("summary_large_image");
+    expect(meta(document, "name", "twitter:title")).toBe(document.title);
+    expect(meta(document, "name", "twitter:description")).toBe(description);
+    expect(meta(document, "name", "twitter:image")).toBe(image);
+    expect(meta(document, "name", "twitter:image:alt")).toBe(imageAlt);
+  }
+);
+
+it("marks the 404 page noindex and omits canonical and social metadata", () => {
+  const document = page("/404");
+  expect(meta(document, "name", "robots")).toMatch(/\bnoindex\b/i);
+  expect(
+    document.head.querySelector(
+      'link[rel="canonical"], meta[property^="og:"], meta[name^="twitter:"]'
+    )
+  ).toBeNull();
+});
+
+it("describes the website and free Apple Silicon application only on the homepage", () => {
+  const scripts = page("/").querySelectorAll(jsonLdSelector);
+  expect(scripts).toHaveLength(1);
+  const data = JSON.parse(scripts[0]?.textContent ?? "");
+  expect(data).toMatchObject({
+    "@context": "https://schema.org",
+    "@graph": expect.arrayContaining([
+      expect.objectContaining({
+        "@type": "WebSite",
+        name: "StatGlass",
+        url: `${site}/`,
+      }),
+      expect.objectContaining({
+        "@type": "SoftwareApplication",
+        name: "StatGlass",
+        url: `${site}/`,
+        operatingSystem: "macOS 26 or later (Apple Silicon)",
+        offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+      }),
+    ]),
+  });
+
+  for (const path of ["/404", ...pages.map(({ path }) => path)]) {
+    expect(page(path).querySelector(jsonLdSelector), path).toBeNull();
+  }
+});
+
+it("lists only the homepage and HTML docs in the sitemap", () => {
+  const locs = (file: string) =>
+    Array.from(
+      readFileSync(join(output, file), "utf8").matchAll(/<loc>([^<]+)<\/loc>/g),
+      (match) => match[1] ?? ""
+    );
+  const sitemapUrls = locs("sitemap-index.xml");
+  expect(sitemapUrls.length).toBeGreaterThan(0);
+  const urls = sitemapUrls.flatMap((url) => {
+    expect(new URL(url).origin).toBe(site);
+    return locs(new URL(url).pathname);
+  });
+  expect(urls.sort()).toEqual(
+    [`${site}/`, ...pages.map(({ path }) => `${site}${path}`)].sort()
+  );
+});
+
+it("ships noindex response headers for the demo and default Pages host", () => {
+  const headers = readFileSync(join(output, "_headers"), "utf8");
+  const noindexPaths = headers
+    .split(/\r?\n(?=\S)/)
+    .filter((block) =>
+      /^[ \t]+X-Robots-Tag:[^\r\n]*\b(?:noindex|none)\b/im.test(block)
+    )
+    .map((block) => block.split(/\r?\n/, 1)[0]);
+  expect(noindexPaths.sort()).toEqual([
+    "/demo",
+    "/demo/*",
+    "https://statglass.pages.dev/*",
+  ]);
+});
+
 it("builds every docs page with one h1 matching its title", () => {
   expect(pages.length).toBeGreaterThanOrEqual(6);
   for (const { path, title } of pages) {

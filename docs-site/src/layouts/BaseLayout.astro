@@ -4,12 +4,13 @@ import "@/styles/global.css";
 import { SITE } from "@/config";
 
 interface Props {
-  /** Page title without the site name; omit on the home page. */
+  /** Page title without the site name. */
   title?: string;
   description?: string;
   /** Route path such as "/" or "/docs/install"; never Astro.url.pathname. */
   path: string;
   ogImage?: string;
+  noindex?: boolean;
   /** Full-bleed sections (landing) instead of the centred content column. */
   landing?: boolean;
   /** A Markdown copy of this page, for agents (docs pages). */
@@ -21,6 +22,7 @@ const {
   description = SITE.description,
   path,
   ogImage = SITE.ogImage,
+  noindex = false,
   landing = false,
   alternate,
 } = Astro.props;
@@ -29,18 +31,26 @@ const pageTitle = title ? `${title} | ${SITE.title}` : SITE.title;
 const canonical = new URL(path, Astro.site);
 const ogUrl = new URL(ogImage, Astro.site);
 // Escape "<" so no value can close the <script> it is inlined into.
-const jsonLd = JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: SITE.title,
-  description: SITE.description,
-  operatingSystem: "macOS",
-  applicationCategory: "UtilitiesApplication",
-  offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
-  license: `${SITE.repo}/blob/main/LICENSE`,
-  downloadUrl: `${SITE.repo}/releases`,
-  url: new URL("/", Astro.site).href,
-}).replace(/</g, "\\u003c");
+const jsonLd =
+  path === "/" && !noindex
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "WebSite", name: SITE.title, url: canonical.href },
+          {
+            "@type": "SoftwareApplication",
+            name: SITE.title,
+            description,
+            operatingSystem: "macOS 26 or later (Apple Silicon)",
+            applicationCategory: "UtilitiesApplication",
+            offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+            license: `${SITE.repo}/blob/main/LICENSE`,
+            downloadUrl: `${SITE.repo}/releases`,
+            url: canonical.href,
+          },
+        ],
+      }).replace(/</g, "\\u003c")
+    : undefined;
 ---
 
 <!doctype html>
@@ -50,7 +60,11 @@ const jsonLd = JSON.stringify({
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    <meta
+      name="robots"
+      content={noindex ? "noindex" : "max-snippet:-1, max-image-preview:large"}
+    />
+    {!noindex && <link rel="canonical" href={canonical} />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.webp" />
     <link rel="manifest" href="/site.webmanifest" />
@@ -58,23 +72,32 @@ const jsonLd = JSON.stringify({
     {alternate && (
       <link rel="alternate" type="text/markdown" href={alternate} />
     )}
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content={SITE.title} />
-    <meta property="og:title" content={pageTitle} />
-    <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={ogUrl} />
-    {ogImage === SITE.ogImage && (
+    {!noindex && (
       <>
-        <meta property="og:image:type" content="image/webp" />
-        <meta property="og:image:width" content="2560" />
-        <meta property="og:image:height" content="1340" />
-        <meta property="og:image:alt" content={SITE.ogImageAlt} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={SITE.title} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={ogUrl} />
+        {ogImage === SITE.ogImage && (
+          <>
+            <meta property="og:image:type" content="image/webp" />
+            <meta property="og:image:width" content="2560" />
+            <meta property="og:image:height" content="1340" />
+            <meta property="og:image:alt" content={SITE.ogImageAlt} />
+          </>
+        )}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogUrl} />
+        {ogImage === SITE.ogImage && (
+          <meta name="twitter:image:alt" content={SITE.ogImageAlt} />
+        )}
       </>
     )}
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content={ogUrl} />
-    {path === "/" && <script type="application/ld+json" set:html={jsonLd} />}
+    {jsonLd && <script type="application/ld+json" set:html={jsonLd} />}
     <script is:inline set:html={revealGateScript} />
     <script is:inline>
       // Follow the system appearance, as the app does; no site toggle.

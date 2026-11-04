@@ -1,7 +1,7 @@
 export const SITE = {
   title: "StatGlass",
   description:
-    "A menu bar system monitor for Apple Silicon Macs that keeps history.",
+    "StatGlass is a free, open-source menu bar system monitor for Apple Silicon Macs. Track CPU, GPU, memory and more, with up to 30 days of local history.",
   /** Landing hero screenshot from brand/build.mjs --og, 2560x1340. */
   ogImage: "/og.webp",
   ogImageAlt:

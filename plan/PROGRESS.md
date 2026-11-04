@@ -4,6 +4,20 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Landing page SEO (2026-11-04)
+
+The StatGlass homepage now leads with its Mac menu bar monitor and local history.
+The docs hub and install guide have distinct search titles. The site serves matching
+search and social metadata, an updated social card, and homepage WebSite and
+SoftwareApplication markup. Cloudflare Pages marks the mock demo and Pages alias
+`noindex`. The sitemap still lists the homepage and the nine HTML docs.
+
+Verified locally with the docs-site formatting and type checks, 137 Vitest tests,
+and a production build. Schema.org's validator found two items with zero errors
+or warnings. Compared Chromium screenshots at 1280 and 390 px. The shorter
+intro leaves more room for the mobile demo, with the existing type, spacing,
+and component styles. Exercised the desktop dashboard and both popover demos.
+
 ## Memory footprint, GPU process and window lifecycle (2026-11-04, branch `perf/memory-footprint-bench`, D-127)
 
 The popover's webview is built without WebKit's accelerated drawing

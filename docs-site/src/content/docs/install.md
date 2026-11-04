@@ -1,6 +1,6 @@
 ---
 title: Install StatGlass
-description: Download StatGlass, approve the first launch, or build it from source.
+description: Download StatGlass for Apple Silicon Macs running macOS 26 or later. Follow the steps to install the DMG, approve the first launch, or build from source.
 group: Getting started
 order: 1
 featured: true
