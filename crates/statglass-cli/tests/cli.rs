@@ -372,12 +372,90 @@ fn other_agent_text_shapes() {
 
     let fake = Fake::serving(ok(Answer::Top(top_answer())));
     let out = fake.run(&["top"]).stdout;
-    assert!(out.contains("Xcode  212.0%  41%\n"), "{out}");
+    assert!(
+        out.contains("top 1 apps by average CPU on studio, 13:00 to 16:00\n"),
+        "{out}"
+    );
+    assert!(out.contains("Xcode  212.0%  41% of host\n"), "{out}");
 
     let fake = Fake::serving(ok(Answer::Now(now_answer())));
     let out = fake.run(&["now"]).stdout;
     assert!(
         out.starts_with("studio at 15:59:00 (0.8s old)\ncpu\n  cpu.total  12.5%\n"),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_range_reaching_past_today_dates_every_time() {
+    // The week before today: a bare 15:12 next to dated times would read as an earlier day.
+    let week_ago = rfc3339_local(
+        (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64)
+            - 7 * 86_400_000,
+    );
+    let mut answer = events_answer();
+    answer.range.from = week_ago;
+    let fake = Fake::serving(ok(Answer::Events(answer)));
+    let out = fake.run(&["events", "--since", "7d"]).stdout;
+    let event = out.lines().nth(1).unwrap_or_default();
+    assert!(
+        event.contains(" 15:12 thermal_state") && !event.starts_with("15:12"),
+        "{out}"
+    );
+}
+
+#[test]
+fn metrics_for_a_host_lists_only_stored_metrics_with_capped_series() {
+    let mut answer = metrics_answer();
+    answer.host = Some(host_ref("m1-linux"));
+    answer.metrics.push(MetricDto {
+        id: "battery.charge".into(),
+        unit: "percent".into(),
+        kind: "gauge".into(),
+        labels: Vec::new(),
+        module: "battery".into(),
+        persisted: true,
+        period_s: 10,
+        max_cardinality: None,
+    });
+    answer.series = Some((0..9).map(|c| format!("cpu.load{{core={c}}}")).collect());
+    let fake = Fake::serving(ok(Answer::Metrics(answer)));
+    let out = fake.run(&["metrics", "--host", "m1-linux"]).stdout;
+    assert!(
+        out.starts_with("9 series of 1 metrics stored on m1-linux\ncpu\n  cpu.load{core}"),
+        "{out}"
+    );
+    assert!(out.contains("    cpu.load{core=5}\n"), "{out}");
+    assert!(!out.contains("cpu.load{core=6}"), "{out}");
+    assert!(
+        out.contains("    and 3 more (--json lists every one)\n"),
+        "{out}"
+    );
+    assert!(!out.contains("battery.charge"), "{out}");
+    assert!(
+        out.ends_with("1 catalog metrics have no stored series on m1-linux; statglass metrics lists the catalog\n"),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_gap_within_one_minute_prints_seconds() {
+    let mut answer = history_answer();
+    answer.gaps[0].from = today("14:31")
+        .replace(":00-", ":05-")
+        .replace(":00+", ":05+");
+    answer.gaps[0].to = Some(
+        today("14:31")
+            .replace(":00-", ":40-")
+            .replace(":00+", ":40+"),
+    );
+    let fake = Fake::serving(ok(Answer::History(answer)));
+    let out = fake.run(&["history", "cpu.total"]).stdout;
+    assert!(
+        out.contains("gap 14:31:05 to 14:31:40: host offline\n"),
         "{out}"
     );
 }

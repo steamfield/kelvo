@@ -1,13 +1,14 @@
 use serde_json::Value;
 use statglass_query::{EventDto, EventsAnswer};
 
-use super::{Ctx, freshness_line, range_text, retained_line};
+use super::{Ctx, freshness_line, range_clock, range_text, retained_line};
+use crate::format::Clock;
 
 /// At most this many detail fields per event line; the rest are in `--json`.
 const MAX_DETAIL_FIELDS: usize = 6;
 
 pub fn render(a: &EventsAnswer, ctx: &Ctx) -> String {
-    let clock = &ctx.clock;
+    let clock = &range_clock(&a.range, &ctx.clock);
     let mut out = String::new();
     if let Some(line) = freshness_line(&a.host.name, a.freshness.as_ref(), clock) {
         out.push_str(&line);
@@ -27,7 +28,7 @@ pub fn render(a: &EventsAnswer, ctx: &Ctx) -> String {
     );
     out.push('\n');
     for e in &a.events {
-        out.push_str(&event_line(e, ctx));
+        out.push_str(&event_line(e, clock));
     }
     if a.unreadable > 0 {
         out.push_str(&format!(
@@ -39,10 +40,10 @@ pub fn render(a: &EventsAnswer, ctx: &Ctx) -> String {
 }
 
 /// `15:12 thermal_state state=serious; processes: clang, rustc`.
-fn event_line(e: &EventDto, ctx: &Ctx) -> String {
-    let mut line = ctx.clock.short(&e.at);
+fn event_line(e: &EventDto, clock: &Clock) -> String {
+    let mut line = clock.short(&e.at);
     if let Some(started) = &e.started {
-        line.push_str(&format!(" (from {})", ctx.clock.short(started)));
+        line.push_str(&format!(" (from {})", clock.short(started)));
     }
     line.push(' ');
     line.push_str(&e.kind);

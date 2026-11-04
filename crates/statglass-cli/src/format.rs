@@ -7,6 +7,9 @@
 pub struct Clock {
     /// `YYYY-MM-DD` today, local.
     today: String,
+    /// Date every time, today's included: set for answers whose range reaches past
+    /// today, where a bare `10:29` next to `Nov 2 07:02` reads as the earlier day.
+    dated: bool,
 }
 
 impl Clock {
@@ -19,6 +22,17 @@ impl Clock {
     pub fn for_today(today: &str) -> Self {
         Self {
             today: today.to_owned(),
+            dated: false,
+        }
+    }
+
+    /// This clock for an answer covering `from` to `to` (RFC 3339): it dates every time
+    /// when the range does not lie wholly within today.
+    pub fn for_range(&self, from: &str, to: &str) -> Self {
+        let today = Some(self.today.as_str());
+        Self {
+            today: self.today.clone(),
+            dated: from.get(..10) != today || to.get(..10) != today,
         }
     }
 
@@ -37,7 +51,7 @@ impl Clock {
         let (Some(date), Some(clock)) = (t.get(..10), t.get(11..if secs { 19 } else { 16 })) else {
             return t.to_owned();
         };
-        if date == self.today {
+        if date == self.today && !self.dated {
             return clock.to_owned();
         }
         let (Some(year), Some(month), Some(day)) = (date.get(..4), date.get(5..7), date.get(8..10))
@@ -200,6 +214,16 @@ mod tests {
         assert_eq!(c.short("2026-11-02T09:05:00-08:00"), "Nov 2 09:05");
         assert_eq!(c.short("2025-12-31T23:59:00-08:00"), "Dec 31 2025 23:59");
         assert_eq!(c.short("garbage"), "garbage");
+    }
+
+    #[test]
+    fn a_range_reaching_past_today_dates_every_time() {
+        let c = Clock::for_today("2026-11-03");
+        let today = c.for_range("2026-11-03T09:00:00-06:00", "2026-11-03T10:00:00-06:00");
+        assert_eq!(today.short("2026-11-03T10:29:00-06:00"), "10:29");
+        let week = c.for_range("2026-10-27T22:06:00-06:00", "2026-11-03T22:06:00-06:00");
+        assert_eq!(week.short("2026-11-03T10:29:00-06:00"), "Nov 3 10:29");
+        assert_eq!(week.short("2026-11-02T07:02:00-06:00"), "Nov 2 07:02");
     }
 
     #[test]

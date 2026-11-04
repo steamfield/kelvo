@@ -139,8 +139,9 @@ installed, outdated or has command-line access off (ask the user).",
     /// The metric catalog, and the series one host has.
     #[command(
         long_about = "The metric catalog: each metric's id, label keys, unit, kind, sample period \
-and whether it keeps history beyond the last hour, grouped by module. With --host, also the \
-series that host has stored, which are the names statglass history takes. Exits 0 with the \
+and whether it keeps history beyond the last hour, grouped by module. With --host, only the \
+metrics that host has stored, each with its series (up to 6 in text; --json has every one), which \
+are the names statglass history takes. Exits 0 with the \
 catalog, 1 on a bug, 2 on bad arguments, an unknown module or an unknown host, 4 when StatGlass \
 is busy, 5 when the host's history is not available, 6 when StatGlass is not running, not \
 installed, outdated or has command-line access off (ask the user).",
@@ -234,7 +235,9 @@ off (ask the user).",
     /// Apps and processes that used the most CPU, memory or energy over a range.
     #[command(
         long_about = "The apps that used the most over a time range, by value descending, each \
-with its share of the host's total and its top processes. This Mac answers from the last hour \
+with its share of the host's total and its top processes. CPU is the average percent of one \
+core over the range; memory is the peak footprint, where an app's peak is its processes' largest \
+total at one moment, so it can be below the sum of their own peaks. This Mac answers from the last hour \
 at full detail and from 30 days of durable usage beyond it. A remote host is asked live, so it \
 must be connected; remote hosts serve at most 10 apps, and a larger --limit is reduced and \
 says so. Exits 0 with the apps, 1 on a bug, 2 on bad arguments, an unknown host or a bad \
@@ -327,7 +330,8 @@ not change with --points. The time of the max is the start of its bucket (1 min 
 back, 15 min beyond), and means over 15-minute buckets are approximate, marked (mean \
 approximate). A range that starts more than a bucket before the host's retained history is \
 clamped and says where history starts. Exits 0 with the history, 1 on a bug, 2 on bad \
-arguments, an unknown host or series (quote series with braces) or a bad range, 4 when \
+arguments, an unknown host or series (quote series with braces; a label value the host never \
+stored is unknown, with the closest stored series suggested) or a bad range, 4 when \
 StatGlass is busy, 5 when the host is disabled or history is not available, 6 when StatGlass \
 is not running, not installed, outdated or has command-line access off (ask the user).";
 

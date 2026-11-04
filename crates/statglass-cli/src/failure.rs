@@ -127,7 +127,8 @@ pub const fn next_for(tag: ErrorTag) -> &'static str {
         ErrorTag::Usage => "run statglass --help, or statglass <command> --help",
         ErrorTag::UnknownHost => "run statglass hosts to see host names",
         ErrorTag::UnknownMetric => {
-            "run statglass metrics to see metric ids; quote series arguments, e.g. \
+            "run statglass metrics for metric ids, or statglass metrics --host <host> for the \
+             series a host has stored; quote series arguments, e.g. \
              'cgroup.cpu{kind=container,name=postgres}'"
         }
         ErrorTag::BadRange => "use --since 2h, or --from/--to with RFC 3339 or HH:MM",

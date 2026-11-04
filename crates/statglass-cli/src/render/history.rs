@@ -1,10 +1,10 @@
 use statglass_query::{GapDto, HistoryAnswer, SeriesHistory, Summary};
 
-use super::{Ctx, freshness_line, range_text, retained_line};
+use super::{Ctx, freshness_line, range_clock, range_text, retained_line};
 use crate::format::{self, Clock};
 
 pub fn render(a: &HistoryAnswer, ctx: &Ctx) -> String {
-    let clock = &ctx.clock;
+    let clock = &range_clock(&a.range, &ctx.clock);
     let secs = a.bucket_s < 60;
     let mut out = String::new();
     if let Some(line) = freshness_line(&a.host.name, a.freshness.as_ref(), clock) {
@@ -30,7 +30,11 @@ pub fn render(a: &HistoryAnswer, ctx: &Ctx) -> String {
         }
     }
     if a.series.is_empty() {
-        out.push_str(&format!("no series matched on {}, {range}\n", a.host.name));
+        // A mistyped series is an error; an empty answer means nothing stored in range.
+        out.push_str(&format!(
+            "no data for these series on {}, {range}\n",
+            a.host.name
+        ));
     }
     out.push_str(&gaps(a, clock, secs, ctx.all_gaps));
     out
@@ -160,8 +164,13 @@ fn points(s: &SeriesHistory, clock: &Clock, secs: bool, aligned: bool) -> String
     format::table(&rows, aligned, "  ")
 }
 
-/// `gap 14:31 to 14:37: host offline`.
+/// `gap 14:31 to 14:37: host offline`. A gap within one minute prints seconds, so it
+/// never reads `14:31 to 14:31`.
 fn gap_line(g: &GapDto, clock: &Clock, secs: bool) -> String {
+    let secs = secs
+        || g.to
+            .as_deref()
+            .is_some_and(|to| clock.short(to) == clock.short(&g.from));
     let t = |s: &str| {
         if secs {
             clock.short_secs(s)

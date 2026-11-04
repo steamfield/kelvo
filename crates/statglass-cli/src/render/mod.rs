@@ -70,6 +70,12 @@ pub fn freshness_line(name: &str, freshness: Option<&Freshness>, clock: &Clock) 
     Some(line)
 }
 
+/// The clock to print an answer covering `range` with: every time dated when the range
+/// reaches past today.
+pub fn range_clock(range: &Range, clock: &Clock) -> Clock {
+    clock.for_range(&range.from, &range.to)
+}
+
 /// `13:00 to 16:00`.
 pub fn range_text(range: &Range, clock: &Clock) -> String {
     format!("{} to {}", clock.short(&range.from), clock.short(&range.to))

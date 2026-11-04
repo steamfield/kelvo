@@ -134,7 +134,9 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
     let retained = (read_from - ask.from_ms > full.bucket_ms).then_some(read_from);
     let from_ms = retained.unwrap_or(ask.from_ms);
     let summaries = series_summary(&full, &CATALOG_INDEX, from_ms, ask.to_ms, now);
-    let keep = selected(&selectors, summaries.series.iter().map(|s| &s.key));
+    let read_keys: Vec<&SeriesKey> = summaries.series.iter().map(|s| &s.key).collect();
+    super::unmatched::check(&history, &view, &selectors, &read_keys)?;
+    let keep = selected(&selectors, read_keys.iter().copied());
     let points = ask.points.unwrap_or(0).min(MAX_POINTS);
     // The points come from the full read, merged in memory by the store's own rule.
     let sampled = (points > 0)
@@ -162,7 +164,7 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
         to_ms: ask.to_ms,
         now,
     };
-    let not_synced = not_synced(&view, watermark.as_ref(), &full, &range);
+    let not_synced = not_synced(&view, watermark.as_ref(), &full, &keep, &range);
     answer.gaps = gaps(&full, &selectors, &keep, not_synced, &range)
         .iter()
         .map(Span::dto)
@@ -217,21 +219,38 @@ fn before_retention(
     ];
 }
 
-/// The `not_synced` tail of a remote host whose mirror is not current: from where the
-/// tier `full` read is synced through (rows past it in that tier have not arrived; a finer
-/// or coarser tier being further along adds nothing to this read) to the range's end.
+/// The `not_synced` tail of a remote host's read: from where the tier `full` read is
+/// synced through (rows past it in that tier have not arrived; a finer or coarser tier
+/// being further along adds nothing to this read) to the range's end. A connected host
+/// whose sync loop reports current still lags by up to a sync interval, so the tail is
+/// measured for every remote host; it starts after the last point the read holds (the
+/// recent rows can run past the watermark) and must exceed two buckets, so the ordinary
+/// sub-minute lag is not reported.
 fn not_synced(
     view: &HostView,
     watermark: Option<&SyncWatermark>,
     full: &HistoryResult,
+    keep: &BTreeSet<String>,
     w: &Window,
 ) -> Option<Span> {
-    if view.remote.is_none() || is_current(view) {
-        return None;
-    }
+    view.remote.as_ref()?;
     let synced = watermark.and_then(|w| w.tier(full.tier));
-    synced.is_none_or(|s| s < w.to_ms).then(|| Span {
-        from: synced.map_or(w.from_ms, |s| s.max(w.from_ms)),
+    let end = w.to_ms.min(w.now);
+    let bucket = full.bucket_ms.max(1);
+    let last_point = full
+        .series
+        .iter()
+        .filter(|s| keep.contains(&s.key.to_string()))
+        .filter_map(|s| s.points.last().map(|p| p.t.saturating_add(bucket)))
+        .max();
+    let from = synced
+        .unwrap_or(w.from_ms)
+        .max(last_point.unwrap_or(i64::MIN))
+        .max(w.from_ms);
+    // A host that is not current reports even a short tail: it is not catching up.
+    let min = if is_current(view) { 2 * bucket } else { 0 };
+    (end - from > min).then(|| Span {
+        from,
         to: (w.to_ms < w.now).then_some(w.to_ms),
         reason: "not_synced".to_owned(),
         module: None,
