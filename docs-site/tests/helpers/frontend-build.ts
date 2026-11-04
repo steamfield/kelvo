@@ -9,7 +9,8 @@ export interface SiteBuild {
 
 /**
  * Runs a production `astro build` into outDir (the demo comes from public/), with
- * env added to a minimal environment: no PostHog key unless env passes one.
+ * env added to a minimal environment. The PostHog key defaults to empty, which also
+ * overrides any key in a developer's .env, so a build is keyless unless env sets one.
  */
 export function buildSite(
   outDir: string,
@@ -28,6 +29,7 @@ export function buildSite(
           PATH: process.env.PATH,
           ASTRO_TELEMETRY_DISABLED: "1",
           NODE_ENV: "production",
+          PUBLIC_POSTHOG_KEY: "",
           ...env,
         },
         timeout: 120_000,

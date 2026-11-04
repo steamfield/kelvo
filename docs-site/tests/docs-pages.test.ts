@@ -251,7 +251,9 @@ it("loads the key once, posthog-js, the banner and its styles when the build has
   expect(
     sources.some((source) => /site:\s*["'`]statglass["'`]/.test(source))
   ).toBe(true);
-  expect(sources.some((source) => source.includes("steamfield.io"))).toBe(true);
+  expect(
+    sources.some((source) => /domain:\s*["'`]steamfield\.io["'`]/.test(source))
+  ).toBe(true);
   const styles = [...stylesheetsOf(keyed, "index.html").values()];
   expect(styles.some((source) => source.includes(bannerStyleMarker))).toBe(
     true
