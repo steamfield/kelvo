@@ -1,4 +1,4 @@
-# StatGlass 0.6.0
+# StatGlass 0.6.1
 
 StatGlass is a free, open-source system monitor for Apple Silicon Macs running macOS
 26 or later.
@@ -12,8 +12,8 @@ after you close the dashboard.
 - Closing the dashboard now releases it after 10 seconds instead of 5 minutes, so the
   app is back to about 170 MB within seconds. Opening it again takes a fraction of a
   second.
-- History a chart no longer shows is dropped right away, and history reads keep fewer
-  database connections open.
+- History a chart no longer shows is dropped after 30 seconds instead of 5 minutes,
+  and history reads keep fewer database connections open.
 
 The `statglass` command-line tool also gets a few additions:
 

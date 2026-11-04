@@ -1,6 +1,10 @@
 # Changelog
 
-## [0.6.0](https://github.com/steamfield/statglass/compare/v0.5.0...v0.6.0) - 2026-11-04
+## [0.6.1](https://github.com/steamfield/statglass/compare/v0.5.0...v0.6.1) - 2026-11-04
+
+0.6.0 was tagged but not published: its build dropped a list's data too early, so
+Back from a container's detail lost the list's scroll position. 0.6.1 is the same
+release with that fixed.
 
 ### Changed
 
@@ -9,11 +13,13 @@
   popover open, from about 420 MB. A closed dashboard is released after 10 seconds
   instead of 5 minutes, so closing it brings the app back to about 170 MB within
   seconds instead of holding 450 MB for 5 minutes. History the dashboard no longer
-  shows is dropped at once, and history reads keep fewer database connections open.
+  shows is dropped after 30 seconds instead of 5 minutes, and history reads keep
+  fewer database connections open.
 
 ### Added
 
-- `statglass` commands accept a local date and time for `--from` and `--to` (`2026-11-03 15:00`, or `2026-11-03` for midnight) in this Mac's timezone.
+- `statglass` commands accept a local date and time for `--from` and `--to`
+  (`2026-11-03 15:00`, or `2026-11-03` for midnight) in this Mac's timezone.
 - `statglass events --summary` counts a range's events per kind, with the processes
   named most often and a count per day.
 - `statglass history` reports the width of each point slot and prints a "no data"
