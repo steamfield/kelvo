@@ -18,8 +18,8 @@ links it too. MCP is deferred.
 
 Verified: `make check` targets pass (58 Rust suites including `perf_gates` on a quiet
 machine, 1,404 Vitest tests, lint, typecheck, architecture and verification tests) and
-`make e2e-perf` (13 passed). `updater-patch-test` cannot run from a nested worktree (cargo
-finds the parent workspace) and was not run. Exercised against the dev app with the release
+`make e2e-perf` (13 passed); `updater-patch-test` (26 passed) ran from main after the merge,
+since cargo cannot run it from a nested worktree. Exercised against the dev app with the release
 app's remote mirrors copied in: hosts, now --all, history on local and m1-linux, events, top
 local and remote, error paths. Two code-review rounds; all findings fixed except the
 `stored_series` EXISTS rewrite, which measured about 30x slower on real data and is
