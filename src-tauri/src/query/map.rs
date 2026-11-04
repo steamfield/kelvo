@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use statglass_query::{
-    ErrorDetails, ErrorTag, Freshness, GapDto, HostKind, HostRef, HostState, MetricDto, QueryError,
+    ErrorDetails, ErrorTag, Freshness, HostKind, HostRef, HostState, MetricDto, QueryError,
     SyncState, time::rfc3339_local,
 };
 use statglass_remote::{RemoteError, SyncWatermark};
-use statglass_schema::{CATALOG, Catalog, Gap, HostRecord, OsKind};
+use statglass_schema::{CATALOG, Catalog, HostRecord, OsKind};
 
 use super::HostView;
 use crate::error::CommandError;
@@ -168,6 +168,14 @@ pub(super) fn sync_state(sync: &RemoteSync) -> SyncState {
     }
 }
 
+/// Whether the host's live frame is current: this Mac, or a remote host that is enabled
+/// and connected.
+pub(super) fn is_live(view: &HostView) -> bool {
+    view.remote
+        .as_ref()
+        .is_none_or(|r| r.enabled && matches!(r.status.state, RemoteState::Connected))
+}
+
 /// Whether a remote host's mirror is as current as the session can make it: connected
 /// and caught up, so the in-memory recent rows cover what the store has not committed.
 pub(super) fn is_current(view: &HostView) -> bool {
@@ -206,13 +214,4 @@ pub(super) fn freshness(view: &HostView, watermark: Option<&SyncWatermark>) -> O
         last_seen: last_seen_ms(view).map(rfc),
         synced_through: watermark.and_then(synced_through).map(rfc),
     })
-}
-
-pub(super) fn gap_dto(gap: &Gap) -> GapDto {
-    GapDto {
-        from: rfc(gap.start_ms),
-        to: gap.end_ms.map(rfc),
-        reason: gap.reason.as_str().to_owned(),
-        module: gap.module.map(|m| m.as_str().to_owned()),
-    }
 }

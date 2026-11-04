@@ -5,7 +5,7 @@ Time
 
 Bare times use this Mac's timezone, remote hosts included, because StatGlass does not know a remote host's zone. A bare time in a daylight-saving gap or overlap means the earlier instant. For an earlier day use RFC 3339 or a duration ago (--from 1d --to 20h).
 
-A range that starts before a host's retained history is clamped, and the answer says where history starts. Remote mirrors keep about 30 days and can hold less; top keeps 30 days of usage.
+A range that starts more than a bucket before a host's retained history is clamped, and the answer says where history starts; for top it says where usage data starts. Remote mirrors keep about 30 days and can hold less; top keeps 30 days of usage.
 
 How times print: text shows 15:12 for today and Nov 2 15:12 otherwise. JSON timestamps are RFC 3339 in this Mac's offset.
 

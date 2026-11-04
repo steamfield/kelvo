@@ -143,6 +143,20 @@ pub fn bucket(seconds: u32) -> String {
     }
 }
 
+/// A length of time: `40 s`, `12 min`, `3 h 20 min`, `2 d 4 h`.
+pub fn duration(ms: i64) -> String {
+    let s = ms.max(0) / 1_000;
+    let (d, h, m) = (s / 86_400, s % 86_400 / 3_600, s % 3_600 / 60);
+    match (d, h, m) {
+        (0, 0, 0) => format!("{s} s"),
+        (0, 0, m) => format!("{m} min"),
+        (0, h, 0) => format!("{h} h"),
+        (0, h, m) => format!("{h} h {m} min"),
+        (d, 0, _) => format!("{d} d"),
+        (d, h, _) => format!("{d} d {h} h"),
+    }
+}
+
 /// Rows of cells joined by two spaces; aligned into columns for a person.
 pub fn table(rows: &[Vec<String>], aligned: bool, indent: &str) -> String {
     let mut widths: Vec<usize> = Vec::new();
@@ -204,6 +218,11 @@ mod tests {
         assert_eq!(bucket(60), "1 min");
         assert_eq!(bucket(900), "15 min");
         assert_eq!(bucket(10), "10 s");
+        assert_eq!(duration(40_000), "40 s");
+        assert_eq!(duration(12 * 60_000 + 5_000), "12 min");
+        assert_eq!(duration(3 * 3_600_000), "3 h");
+        assert_eq!(duration(3 * 3_600_000 + 20 * 60_000), "3 h 20 min");
+        assert_eq!(duration(2 * 86_400_000 + 4 * 3_600_000 + 60_000), "2 d 4 h");
     }
 
     #[test]

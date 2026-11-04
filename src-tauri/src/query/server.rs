@@ -17,7 +17,7 @@ use tokio::net::UnixStream;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, watch};
 
 use super::map::{err, err_with, hint};
-use super::{Backend, events, history, hosts, top};
+use super::{Backend, events, history, hosts, now, top};
 
 /// Requests answered at once; one more gets `Busy`.
 const MAX_IN_FLIGHT: usize = 4;
@@ -142,7 +142,9 @@ fn dispatch(backend: &dyn Backend, op: Op) -> Result<statglass_query::Answer, Fa
     match op {
         Op::Status => Ok(Answer::Status(hosts::status(backend))),
         Op::Hosts => Ok(Answer::Hosts(hosts::hosts(backend))),
-        Op::Now { host, all } => hosts::now(backend, host.as_deref(), all).map(Answer::Now),
+        Op::Now { host, all, detail } => {
+            now::now(backend, host.as_deref(), all, detail).map(Answer::Now)
+        }
         Op::Metrics { host, module } => {
             hosts::metrics(backend, host.as_deref(), module.as_deref()).map(Answer::Metrics)
         }

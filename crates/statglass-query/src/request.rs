@@ -32,12 +32,17 @@ pub enum Op {
     Status,
     /// Every host the app knows.
     Hosts,
-    /// The latest frame of one host, or of every host with `all`.
+    /// The latest frame of one host, or of every host with `all`: the headline series,
+    /// or with `detail` every series the frame holds.
     Now {
         #[serde(default)]
         host: Option<String>,
         #[serde(default)]
         all: bool,
+        /// Every held series instead of the headline set. A remote host still reports
+        /// only what it serves while no window shows it in detail.
+        #[serde(default)]
+        detail: bool,
     },
     /// The catalog, optionally one module's, plus the series `host` has rows for.
     Metrics {

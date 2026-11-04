@@ -23,9 +23,10 @@ const JSON_DEFAULT_POINTS: u32 = 60;
 pub fn run(cmd: Command, style: Style) -> Result<Output, Failure> {
     let json = style.audience.is_json();
     let mut show_points = false;
+    let mut all_gaps = false;
     let op = match cmd {
         Command::Hosts => Op::Hosts,
-        Command::Now { host, all } => Op::Now { host, all },
+        Command::Now { host, all, detail } => Op::Now { host, all, detail },
         Command::Metrics { host, module } => Op::Metrics {
             host,
             module: module.as_deref().map(check_module).transpose()?,
@@ -35,9 +36,11 @@ pub fn run(cmd: Command, style: Style) -> Result<Output, Failure> {
             host,
             range,
             points,
+            all_gaps: every_gap,
         } => {
             series.iter().try_for_each(|s| check_series(s))?;
             show_points = points.is_some();
+            all_gaps = every_gap;
             let (from_ms, to_ms) = resolve_range(&range, format::now_ms())?;
             let points = points.or(Some(if json { JSON_DEFAULT_POINTS } else { 0 }));
             Op::History {
@@ -82,6 +85,7 @@ pub fn run(cmd: Command, style: Style) -> Result<Output, Failure> {
         style,
         clock: Clock::now(),
         show_points,
+        all_gaps,
     };
     Ok(Output::Text(render::answer(&answer, &ctx)))
 }

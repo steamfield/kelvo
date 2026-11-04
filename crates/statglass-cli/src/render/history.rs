@@ -32,9 +32,58 @@ pub fn render(a: &HistoryAnswer, ctx: &Ctx) -> String {
     if a.series.is_empty() {
         out.push_str(&format!("no series matched on {}, {range}\n", a.host.name));
     }
-    for gap in &a.gaps {
-        out.push_str(&gap_line(gap, clock, secs));
+    out.push_str(&gaps(a, clock, secs, ctx.all_gaps));
+    out
+}
+
+/// Gap lines printed before the rest are summed up in one line.
+const MAX_GAP_LINES: usize = 5;
+
+/// Every gap with `all`; otherwise the longest [`MAX_GAP_LINES`] in time order and one
+/// line for the rest: `12 more gaps, 3 h 10 min total (sleep: 9, host offline: 3)`.
+fn gaps(a: &HistoryAnswer, clock: &Clock, secs: bool, all: bool) -> String {
+    if all || a.gaps.len() <= MAX_GAP_LINES {
+        return a.gaps.iter().map(|g| gap_line(g, clock, secs)).collect();
     }
+    let at = |t: &str| statglass_query::time::parse_instant(t, 0).ok();
+    let (from, to) = (at(&a.range.from), at(&a.range.to));
+    // Length inside the range; an open gap runs to the range's end.
+    let length = |g: &GapDto| -> i64 {
+        let start = at(&g.from).max(from);
+        let end = g.to.as_deref().and_then(at).or(to).min(to);
+        match (start, end) {
+            (Some(s), Some(e)) => e.saturating_sub(s).max(0),
+            _ => 0,
+        }
+    };
+    let mut order: Vec<usize> = (0..a.gaps.len()).collect();
+    order.sort_by_key(|&i| (std::cmp::Reverse(a.gaps.get(i).map_or(0, length)), i));
+    let (shown, rest) = order.split_at(MAX_GAP_LINES);
+    let mut shown = shown.to_vec();
+    shown.sort_unstable();
+    let mut out: String = shown
+        .iter()
+        .filter_map(|&i| a.gaps.get(i))
+        .map(|g| gap_line(g, clock, secs))
+        .collect();
+    let rest: Vec<&GapDto> = rest.iter().filter_map(|&i| a.gaps.get(i)).collect();
+    let total: i64 = rest.iter().map(|g| length(g)).sum();
+    let mut counts: Vec<(String, usize)> = Vec::new();
+    for g in &rest {
+        let r = reason(&g.reason);
+        match counts.iter_mut().find(|(name, _)| *name == r) {
+            Some((_, n)) => *n += 1,
+            None => counts.push((r, 1)),
+        }
+    }
+    counts.sort_by(|x, y| y.1.cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
+    let counts: Vec<String> = counts.iter().map(|(r, n)| format!("{r}: {n}")).collect();
+    out.push_str(&format!(
+        "{} more gaps, {} total ({}); --all-gaps lists every one\n",
+        rest.len(),
+        format::duration(total),
+        counts.join(", ")
+    ));
     out
 }
 
@@ -139,6 +188,7 @@ fn reason(r: &str) -> String {
         "source_offline" => "host offline".to_owned(),
         "app_not_running" => "StatGlass not running".to_owned(),
         "not_synced" => "not synced yet".to_owned(),
+        "no_data" => "no data recorded".to_owned(),
         "module_disabled" => "module disabled".to_owned(),
         "truncated" => "pruned on the host before it synced".to_owned(),
         "clock_changed" => "clock changed".to_owned(),

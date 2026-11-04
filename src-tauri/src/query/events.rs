@@ -12,6 +12,10 @@ use super::history::{MAX_RANGE_DAYS, available_history, check_range, retained_fr
 use super::hosts::resolve_enabled;
 use super::map::{err_with, freshness, from_command, host_ref, rfc};
 
+/// Retained history begins on a bucket boundary; a start less than a minute after the
+/// request's is not a clamp worth reporting.
+const MINUTE_MS: i64 = 60_000;
+
 /// Every `EventDetail` kind this build records.
 const KINDS: [&str; 5] = [
     "alert",
@@ -52,7 +56,7 @@ pub(super) fn answer(
         range: Range {
             from: rfc(from_ms),
             to: rfc(to_ms),
-            retained_from: retained_from(&history, &view, from_ms).map(rfc),
+            retained_from: retained_from(&history, &view, from_ms, MINUTE_MS).map(rfc),
         },
         events: events.into_iter().map(event_dto).collect(),
         unreadable: u32::try_from(read.unreadable).unwrap_or(u32::MAX),

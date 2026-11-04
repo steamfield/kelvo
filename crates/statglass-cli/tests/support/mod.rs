@@ -98,11 +98,14 @@ impl Fake {
         fake
     }
 
-    /// Only the app's control socket is bound: running, command-line access off.
+    /// Only the app's control socket is bound, and the app has left its access-disabled
+    /// marker: running, command-line access off.
     pub fn control_only() -> Self {
         let mut fake = Self::empty();
         let remote = private_dir(fake.dir.path(), "remote");
         fake._control = Some(bind_private(&remote.join("control.sock")));
+        let cli = private_dir(fake.dir.path(), "cli");
+        fs::write(cli.join("access-disabled"), b"").unwrap();
         fake
     }
 

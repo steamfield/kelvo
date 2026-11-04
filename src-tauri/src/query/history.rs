@@ -1,22 +1,22 @@
 //! `history`: per series, a summary over every stored bucket in the range at full tier
-//! resolution, the range's explicit gaps (plus a `not_synced` gap for a mirror behind the
-//! range), and optionally downsampled points.
+//! resolution, the range's gaps (see `gaps`), and optionally downsampled points.
 
 use super::map::Fail;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
 use statglass_query::{
-    ErrorDetails, ErrorTag, GapDto, HistoryAnswer, PointDto, Range, SeriesHistory, Summary,
+    ErrorDetails, ErrorTag, HistoryAnswer, PointDto, Range, SeriesHistory, Summary,
     suggest::closest,
 };
-use statglass_schema::{SeriesKey, SeriesSelector};
+use statglass_schema::{Module, SeriesKey, SeriesSelector};
 use statglass_store::{HistoryQuery, HistoryResult, SeriesSummary, TierChoice, series_summary};
 
+use super::gaps::{self, Span};
 use super::hosts::resolve_enabled;
 use super::map::{
-    CATALOG_INDEX, bad_range, err, err_with, freshness, from_command, gap_dto, host_ref,
-    is_current, metric, metrics, rfc, synced_through, unit_of,
+    CATALOG_INDEX, bad_range, err, err_with, freshness, from_command, host_ref, is_current, metric,
+    metrics, rfc, synced_through, unit_of,
 };
 use super::{Backend, HostView};
 use crate::history::History;
@@ -62,11 +62,18 @@ pub(super) fn available_history(
     Ok(history)
 }
 
-/// The start of the host's retained history, when it is after `from_ms`.
-pub(super) fn retained_from(history: &History, view: &HostView, from_ms: i64) -> Option<i64> {
+/// The start of the host's retained history, when it is more than `slack_ms` after
+/// `from_ms`. Stored history begins on a bucket boundary, so a start within one bucket of
+/// the request is not a clamp.
+pub(super) fn retained_from(
+    history: &History,
+    view: &HostView,
+    from_ms: i64,
+    slack_ms: i64,
+) -> Option<i64> {
     let id = view.record.id;
     let span = history.read(|r| r.retained_span(id)).ok().flatten()?;
-    (span.from_ms > from_ms).then_some(span.from_ms)
+    (span.from_ms > from_ms.saturating_add(slack_ms)).then_some(span.from_ms)
 }
 
 pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnswer, Fail> {
@@ -85,12 +92,20 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
     let view = resolve_enabled(backend, ask.host)?;
     let history = available_history(backend, &view)?;
     let id = view.record.id;
-    let retained = retained_from(&history, &view, ask.from_ms);
-    let from_ms = retained.filter(|&r| r < ask.to_ms).unwrap_or(ask.from_ms);
-    let span = ask.to_ms - from_ms;
-    let full = read(backend, &history, &view, &selectors, from_ms, ask.to_ms, {
-        u32::try_from(span / FINEST_BUCKET_MS + 2).unwrap_or(u32::MAX)
-    })?;
+    // Read from where history begins: nothing is stored before it, and a later start can
+    // let the read use a finer tier.
+    let read_from = retained_from(&history, &view, ask.from_ms, 0)
+        .filter(|&r| r < ask.to_ms)
+        .unwrap_or(ask.from_ms);
+    // Enough points that no buckets merge: the summary needs full resolution.
+    let unmerged =
+        u32::try_from((ask.to_ms - read_from) / FINEST_BUCKET_MS + 2).unwrap_or(u32::MAX);
+    let full = read(
+        backend, &history, &view, &selectors, read_from, ask.to_ms, unmerged,
+    )?;
+    // Only a start more than one bucket late is a clamp worth reporting.
+    let retained = (read_from - ask.from_ms > full.bucket_ms).then_some(read_from);
+    let from_ms = retained.unwrap_or(ask.from_ms);
     let now = backend.host_now(id);
     let summaries = series_summary(&full, &CATALOG_INDEX, from_ms, ask.to_ms, now);
     let keep = selected(&selectors, summaries.series.iter().map(|s| &s.key));
@@ -122,18 +137,22 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
         .remote
         .as_ref()
         .and_then(|_| backend.sync_watermark(id));
-    let mut gaps: Vec<GapDto> = full.gaps.iter().map(gap_dto).collect();
-    if view.remote.is_some() && !is_current(&view) {
-        let synced = watermark.as_ref().and_then(synced_through);
-        if synced.is_none_or(|s| s < ask.to_ms) {
-            gaps.push(GapDto {
-                from: rfc(synced.map_or(from_ms, |s| s.max(from_ms))),
-                to: (ask.to_ms < now).then(|| rfc(ask.to_ms)),
+    let not_synced = (view.remote.is_some() && !is_current(&view))
+        .then(|| watermark.as_ref().and_then(synced_through))
+        .and_then(|synced| {
+            synced.is_none_or(|s| s < ask.to_ms).then(|| Span {
+                from: synced.map_or(from_ms, |s| s.max(from_ms)),
+                to: (ask.to_ms < now).then_some(ask.to_ms),
                 reason: "not_synced".to_owned(),
                 module: None,
-            });
-        }
-    }
+            })
+        });
+    let range = Window {
+        from_ms,
+        to_ms: ask.to_ms,
+        now,
+    };
+    let gaps = gaps(&full, &selectors, &keep, not_synced, &range);
     Ok(HistoryAnswer {
         host: host_ref(&view.record),
         freshness: freshness(&view, watermark.as_ref()),
@@ -145,8 +164,68 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
         tier: full.tier.as_str().to_owned(),
         bucket_s,
         series,
-        gaps,
+        gaps: gaps.iter().map(Span::dto).collect(),
     })
+}
+
+/// The range a history answer covers, and now on the host's clock.
+struct Window {
+    from_ms: i64,
+    to_ms: i64,
+    now: i64,
+}
+
+/// The stored gaps that apply to the selected series, the `not_synced` tail, and a
+/// `no_data` gap for every span longer than two buckets, cut at now, where no kept series
+/// has a point and no gap says why; merged.
+fn gaps(
+    full: &HistoryResult,
+    selectors: &[SeriesSelector],
+    keep: &BTreeSet<String>,
+    not_synced: Option<Span>,
+    w: &Window,
+) -> Vec<Span> {
+    let modules: BTreeSet<Module> = selectors
+        .iter()
+        .filter_map(|s| CATALOG_INDEX.get(s.metric.as_str()).map(|d| d.module))
+        .collect();
+    let mut spans: Vec<Span> = full
+        .gaps
+        .iter()
+        .filter(|g| gaps::applies(g, &modules))
+        .map(Span::from_gap)
+        .chain(not_synced)
+        .collect();
+    let end = w.to_ms.min(w.now);
+    let bucket = full.bucket_ms.max(1);
+    let mut covered: Vec<(i64, i64)> = spans
+        .iter()
+        .map(|g| (g.from, g.to.unwrap_or(end)))
+        .collect();
+    for s in full
+        .series
+        .iter()
+        .filter(|s| keep.contains(&s.key.to_string()))
+    {
+        // A series sampled less often than the bucket fills only some buckets; each point
+        // stands for its sample period.
+        let period = CATALOG_INDEX
+            .get(s.key.metric.as_str())
+            .map_or(0, |d| i64::from(d.period_s) * 1_000);
+        let width = bucket.max(period);
+        covered.extend(s.points.iter().map(|p| (p.t, p.t.saturating_add(width))));
+    }
+    spans.extend(
+        gaps::uncovered(covered, w.from_ms, end, 2 * bucket)
+            .into_iter()
+            .map(|(from, to)| Span {
+                from,
+                to: (to < w.now).then_some(to),
+                reason: gaps::NO_DATA.to_owned(),
+                module: None,
+            }),
+    );
+    gaps::merge(spans)
 }
 
 /// One read through now: stored rows plus the rows not yet committed.

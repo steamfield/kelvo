@@ -29,6 +29,8 @@ const HOUR_MS: i64 = 3_600_000;
 const MAX_DURABLE_DAYS: u32 = 30;
 /// Durable replies carry at most ten app groups (D-120).
 const DURABLE_APPS: u32 = 10;
+/// How much later than the requested start the ring may begin before it is a clamp.
+const RING_SLACK_MS: i64 = 1_000;
 
 /// Which source answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -135,7 +137,7 @@ fn local(backend: &dyn Backend, view: &HostView, ask: &Ask) -> Result<Answer, Fa
                     limit as usize,
                 )
                 .map_err(from_command)?;
-            from_ring(&usage, ask.by)
+            from_ring(&usage, ask)
         }
         Source::Durable => {
             let request = durable_request(view, ask);
@@ -165,7 +167,7 @@ async fn remote(backend: Arc<dyn Backend>, view: HostView, ask: Ask) -> Result<A
         .await
         .map_err(|e| from_remote(&e, &view.record.display_name, last_seen_ms(&view).map(rfc)))?;
     let (range, apps) = match reply {
-        RemoteAnswer::Ring(usage) => from_ring(&usage, ask.by),
+        RemoteAnswer::Ring(usage) => from_ring(&usage, &ask),
         RemoteAnswer::Durable(reply) => from_durable(&reply, ask.by),
     };
     Ok(top_answer(&view, &ask, range, apps, limit, reduced))
@@ -232,7 +234,8 @@ fn unit(by: UsageBy) -> &'static str {
     clippy::cast_precision_loss,
     reason = "byte counts below 2^53 are exact in f64"
 )]
-fn from_ring(usage: &UsageByApp, by: UsageBy) -> (Range, Vec<TopApp>) {
+fn from_ring(usage: &UsageByApp, ask: &Ask) -> (Range, Vec<TopApp>) {
+    let by = ask.by;
     let total = match by {
         UsageBy::Cpu => Some(usage.total.cpu_avg_pct),
         UsageBy::Energy => Some(usage.total.energy_j),
@@ -272,9 +275,11 @@ fn from_ring(usage: &UsageByApp, by: UsageBy) -> (Range, Vec<TopApp>) {
     let range = Range {
         from: rfc(usage.from_ms),
         to: rfc(usage.to_ms),
+        // The ring widens the request to whole buckets; only a start more than a second
+        // after the one asked for is a clamp.
         retained_from: usage
             .since_ms
-            .filter(|&since| since > usage.from_ms)
+            .filter(|&since| since > ask.from_ms.saturating_add(RING_SLACK_MS))
             .map(rfc),
     };
     (range, apps)
@@ -307,11 +312,17 @@ fn from_durable(reply: &HistoricalUsageReply, by: UsageBy) -> (Range, Vec<TopApp
         })
         .collect();
     let r = &reply.range;
-    let first_span = r.spans.iter().map(|s| s.from_ms).min();
+    // Spans are whole buckets, so a first span within one bucket of the request is not a
+    // clamp.
+    let first_span = r.spans.iter().min_by_key(|s| s.from_ms);
+    let late = first_span.filter(|s| {
+        let slack = i64::try_from(s.resolution_ms).unwrap_or(i64::MAX);
+        s.from_ms > r.requested_from_ms.saturating_add(slack)
+    });
     let range = Range {
         from: rfc(r.requested_from_ms),
         to: rfc(r.requested_to_ms),
-        retained_from: first_span.filter(|&f| f > r.requested_from_ms).map(rfc),
+        retained_from: late.map(|s| rfc(s.from_ms)),
     };
     (range, apps)
 }

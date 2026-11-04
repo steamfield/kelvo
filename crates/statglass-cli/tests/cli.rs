@@ -573,3 +573,108 @@ fn skill_install_creates_then_leaves_unchanged() {
             .is_file()
     );
 }
+
+#[test]
+fn now_asks_for_the_headline_set_unless_detail_is_given() {
+    for (args, want) in [(&["now"][..], false), (&["now", "--detail"][..], true)] {
+        let fake = Fake::serving(ok(Answer::Now(now_answer())));
+        assert_eq!(fake.run(args).code, 0);
+        match fake.request().op {
+            Op::Now { detail, .. } => assert_eq!(detail, want, "{args:?}"),
+            other => panic!("{other:?}"),
+        }
+    }
+}
+
+fn gap(from: &str, to: &str, reason: &str) -> GapDto {
+    GapDto {
+        from: today(from),
+        to: Some(today(to)),
+        reason: reason.into(),
+        module: None,
+    }
+}
+
+/// Eight gaps: five long ones and three short sleeps, the 15:50 one still open.
+fn gappy_history() -> HistoryAnswer {
+    let mut a = history_answer();
+    a.gaps = vec![
+        gap("13:00", "13:20", "no_data"),
+        gap("13:30", "13:31", "sleep"),
+        gap("13:40", "14:00", "sleep"),
+        gap("14:10", "14:12", "sleep"),
+        gap("14:20", "14:40", "source_offline"),
+        gap("14:50", "14:53", "sleep"),
+        gap("15:00", "15:30", "sleep"),
+        GapDto {
+            to: None,
+            ..gap("15:50", "15:50", "not_synced")
+        },
+    ];
+    a
+}
+
+#[test]
+fn history_prints_the_longest_gaps_and_sums_up_the_rest() {
+    let fake = Fake::serving(ok(Answer::History(gappy_history())));
+    let run = fake.run(&["history", "cpu.total", "--from", "13:00", "--to", "16:00"]);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let gaps: Vec<&str> = run.stdout.lines().skip(2).collect();
+    assert_eq!(
+        gaps,
+        [
+            "gap 13:00 to 13:20: no data recorded",
+            "gap 13:40 to 14:00: sleep",
+            "gap 14:20 to 14:40: host offline",
+            "gap 15:00 to 15:30: sleep",
+            "gap 15:50 to now (open): not synced yet",
+            "3 more gaps, 6 min total (sleep: 3); --all-gaps lists every one",
+        ]
+    );
+
+    let fake = Fake::serving(ok(Answer::History(gappy_history())));
+    let run = fake.run(&["history", "cpu.total", "--all-gaps"]);
+    assert_eq!(run.stdout.matches("\ngap ").count(), 8, "{}", run.stdout);
+    assert!(!run.stdout.contains("more gaps"));
+
+    let fake = Fake::serving(ok(Answer::History(gappy_history())));
+    let run = fake.run(&["history", "cpu.total", "--json"]);
+    assert_eq!(
+        run.json::<HistoryAnswer>().gaps.len(),
+        8,
+        "JSON keeps every gap"
+    );
+}
+
+#[test]
+fn top_text_caps_processes_per_app_and_says_where_usage_starts() {
+    let mut answer = top_answer();
+    answer.range.retained_from = Some(today("13:20"));
+    answer.apps[0].processes = (1..=5)
+        .map(|n| statglass_query::TopProcess {
+            name: format!("node{n}"),
+            pid: Some(100 + n),
+            value: 40.0 - f64::from(n),
+        })
+        .collect();
+    let fake = Fake::serving(ok(Answer::Top(answer.clone())));
+    let out = fake.run(&["top"]).stdout;
+    assert!(
+        out.starts_with(
+            "usage data starts 13:20 (StatGlass started then, or the host's usage history begins then)\n"
+        ),
+        "{out}"
+    );
+    assert!(out.contains("  node3 (pid 103)  37.0%\n"), "{out}");
+    assert!(!out.contains("node4"), "{out}");
+    assert!(out.ends_with("  and 2 more\n"), "{out}");
+    assert!(!out.contains("clamped"), "{out}");
+
+    let fake = Fake::serving(ok(Answer::Top(answer.clone())));
+    let json: TopAnswer = fake.run(&["top", "--json"]).json();
+    assert_eq!(json.apps[0].processes.len(), 5, "JSON keeps every process");
+
+    answer.range.retained_from = None;
+    let fake = Fake::serving(ok(Answer::Top(answer)));
+    assert!(!fake.run(&["top"]).stdout.contains("usage data starts"));
+}

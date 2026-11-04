@@ -114,7 +114,8 @@ pub struct Freshness {
 pub struct Range {
     pub from: String,
     pub to: String,
-    /// Where the host's retained history begins, when the request started earlier.
+    /// Where the host's retained data begins, when it begins more than one bucket (1 s for
+    /// the usage ring) after the requested start: the range was clamped to it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retained_from: Option<String>,
 }
@@ -216,6 +217,7 @@ pub struct HistoryAnswer {
     /// The tier's bucket width in seconds.
     pub bucket_s: u32,
     pub series: Vec<SeriesHistory>,
+    /// Host-wide gaps and gaps of the requested series' modules, merged, in time order.
     pub gaps: Vec<GapDto>,
 }
 
@@ -254,14 +256,17 @@ pub struct Summary {
     pub measured_fraction: f64,
 }
 
-/// A span with no data. `to` is absent while the gap is open.
+/// A span with no data. `to` is absent while the gap is open. Gaps with the same reason
+/// and module that touch or overlap are merged into one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct GapDto {
     pub from: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
-    /// The stored reason (`sleep`, `source_offline`, ...) or `not_synced` for a span the
-    /// mirror has not caught up on. Treat an unfamiliar reason as a gap all the same.
+    /// The stored reason (`sleep`, `source_offline`, ...), `not_synced` for a span the
+    /// mirror has not caught up on, or `no_data` for a span longer than two buckets where
+    /// no requested series has a point and no stored gap says why. Treat an unfamiliar
+    /// reason as a gap all the same.
     pub reason: String,
     /// Set when the gap covers one module only.
     #[serde(default, skip_serializing_if = "Option::is_none")]

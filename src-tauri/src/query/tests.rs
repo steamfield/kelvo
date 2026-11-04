@@ -17,7 +17,8 @@ use statglass_schema::durable_usage::{HistoricalUsageReply, HistoricalUsageReque
 use statglass_schema::lock::LockExt;
 use statglass_schema::usage::{UsageByApp, UsageKey};
 use statglass_schema::{
-    Event, EventDetail, Gap, GapReason, HostId, HostInfo, HostRecord, OsKind, SeriesKey, Tier,
+    Event, EventDetail, Gap, GapReason, HostId, HostInfo, HostRecord, Module, OsKind, SeriesKey,
+    Tier,
 };
 use statglass_store::BucketRow;
 
@@ -170,7 +171,31 @@ impl Backend for Fake {
     }
 }
 
-/// This Mac with an hour of CPU (a spike at NOW - 30 min, asleep NOW - 20 to - 15 min)
+/// A frame over `layout` at `ts_ms` holding `held`.
+fn frame(layout: &Arc<FrameLayout>, ts_ms: i64, held: &[f32]) -> Arc<LiveFrame> {
+    Arc::new(LiveFrame {
+        ts_ms,
+        interval_ms: 1000,
+        layout: layout.clone(),
+        timeline: 0,
+        values: held.into(),
+        held: held.into(),
+        holds: vec![2500; held.len()].into(),
+    })
+}
+
+/// The series every fixture frame holds: headline, local-only headline and other ones.
+const FRAME_SERIES: [&str; 6] = [
+    "cpu.total",
+    "cpu.load{core=0}",
+    "mem.used",
+    "power.system",
+    "disk.used{vol=/}",
+    "disk.used{vol=/Volumes/Backup}",
+];
+
+/// This Mac with an hour of CPU (a spike at NOW - 30 min, asleep NOW - 20 to - 15 min),
+/// ten minutes of `gpu.util` (NOW - 40 to - 30 min), disk disabled NOW - 50 to - 45 min,
 /// and two events, one from a newer build; `m1-linux`, offline, mirrored through
 /// [`SYNCED`]; `studio`, disabled; `builder`, connected, which answers usage with
 /// `Unsupported`.
@@ -192,8 +217,24 @@ fn fixture() -> Arc<Fake> {
     let spike = |t| if t == NOW - 30 * MIN { 90.0 } else { 10.0 };
     write_s10(&w, mac.id, &cpu, NOW - 60 * MIN, NOW - 20 * MIN, spike);
     write_s10(&w, mac.id, &cpu, NOW - 15 * MIN, NOW, spike);
-    let sleep = Gap::host(NOW - 20 * MIN, Some(NOW - 15 * MIN), GapReason::Sleep).unwrap();
-    w.write_gap(mac.id, sleep).unwrap();
+    write_s10(
+        &w,
+        mac.id,
+        &keys(&["gpu.util"]),
+        NOW - 40 * MIN,
+        NOW - 30 * MIN,
+        |_| 5.0,
+    );
+    // One sleep stored as two touching rows, which the answer merges.
+    for (from, to) in [
+        (NOW - 20 * MIN, NOW - 18 * MIN),
+        (NOW - 18 * MIN, NOW - 15 * MIN),
+    ] {
+        let sleep = Gap::host(from, Some(to), GapReason::Sleep).unwrap();
+        w.write_gap(mac.id, sleep).unwrap();
+    }
+    let disk_off = Gap::module_disabled(NOW - 50 * MIN, Some(NOW - 45 * MIN), Module::Disk);
+    w.write_gap(mac.id, disk_off).unwrap();
     let fans = Event {
         ts_ms: NOW - 10 * MIN,
         start_ms: NOW - 11 * MIN,
@@ -223,19 +264,9 @@ fn fixture() -> Arc<Fake> {
 
     let layout = Arc::new(FrameLayout {
         layout_no: 1,
-        series: keys(&["cpu.total", "cpu.load{core=0}", "mem.used"]),
+        series: keys(&FRAME_SERIES),
     });
-    let frame = |ts_ms, held: &[f32]| {
-        Arc::new(LiveFrame {
-            ts_ms,
-            interval_ms: 1000,
-            layout: layout.clone(),
-            timeline: 0,
-            values: held.into(),
-            held: held.into(),
-            holds: vec![2500; held.len()].into(),
-        })
-    };
+    let other = [9.0, 1e11, 2e11];
     Arc::new(Fake {
         local: mac.id,
         hosts: vec![
@@ -250,9 +281,26 @@ fn fixture() -> Arc<Fake> {
         histories: HashMap::from([(mac.id, local), (linux.id, mirror_history)]),
         mirrors: HashMap::from([(linux.id, mirror)]),
         frames: HashMap::from([
-            (mac.id, frame(NOW - 1_000, &[12.0, 30.0, f32::NAN])),
-            (builder.id, frame(NOW - 2_000, &[40.0, 50.0, 1e9])),
-            (linux.id, frame(SYNCED, &[20.0, 20.0, 1e9])),
+            (
+                mac.id,
+                frame(
+                    &layout,
+                    NOW - 1_000,
+                    &[&[12.0, 30.0, f32::NAN], &other[..]].concat(),
+                ),
+            ),
+            (
+                builder.id,
+                frame(
+                    &layout,
+                    NOW - 2_000,
+                    &[&[40.0, 50.0, 1e9], &other[..]].concat(),
+                ),
+            ),
+            (
+                linux.id,
+                frame(&layout, SYNCED, &[&[20.0, 20.0, 1e9], &other[..]].concat()),
+            ),
         ]),
         stall: Mutex::new(()),
         remote: Box::new(|| Err(RemoteError::Unsupported("too old".into()))),
@@ -384,8 +432,9 @@ async fn history_summarizes_every_bucket_and_reports_explicit_gaps() {
     );
     assert!(s.points.len() <= 6 && !s.points.is_empty());
     let gaps: Vec<_> = h.gaps.iter().map(|g| g.reason.as_str()).collect();
-    assert_eq!(gaps, ["sleep"]);
+    assert_eq!(gaps, ["sleep"], "merged, and the disk gap is not cpu's");
     assert_eq!(h.gaps[0].from, rfc(NOW - 20 * MIN));
+    assert_eq!(h.gaps[0].to, Some(rfc(NOW - 15 * MIN)));
     assert_eq!(h.range.retained_from, None);
 
     // Points are opt-in (absent and 0 both mean none), and the summary does not depend
@@ -568,6 +617,7 @@ async fn now_keeps_remote_hosts_to_headline_series_and_offline_hosts_empty() {
         Op::Now {
             host: None,
             all: true,
+            detail: false,
         },
     )
     .await
@@ -585,11 +635,15 @@ async fn now_keeps_remote_hosts_to_headline_series_and_offline_hosts_empty() {
     };
     assert_eq!(
         series(0),
-        ["cpu.load{core=0}", "cpu.total"],
-        "stale values are left out"
+        ["cpu.total", "disk.used{vol=/}", "power.system"],
+        "the headline set plus this Mac's extras; stale values are left out"
     );
     assert_eq!(n.hosts[0].age_ms, Some(1_000));
-    assert_eq!(series(1), ["cpu.total", "mem.used"], "headline series only");
+    assert_eq!(
+        series(1),
+        ["cpu.total", "mem.used"],
+        "a remote host gets the headline set only, whatever its frame holds"
+    );
     let linux = &n.hosts[2];
     assert!(linux.readings.is_empty());
     assert_eq!(linux.frame_at.as_deref(), Some(rfc(SYNCED).as_str()));
@@ -754,4 +808,193 @@ async fn turning_access_off_unbinds_the_socket_and_leaves_the_marker() {
     settle(false).await;
     drop(desired);
     owner.await.unwrap();
+}
+
+#[tokio::test]
+async fn now_detail_reports_every_held_series() {
+    let fake = fixture();
+    let op = |host: &str| Op::Now {
+        host: Some(host.into()),
+        all: false,
+        detail: true,
+    };
+    let series = |a: Answer| -> Vec<String> {
+        let Answer::Now(n) = a else { panic!() };
+        n.hosts[0]
+            .readings
+            .iter()
+            .map(|r| r.series.clone())
+            .collect()
+    };
+    assert_eq!(
+        series(ask(&fake, op("local")).await.unwrap()),
+        [
+            "cpu.load{core=0}",
+            "cpu.total",
+            "disk.used{vol=/Volumes/Backup}",
+            "disk.used{vol=/}",
+            "power.system",
+        ]
+    );
+    assert_eq!(series(ask(&fake, op("builder")).await.unwrap()).len(), 6);
+}
+
+#[tokio::test]
+async fn history_explains_every_span_with_no_data() {
+    let fake = fixture();
+    let h = history(&fake, "local", &["gpu.util"]).await.unwrap();
+    assert_eq!(h.range.retained_from, None, "history starts with the range");
+    let gaps: Vec<_> = h
+        .gaps
+        .iter()
+        .map(|g| (g.reason.as_str(), g.from.clone(), g.to.clone()))
+        .collect();
+    assert_eq!(
+        gaps,
+        [
+            ("no_data", rfc(NOW - 60 * MIN), Some(rfc(NOW - 40 * MIN))),
+            ("no_data", rfc(NOW - 30 * MIN), Some(rfc(NOW - 20 * MIN))),
+            ("sleep", rfc(NOW - 20 * MIN), Some(rfc(NOW - 15 * MIN))),
+            ("no_data", rfc(NOW - 15 * MIN), None),
+        ],
+        "leading, inner and trailing spans; the sleep explains its own"
+    );
+
+    // Any requested series' point covers the time: gpu.util's hole is cpu.total's data.
+    let both = history(&fake, "local", &["cpu.total", "gpu.util"])
+        .await
+        .unwrap();
+    let reasons: Vec<_> = both.gaps.iter().map(|g| g.reason.as_str()).collect();
+    assert_eq!(reasons, ["sleep"]);
+
+    // A gap for the requested series' module is kept.
+    let disk = history(&fake, "local", &["disk.used"]).await.unwrap();
+    let off: Vec<_> = disk
+        .gaps
+        .iter()
+        .filter(|g| g.reason == "module_disabled")
+        .collect();
+    let [off] = off.as_slice() else {
+        panic!("{:?}", disk.gaps)
+    };
+    assert_eq!(off.module.as_deref(), Some("disk"));
+}
+
+#[tokio::test]
+async fn a_start_within_one_bucket_of_history_is_not_a_clamp() {
+    let fake = fixture();
+    let op = |from_ms| Op::History {
+        host: None,
+        series: vec!["cpu.total".into()],
+        from_ms,
+        to_ms: NOW,
+        points: None,
+    };
+    let Answer::History(h) = ask(&fake, op(NOW - 60 * MIN - 4 * S)).await.unwrap() else {
+        panic!()
+    };
+    assert_eq!(h.range.retained_from, None);
+    assert_eq!(h.range.from, rfc(NOW - 60 * MIN - 4 * S));
+    assert!(h.gaps.iter().all(|g| g.reason != "no_data"), "{:?}", h.gaps);
+}
+
+/// The fixture as a mutable value, for tests that change one host.
+fn owned_fixture() -> Fake {
+    Arc::try_unwrap(fixture()).unwrap_or_else(|_| panic!("the fixture is shared"))
+}
+
+async fn third_host_retained_to(fake: &Arc<Fake>) -> Option<String> {
+    let Answer::Hosts(h) = ask(fake, Op::Hosts).await.unwrap() else {
+        panic!()
+    };
+    h.hosts[2].retained_to.clone()
+}
+
+#[tokio::test]
+async fn a_live_host_reports_history_through_its_newest_frame() {
+    let mut fake = owned_fixture();
+    let linux = fake.hosts[2].record.id;
+    let layout = fake.frames[&linux].layout.clone();
+    fake.frames
+        .insert(linux, frame(&layout, NOW - S, &[1.0; FRAME_SERIES.len()]));
+    let offline = Arc::new(fake);
+    assert_eq!(
+        third_host_retained_to(&offline).await,
+        Some(rfc(SYNCED)),
+        "an offline host's frame is not current"
+    );
+    let mut fake = Arc::try_unwrap(offline).unwrap_or_else(|_| panic!());
+    if let Some(r) = fake.hosts[2].remote.as_mut() {
+        r.status.state = RemoteState::Connected;
+    }
+    let connected = Arc::new(fake);
+    assert_eq!(third_host_retained_to(&connected).await, Some(rfc(NOW - S)));
+}
+
+async fn top_retained_from(reply: RemoteAnswer, from_ms: i64) -> Option<String> {
+    let mut fake = owned_fixture();
+    fake.remote = Box::new(move || Ok(reply.clone()));
+    let fake = Arc::new(fake);
+    let op = Op::Top {
+        host: Some("builder".into()),
+        from_ms,
+        to_ms: NOW,
+        by: UsageBy::Cpu,
+        limit: 5,
+    };
+    let Answer::Top(t) = ask(&fake, op).await.unwrap() else {
+        panic!()
+    };
+    t.range.retained_from
+}
+
+#[tokio::test]
+async fn top_reports_a_clamp_only_when_usage_starts_late() {
+    use statglass_schema::durable_usage::{
+        HistoricalUsageMetric, UsageHistoryRange, UsageHistorySpan,
+    };
+    let ring = |since_ms| {
+        RemoteAnswer::Ring(UsageByApp {
+            // Widened to whole buckets.
+            from_ms: NOW - 30 * MIN - 5 * S,
+            to_ms: NOW,
+            since_ms: Some(since_ms),
+            ..Default::default()
+        })
+    };
+    let from = NOW - 30 * MIN;
+    assert_eq!(top_retained_from(ring(from + 400), from).await, None);
+    assert_eq!(
+        top_retained_from(ring(NOW - 20 * MIN), from).await,
+        Some(rfc(NOW - 20 * MIN))
+    );
+
+    let durable = |first_ms, from_ms| {
+        RemoteAnswer::Durable(HistoricalUsageReply {
+            range: UsageHistoryRange {
+                requested_from_ms: from_ms,
+                requested_to_ms: NOW,
+                spans: vec![UsageHistorySpan {
+                    from_ms: first_ms,
+                    to_ms: NOW,
+                    resolution_ms: 60_000,
+                }],
+                coverage: Vec::new(),
+            },
+            by: HistoricalUsageMetric::Cpu,
+            apps: Vec::new(),
+            ranking_complete: true,
+            network_uncertainty: Vec::new(),
+        })
+    };
+    let from = NOW - 180 * MIN - 27 * S;
+    assert_eq!(
+        top_retained_from(durable(NOW - 180 * MIN, from), from).await,
+        None,
+        "the first whole bucket after the start is not a clamp"
+    );
+    assert_eq!(
+        top_retained_from(durable(NOW - 120 * MIN, from), from).await,
+        Some(rfc(NOW - 120 * MIN))
+    );
 }

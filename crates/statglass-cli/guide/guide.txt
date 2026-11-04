@@ -4,7 +4,7 @@ The loop:
 1. statglass hosts: host names, which are connected, how much history each keeps.
 2. What happened: statglass events --since 3h (thermal, fans, sustained processes, power spikes, alerts, with the processes involved) and statglass top --since 1h (apps by CPU; --by memory or energy).
 3. The trend: statglass history <series> --since 3h gives min, mean, max with its time, last value and gaps. statglass metrics --host <host> lists series names (cpu.total, mem.used, disk.used, thermal.hottest, power.system, net.rx_total).
-4. Right now: statglass now, or statglass now --all for every host.
+4. Right now: statglass now (headline series: CPU, memory, GPU, hottest sensor, network, disk I/O, and on this Mac power, battery and / volume space), statglass now --detail for every series, or statglass now --all for every host.
 Add --host <name> for another machine, --from 13:00 --to 16:00 for a window, and --json for one JSON object (schema: statglass schema <command>).
 
 Rules:

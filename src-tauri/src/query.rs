@@ -7,8 +7,10 @@
 //! | Need | Where |
 //! |---|---|
 //! | Bind, accept, frame, concurrency and deadlines | `server` |
-//! | Host lookup, `status`, `hosts`, `now`, `metrics` | `hosts` |
+//! | Host lookup, `status`, `hosts`, `metrics` | `hosts` |
+//! | `now` and its headline set | `now` |
 //! | `history` | `history` |
+//! | Gap filtering, merging and `no_data` spans | `gaps` |
 //! | `events` | `events` |
 //! | `top` (local ring and durable usage, remote hosts live) | `top` |
 //!
@@ -36,9 +38,11 @@ use crate::remote::RemoteHostStatus;
 use crate::state::AppState;
 
 mod events;
+mod gaps;
 mod history;
 mod hosts;
 mod map;
+mod now;
 mod server;
 mod top;
 

@@ -98,15 +98,22 @@ installed, outdated or has command-line access off (ask the user).",
     /// Current readings of one host, or every host.
     #[command(
         long_about = "Current readings from the newest frame StatGlass holds for a host, grouped \
-by module, with the frame's age. Remote hosts report their headline series; for more detail on \
-a remote host use statglass history '<series>' --since 2m. An offline host shows when it was \
-last seen and no readings. With --all, every host is listed, and a host that fails shows its \
-error while the command still exits 0. Exits 0 with the readings, 1 on a bug, 2 on bad \
+by module, with the frame's age. By default every host reports the same headline set: \
+cpu.total, mem.used, mem.pressure, gpu.util, thermal.hottest, net.rx and net.tx per interface, \
+disk.read and disk.write per device; this Mac adds power.system, battery.charge (with a \
+battery) and disk.used and disk.free for the / volume. --detail reports every series the frame \
+holds; a remote host serves only its headline series unless a StatGlass window shows it, so \
+for more detail there use statglass history '<series>' --since 2m. An offline host shows when \
+it was last seen and no readings. With --all, every host is listed, and a host that fails shows \
+its error while the command still exits 0. Exits 0 with the readings, 1 on a bug, 2 on bad \
 arguments or an unknown host, 4 when StatGlass is busy, 6 when StatGlass is not running, not \
 installed, outdated or has command-line access off (ask the user).",
         after_help = "EXAMPLES
-  # This Mac now
+  # This Mac now: the headline set
   statglass now
+
+  # Every series this Mac's frame holds (cores, sensors, volumes)
+  statglass now --detail
 
   # A remote host
   statglass now --host m1-linux
@@ -120,6 +127,10 @@ installed, outdated or has command-line access off (ask the user).",
         /// Every host, offline and disabled ones included.
         #[arg(long, conflicts_with = "host")]
         all: bool,
+        /// Every series the frame holds instead of the headline set. Remote hosts still
+        /// report only what they serve while no StatGlass window shows them.
+        #[arg(long)]
+        detail: bool,
     },
 
     /// The metric catalog, and the series one host has.
@@ -158,6 +169,9 @@ installed, outdated or has command-line access off (ask the user).",
   # Every core this afternoon, with 12 points each
   statglass history cpu.load --from 13:00 --to 16:00 --points 12
 
+  # Root volume use over a week, listing every gap
+  statglass history 'disk.used{vol=/}' --host m1-linux --since 7d --all-gaps
+
   # A container on a Linux host; quote braces
   statglass history 'cgroup.cpu{kind=container,name=postgres}' --host m1-linux --since 1d
 
@@ -177,6 +191,10 @@ installed, outdated or has command-line access off (ask the user).",
         /// --json defaults to 60.
         #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(0..=1000))]
         points: Option<u32>,
+        /// Print every gap. Text output otherwise prints the 5 longest and one line
+        /// summing up the rest; --json always has every gap.
+        #[arg(long)]
+        all_gaps: bool,
     },
 
     /// Detector and alert events over a time range, with the processes involved.
@@ -299,14 +317,16 @@ use statglass. Exits 2 without a subcommand; see statglass skill install --help.
 
 const HISTORY_LONG: &str = "For each series over a time range: min, span-weighted mean, max with \
 the bucket it fell in, last value, the share of the range that was measured, and every gap with \
-its reason (sleep, host offline, not synced, ...). A gap is unknown data, never zero. The \
-summary covers every stored bucket in the range, so it does not change with --points. The time \
-of the max is the start of its bucket (1 min up to 7 days back, 15 min beyond), and means over \
-15-minute buckets are approximate, marked (mean approximate). A range before the host's \
-retained history is clamped and says where history starts. Exits 0 with the history, 1 on a \
-bug, 2 on bad arguments, an unknown host or series (quote series with braces) or a bad range, 4 \
-when StatGlass is busy, 5 when the host is disabled or history is not available, 6 when \
-StatGlass is not running, not installed, outdated or has command-line access off (ask the user).";
+its reason (sleep, host offline, not synced, no data recorded, ...). A gap is unknown data, \
+never zero. Text prints the 5 longest gaps and one line summing up the rest (--all-gaps prints \
+them all; --json has them all). The summary covers every stored bucket in the range, so it does \
+not change with --points. The time of the max is the start of its bucket (1 min up to 7 days \
+back, 15 min beyond), and means over 15-minute buckets are approximate, marked (mean \
+approximate). A range that starts more than a bucket before the host's retained history is \
+clamped and says where history starts. Exits 0 with the history, 1 on a bug, 2 on bad \
+arguments, an unknown host or series (quote series with braces) or a bad range, 4 when \
+StatGlass is busy, 5 when the host is disabled or history is not available, 6 when StatGlass \
+is not running, not installed, outdated or has command-line access off (ask the user).";
 
 #[derive(Debug, Subcommand)]
 pub enum SkillAction {

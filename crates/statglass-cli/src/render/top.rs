@@ -1,7 +1,10 @@
 use statglass_query::TopAnswer;
 
-use super::{Ctx, freshness_line, range_text, retained_line, snake};
+use super::{Ctx, freshness_line, range_text, snake};
 use crate::format;
+
+/// Processes printed under each app; `--json` has them all.
+const MAX_PROCESSES: usize = 3;
 
 pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
     let clock = &ctx.clock;
@@ -9,8 +12,13 @@ pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
     if let Some(line) = freshness_line(&a.host.name, a.freshness.as_ref(), clock) {
         out.push_str(&line);
     }
-    if let Some(line) = retained_line(&a.range, clock) {
-        out.push_str(&line);
+    // Usage history, not metric history: the ring starts when StatGlass did, and durable
+    // usage where the host's usage history begins.
+    if let Some(from) = &a.range.retained_from {
+        out.push_str(&format!(
+            "usage data starts {} (StatGlass started then, or the host's usage history begins then)\n",
+            clock.short(from)
+        ));
     }
     let header = format!(
         "top {} apps by {} on {}, {}",
@@ -39,12 +47,24 @@ pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
             format::value(app.value, &app.unit),
             share,
         ]);
-        for p in &app.processes {
+        for p in app.processes.iter().take(MAX_PROCESSES) {
             let name = match p.pid {
                 Some(pid) => format!("  {} (pid {pid})", p.name),
                 None => format!("  {}", p.name),
             };
             rows.push(vec![name, format::value(p.value, &app.unit), String::new()]);
+        }
+        if let Some(more) = app
+            .processes
+            .len()
+            .checked_sub(MAX_PROCESSES)
+            .filter(|&n| n > 0)
+        {
+            rows.push(vec![
+                format!("  and {more} more"),
+                String::new(),
+                String::new(),
+            ]);
         }
     }
     out.push_str(&format::table(&rows, ctx.style.aligned(), ""));

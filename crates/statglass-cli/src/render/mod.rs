@@ -19,6 +19,8 @@ pub struct Ctx {
     pub clock: Clock,
     /// Print history points (`--points N` given).
     pub show_points: bool,
+    /// Print every history gap (`--all-gaps`), not only the longest.
+    pub all_gaps: bool,
 }
 
 pub fn answer(answer: &Answer, ctx: &Ctx) -> String {
@@ -68,7 +70,7 @@ pub fn freshness_line(name: &str, freshness: Option<&Freshness>, clock: &Clock) 
     Some(line)
 }
 
-/// `13:00 to 16:00`, plus where retained history starts when the range was clamped.
+/// `13:00 to 16:00`.
 pub fn range_text(range: &Range, clock: &Clock) -> String {
     format!("{} to {}", clock.short(&range.from), clock.short(&range.to))
 }

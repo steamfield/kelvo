@@ -199,10 +199,12 @@ fn ops() -> Vec<Op> {
         Op::Now {
             host: Some("m1-linux".into()),
             all: false,
+            detail: false,
         },
         Op::Now {
             host: None,
             all: true,
+            detail: true,
         },
         Op::Metrics {
             host: Some("local".into()),
@@ -264,7 +266,8 @@ fn unknown_op_decodes_to_the_fallback() {
         req.op,
         Op::Now {
             host: None,
-            all: false
+            all: false,
+            detail: false
         }
     );
 }
