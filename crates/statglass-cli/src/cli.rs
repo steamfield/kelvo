@@ -192,7 +192,8 @@ installed, outdated or has command-line access off (ask the user).",
         #[command(flatten)]
         range: RangeArgs,
         /// Downsampled points per series, 0 to 1000. Text output shows none unless given;
-        /// --json defaults to 60.
+        /// --json defaults to 60. A slot with nothing measured has no point; text prints it
+        /// as no data, and --json gives the slot width as point_slot_s.
         #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(0..=1000))]
         points: Option<u32>,
         /// Print every gap. Text output otherwise prints the 5 longest and one line
@@ -207,7 +208,9 @@ installed, outdated or has command-line access off (ask the user).",
 thermal state changes, sustained heavy processes, power spikes and user alerts, each with the \
 processes held responsible. Events are mirrored, so offline hosts have them too. Run this before \
 history when asking what caused something. Events a newer StatGlass recorded that this one \
-cannot read are counted, never silently dropped. Exits 0 with the events (none is a valid \
+cannot read are counted, never silently dropped. --summary counts them instead of listing them: \
+per kind, the total, first and last, the processes named most often and the count per day. \
+Exits 0 with the events (none is a valid \
 answer once freshness says the data is current), 1 on a bug, 2 on bad arguments, an unknown \
 host or a bad range, 4 when StatGlass is busy, 5 when the host is disabled or history is not \
 available, 6 when StatGlass is not running, not installed, outdated or has command-line access \
@@ -218,6 +221,9 @@ off (ask the user).",
 
   # Thermal events on m1-linux over two days
   statglass events --host m1-linux --kind thermal_state --since 2d
+
+  # How often each kind happened this week, and because of what
+  statglass events --since 7d --summary
 
   # One EventsAnswer object
   statglass events --since 3h --json"
@@ -230,6 +236,10 @@ off (ask the user).",
         /// One event kind: fans_ramped, thermal_state, sustained_process, power_spike, alert.
         #[arg(long, value_name = "KIND")]
         kind: Option<String>,
+        /// Count the events instead of listing them: per kind, the processes named most
+        /// often and the count per day. With --json, one EventsSummary object.
+        #[arg(long)]
+        summary: bool,
     },
 
     /// Apps and processes that used the most CPU, memory or energy over a range.
@@ -369,8 +379,8 @@ pub struct RangeArgs {
     /// How far back from now: 90s, 15m, 2h, 3d. Default 1h. Not combined with --from/--to.
     #[arg(long, value_name = "DURATION", conflicts_with_all = ["from", "to"])]
     pub since: Option<String>,
-    /// Start: RFC 3339 (2026-11-03T15:00:00-08:00), a time today in this Mac's timezone
-    /// (15:00), or a duration ago (3h).
+    /// Start: a date and time in this Mac's timezone (2026-11-03 15:00, or 2026-11-03 for
+    /// midnight), a time today (15:00), a duration ago (3h), or RFC 3339 with an offset.
     #[arg(long, value_name = "TIME")]
     pub from: Option<String>,
     /// End, in the same forms as --from. Default now; with --to alone the range is the

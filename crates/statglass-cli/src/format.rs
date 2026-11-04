@@ -47,6 +47,22 @@ impl Clock {
         self.render(rfc3339, true)
     }
 
+    /// A `YYYY-MM-DD` day: `Nov 2`, with the year when it is not this year. Always dated,
+    /// today included.
+    pub fn day(&self, date: &str) -> String {
+        let (Some(year), Some(month), Some(day)) = (date.get(..4), date.get(5..7), date.get(8..10))
+        else {
+            return date.to_owned();
+        };
+        let month = month_name(month).unwrap_or(month);
+        let day = day.trim_start_matches('0');
+        if self.today.get(..4) == Some(year) {
+            format!("{month} {day}")
+        } else {
+            format!("{month} {day} {year}")
+        }
+    }
+
     fn render(&self, t: &str, secs: bool) -> String {
         let (Some(date), Some(clock)) = (t.get(..10), t.get(11..if secs { 19 } else { 16 })) else {
             return t.to_owned();
@@ -214,6 +230,8 @@ mod tests {
         assert_eq!(c.short("2026-11-02T09:05:00-08:00"), "Nov 2 09:05");
         assert_eq!(c.short("2025-12-31T23:59:00-08:00"), "Dec 31 2025 23:59");
         assert_eq!(c.short("garbage"), "garbage");
+        assert_eq!(c.day("2026-11-03"), "Nov 3");
+        assert_eq!(c.day("2025-12-31"), "Dec 31 2025");
     }
 
     #[test]

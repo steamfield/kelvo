@@ -4,8 +4,8 @@
 use schemars::{JsonSchema, Schema, schema_for};
 
 use crate::{
-    CliErrorEnvelope, DoctorReport, EventsAnswer, HistoryAnswer, HostsAnswer, MetricsAnswer,
-    NowAnswer, QueryRequest, StatusAnswer, TopAnswer,
+    CliErrorEnvelope, DoctorReport, EventsAnswer, EventsSummary, HistoryAnswer, HostsAnswer,
+    MetricsAnswer, NowAnswer, QueryRequest, StatusAnswer, TopAnswer,
 };
 
 #[derive(Clone, Debug)]
@@ -37,6 +37,7 @@ pub fn schemas() -> Vec<SchemaEntry> {
         entry::<MetricsAnswer>("metrics", "statglass metrics --json"),
         entry::<HistoryAnswer>("history", "statglass history --json"),
         entry::<EventsAnswer>("events", "statglass events --json"),
+        entry::<EventsSummary>("events-summary", "statglass events --summary --json"),
         entry::<TopAnswer>("top", "statglass top --json"),
         entry::<DoctorReport>("doctor", "statglass doctor --json"),
         entry::<CliErrorEnvelope>(

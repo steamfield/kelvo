@@ -26,7 +26,7 @@ pub fn render(a: &HistoryAnswer, ctx: &Ctx) -> String {
         out.push('\n');
         out.push_str(&summary_line(&s.summary, &s.unit, clock, secs));
         if ctx.show_points {
-            out.push_str(&points(s, clock, secs, ctx.style.aligned()));
+            out.push_str(&points(s, a, clock, secs, ctx.style.aligned()));
         }
     }
     if a.series.is_empty() {
@@ -141,26 +141,67 @@ fn bucket_phrase(bucket_s: Option<u32>, start: &str) -> String {
     }
 }
 
-fn points(s: &SeriesHistory, clock: &Clock, secs: bool, aligned: bool) -> String {
+/// The points, one row each, with a `no data` row wherever slots on the point grid have
+/// no point (before the first, between two, after the last), so a missing slot never
+/// reads as the next point following on. A run of empty slots is one row.
+fn points(
+    s: &SeriesHistory,
+    a: &HistoryAnswer,
+    clock: &Clock,
+    secs: bool,
+    aligned: bool,
+) -> String {
     if s.points.is_empty() {
         return "  no points\n".to_owned();
     }
-    let rows: Vec<Vec<String>> = s
-        .points
-        .iter()
-        .map(|p| {
-            vec![
-                if secs {
-                    clock.short_secs(&p.t)
-                } else {
-                    clock.short(&p.t)
-                },
-                format!("avg {}", format::value(p.avg, &s.unit)),
-                format!("min {}", format::value(p.min, &s.unit)),
-                format!("max {}", format::value(p.max, &s.unit)),
-            ]
-        })
-        .collect();
+    let t = |rfc: &str| {
+        if secs {
+            clock.short_secs(rfc)
+        } else {
+            clock.short(rfc)
+        }
+    };
+    let slot_ms = a
+        .point_slot_s
+        .map(|s| i64::from(s) * 1_000)
+        .filter(|&w| w > 0);
+    let ms = |rfc: &str| statglass_query::time::parse_instant(rfc, 0).ok();
+    let empty = |from: i64, slots: i64| -> Vec<String> {
+        let when = t(&statglass_query::time::rfc3339_local(from));
+        let what = if slots == 1 {
+            "no data".to_owned()
+        } else {
+            format!("no data ({slots} points)")
+        };
+        vec![when, what, String::new(), String::new()]
+    };
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    // Where the next point is due: the range start, then one slot past each point.
+    let mut due = ms(&a.range.from);
+    for p in &s.points {
+        let at = ms(&p.t);
+        if let (Some(w), Some(due_ms), Some(at_ms)) = (slot_ms, due, at) {
+            // Slots are on the point grid, so step back to the slot holding `due_ms`.
+            let first = at_ms - (at_ms - due_ms).div_euclid(w) * w;
+            let missing = (at_ms - first) / w;
+            if missing > 0 {
+                rows.push(empty(first, missing));
+            }
+        }
+        rows.push(vec![
+            t(&p.t),
+            format!("avg {}", format::value(p.avg, &s.unit)),
+            format!("min {}", format::value(p.min, &s.unit)),
+            format!("max {}", format::value(p.max, &s.unit)),
+        ]);
+        due = at.zip(slot_ms).map(|(at_ms, w)| at_ms + w);
+    }
+    if let (Some(w), Some(due_ms), Some(to)) = (slot_ms, due, ms(&a.range.to)) {
+        let missing = (to - due_ms) / w;
+        if missing > 0 {
+            rows.push(empty(due_ms, missing));
+        }
+    }
     format::table(&rows, aligned, "  ")
 }
 

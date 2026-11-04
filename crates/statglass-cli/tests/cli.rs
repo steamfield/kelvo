@@ -84,6 +84,7 @@ fn history_answer() -> HistoryAnswer {
         range: range(),
         tier: "m1".into(),
         bucket_s: 60,
+        point_slot_s: None,
         series: vec![SeriesHistory {
             key: "cpu.total".into(),
             unit: "percent".into(),
@@ -377,6 +378,14 @@ fn other_agent_text_shapes() {
         "{out}"
     );
     assert!(out.contains("Xcode  212.0%  41% of host\n"), "{out}");
+    let mut memory = top_answer();
+    memory.by = UsageBy::Memory;
+    let fake = Fake::serving(ok(Answer::Top(memory)));
+    let out = fake.run(&["top", "--by", "memory"]).stdout;
+    assert!(
+        out.starts_with("top 1 apps by peak memory on studio"),
+        "{out}"
+    );
 
     let fake = Fake::serving(ok(Answer::Now(now_answer())));
     let out = fake.run(&["now"]).stdout;
@@ -458,6 +467,170 @@ fn a_gap_within_one_minute_prints_seconds() {
         out.contains("gap 14:31:05 to 14:31:40: host offline\n"),
         "{out}"
     );
+}
+
+#[test]
+fn empty_point_slots_print_as_no_data() {
+    // 13:00 to 16:00 in 30-minute slots: 13:00 and 13:30 empty, 14:00, 14:30 empty,
+    // 15:00, then 15:30 empty to the end.
+    let point = |hhmm: &str| statglass_query::PointDto {
+        t: today(hhmm),
+        min: 1.0,
+        max: 3.0,
+        avg: 2.0,
+    };
+    let mut answer = history_answer();
+    answer.point_slot_s = Some(1_800);
+    answer.series[0].points = vec![point("14:00"), point("15:00")];
+    let fake = Fake::serving(ok(Answer::History(answer)));
+    let out = fake.run(&["history", "cpu.total", "--points", "6"]).stdout;
+    let rows: Vec<&str> = out.lines().skip(2).take(5).collect();
+    assert_eq!(
+        rows,
+        [
+            "  13:00  no data (2 points)",
+            "  14:00  avg 2.0%  min 1.0%  max 3.0%",
+            "  14:30  no data",
+            "  15:00  avg 2.0%  min 1.0%  max 3.0%",
+            "  15:30  no data",
+        ],
+        "{out}"
+    );
+}
+
+fn fans_event(at: String, processes: &[&str]) -> statglass_query::EventDto {
+    statglass_query::EventDto {
+        at,
+        started: None,
+        kind: "fans_ramped".into(),
+        detail: serde_json::json!({ "to_rpm": 2400 }),
+        processes: processes
+            .iter()
+            .map(|n| statglass_query::EventProcess {
+                name: (*n).into(),
+                pid: None,
+                value: None,
+                unit: None,
+            })
+            .collect(),
+    }
+}
+
+#[test]
+fn events_summary_counts_kinds_processes_and_days() {
+    let mut answer = events_answer();
+    answer
+        .events
+        .push(fans_event(today("14:00"), &["node", "Chrome"]));
+    answer.events.push(fans_event(today("15:00"), &["node"]));
+    let fake = Fake::serving(ok(Answer::Events(answer.clone())));
+    let run = fake.run(&["events", "--summary"]);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let day = &today("00:00")[..10];
+    let lines: Vec<&str> = run.stdout.lines().collect();
+    assert_eq!(
+        lines[0], "3 events on studio, 13:00 to 16:00",
+        "{}",
+        run.stdout
+    );
+    assert_eq!(lines[1], "fans_ramped 2, 14:00 to 15:00");
+    assert_eq!(lines[2], "  processes: node 2, Chrome 1");
+    assert!(
+        lines[3].starts_with("  per day: ") && lines[3].ends_with(" 2"),
+        "{}",
+        lines[3]
+    );
+    assert_eq!(lines[4], "thermal_state 1, 15:12 to 15:12");
+    assert_eq!(
+        lines.last().copied(),
+        Some("2 events from a newer StatGlass could not be read and are not counted")
+    );
+
+    // --json is one EventsSummary, the shape statglass schema events-summary describes.
+    let fake = Fake::serving(ok(Answer::Events(answer)));
+    let s: statglass_query::EventsSummary = fake.run(&["events", "--summary", "--json"]).json();
+    assert_eq!((s.total, s.unreadable), (3, 2));
+    assert_eq!(s.kinds[0].kind, "fans_ramped");
+    assert_eq!(s.kinds[0].days[0].day, day);
+    let schema = run_with(&["schema", "events-summary"], |_| {});
+    let v: serde_json::Value = serde_json::from_str(&schema.stdout).unwrap();
+    assert_eq!(v["title"], "EventsSummary");
+}
+
+#[test]
+fn a_local_date_and_time_is_sent_as_that_instant() {
+    let fake = Fake::serving(ok(Answer::Events(events_answer())));
+    let run = fake.run(&[
+        "events",
+        "--from",
+        "2026-11-02 07:15",
+        "--to",
+        "2026-11-02T08:00",
+    ]);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let expect = |arg: &str| statglass_query::time::parse_instant(arg, 0).unwrap();
+    match fake.request().op {
+        Op::Events { from_ms, to_ms, .. } => {
+            assert_eq!(from_ms, expect("2026-11-02 07:15"));
+            assert_eq!(to_ms, from_ms + 45 * 60_000);
+        }
+        other => panic!("{other:?}"),
+    }
+
+    let fake = Fake::empty();
+    let run = fake.run(&["events", "--from", "11/02 07:15", "--json"]);
+    let e = assert_failure(&run, 2, ErrorTag::BadRange);
+    assert!(e.next.unwrap().contains("2026-11-03 15:00"));
+}
+
+#[test]
+fn an_empty_history_says_no_data_and_a_typo_points_at_stored_series() {
+    let mut answer = history_answer();
+    answer.series.clear();
+    let fake = Fake::serving(ok(Answer::History(answer)));
+    let out = fake.run(&["history", "gpu.util"]).stdout;
+    assert!(
+        out.starts_with("no data for these series on m1-linux, 13:00 to 16:00\n"),
+        "{out}"
+    );
+
+    let error = QueryError::new(ErrorTag::UnknownMetric).with_details(ErrorDetails {
+        series: Some("disk.read{dev=disk9}".into()),
+        suggestions: vec!["disk.read{dev=disk0}".into()],
+        ..ErrorDetails::default()
+    });
+    let fake = Fake::serving(err(error));
+    let run = fake.run(&["history", "disk.read{dev=disk9}"]);
+    assert_eq!(run.code, 2);
+    assert!(
+        run.stderr.contains("Did you mean: disk.read{dev=disk0}?"),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("statglass metrics --host <host>"),
+        "{}",
+        run.stderr
+    );
+}
+
+#[test]
+fn history_over_several_days_dates_its_gaps() {
+    let mut answer = history_answer();
+    answer.range.from = statglass_query::time::rfc3339_local(
+        statglass_query::time::parse_instant(&today("13:00"), 0).unwrap() - 2 * 86_400_000,
+    );
+    let fake = Fake::serving(ok(Answer::History(answer)));
+    let out = fake.run(&["history", "cpu.total", "--since", "3d"]).stdout;
+    let gap = out
+        .lines()
+        .find(|l| l.starts_with("gap "))
+        .unwrap_or_default();
+    assert!(
+        !gap.starts_with("gap 14:31"),
+        "a gap today is dated too: {out}"
+    );
+    assert!(gap.ends_with(" 14:37: host offline"), "{out}");
 }
 
 #[test]
@@ -611,16 +784,19 @@ fn doctor_reports_an_unsafe_socket_as_a_problem() {
 fn schema_lists_prints_and_suggests() {
     let run = run_with(&["schema"], |_| {});
     assert_eq!(run.code, 0);
-    assert!(
-        run.stdout.contains("history  statglass history --json\n"),
-        "{}",
-        run.stdout
-    );
-    assert!(
-        run.stdout.contains("doctor   statglass doctor --json\n"),
-        "{}",
-        run.stdout
-    );
+    // Column padding follows the longest name; compare words, not spaces.
+    let listed: Vec<String> = run
+        .stdout
+        .lines()
+        .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
+        .collect();
+    for line in [
+        "history statglass history --json",
+        "events-summary statglass events --summary --json",
+        "doctor statglass doctor --json",
+    ] {
+        assert!(listed.iter().any(|l| l == line), "{line}: {}", run.stdout);
+    }
     let run = run_with(&["schema", "doctor"], |_| {});
     let v: serde_json::Value = serde_json::from_str(&run.stdout).unwrap();
     assert_eq!(v["title"], "DoctorReport");

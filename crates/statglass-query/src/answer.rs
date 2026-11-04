@@ -216,6 +216,11 @@ pub struct HistoryAnswer {
     pub tier: String,
     /// The tier's bucket width in seconds.
     pub bucket_s: u32,
+    /// With points asked for: the width in seconds each point covers. Points sit on a grid
+    /// of this width, and a slot with nothing measured has no point, so a step larger than
+    /// this between two points is unmeasured time, never a flat line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub point_slot_s: Option<u32>,
     pub series: Vec<SeriesHistory>,
     /// Host-wide gaps and gaps of the requested series' modules, merged, in time order.
     pub gaps: Vec<GapDto>,
