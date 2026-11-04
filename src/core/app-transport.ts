@@ -1,7 +1,16 @@
+import type { CliLinkState } from "@core/generated/bindings";
 import { CHART_WINDOWS } from "./live-window";
 import type { ScenarioName } from "./mock/fixtures";
 import { SCENARIOS } from "./mock/fixtures";
 import type { Transport } from "./transport";
+
+const CLI_LINK_STATES: readonly CliLinkState[] = [
+  "missing",
+  "current",
+  "stale",
+  "foreign",
+  "blocked",
+];
 
 /**
  * The transport for this window. Inside Tauri: the app transport, labelled by
@@ -15,6 +24,7 @@ import type { Transport } from "./transport";
  *   ?chart_window=30m                      starting chart window (5m|15m|30m|1h)
  *   ?update=available                      preview an available app update
  *   ?setup_delay=60000                     hold Add host's setup step, ms
+ *   ?cli_link=foreign                      Settings' command-line link state
  *
  * Inside an iframe (docs-site's live demo) the mock also talks to the parent
  * page through `mock/embed-bridge.ts`.
@@ -35,7 +45,10 @@ export async function createAppTransport(search: string): Promise<Transport> {
     .filter((s): s is ScenarioName =>
       (SCENARIOS as readonly string[]).includes(s)
     );
-  const { createMockTransport } = await import("./mock-transport");
+  const { createMockTransport, cliLinkFixture } = await import(
+    "./mock-transport"
+  );
+  const cliLink = CLI_LINK_STATES.find((s) => s === params.get("cli_link"));
   const bridge =
     typeof window !== "undefined" && window.parent !== window
       ? (await import("./mock/embed-bridge")).createEmbedBridge(window)
@@ -66,6 +79,7 @@ export async function createAppTransport(search: string): Promise<Transport> {
     ...(intervalMs ? { intervalMs } : {}),
     ...(remoteSetupDelayMs ? { remoteSetupDelayMs } : {}),
     ...(chartWindow ? { chartWindow } : {}),
+    ...(cliLink ? { cliLink: cliLinkFixture(cliLink) } : {}),
   });
   bridge?.attach(transport);
   return transport;

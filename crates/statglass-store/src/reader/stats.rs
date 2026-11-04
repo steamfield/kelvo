@@ -2,9 +2,9 @@
 //! A bucket counts the time it covers, cut at now, less any gap inside it that applies to
 //! the metric's module; a bucket with no reading counts nothing.
 
-use statglass_schema::{MetricDef, ceil_to, floor_to};
+use statglass_schema::{MetricDef, Module, ceil_to, floor_to};
 
-use crate::types::HistoryResult;
+use crate::types::{HistoryResult, Point};
 
 /// One metric's [`RangeStats`].
 #[derive(Clone, Debug, PartialEq)]
@@ -39,32 +39,11 @@ pub fn range_stats(
     to_ms: i64,
     now_ms: i64,
 ) -> RangeStats {
-    let width = read.bucket_ms.max(1);
-    let from = floor_to(from_ms, width);
-    let to = ceil_to(to_ms, width).min(now_ms).max(from);
+    let window = Window::new(read, from_ms, to_ms, now_ms);
     let metrics = defs
         .iter()
         .map(|d| {
-            let mut gaps: Vec<(i64, i64)> = read
-                .gaps
-                .iter()
-                .filter(|g| g.module.is_none_or(|m| m == d.module))
-                .map(|g| (g.start_ms, g.end_ms.unwrap_or(now_ms)))
-                .collect();
-            gaps.sort_unstable();
-            // Time in `[a, b)` outside every gap.
-            let measured = |a: i64, b: i64| -> i64 {
-                let mut covered = 0;
-                let mut cursor = a;
-                for &(s, e) in &gaps {
-                    let (s, e) = (s.max(cursor), e.min(b));
-                    if e > s {
-                        covered += e - s;
-                        cursor = e;
-                    }
-                }
-                (b - a - covered).max(0)
-            };
+            let gaps = ModuleGaps::new(read, Some(d.module), now_ms);
             let mut measured_ms = 0_i64;
             let mut weighted = 0.0_f64;
             let mut max: Option<f64> = None;
@@ -74,8 +53,8 @@ pub fn range_stats(
                 .filter(|s| s.key.metric == d.id)
                 .flat_map(|s| &s.points);
             for p in points {
-                let ms = measured(p.t.max(from), (p.t + width).min(to));
-                if ms > 0 && p.avg.is_finite() {
+                let ms = window.measured(&gaps, p);
+                if ms > 0 {
                     measured_ms += ms;
                     weighted += f64::from(p.avg) * ms as f64;
                     if p.max.is_finite() {
@@ -94,9 +73,67 @@ pub fn range_stats(
         })
         .collect();
     RangeStats {
-        from_ms: from,
-        to_ms: to,
+        from_ms: window.from,
+        to_ms: window.to,
         metrics,
+    }
+}
+
+/// The range a stats read covers: `[from_ms, to_ms)` widened to whole buckets of the
+/// read and cut at now.
+pub(super) struct Window {
+    pub(super) from: i64,
+    pub(super) to: i64,
+    pub(super) width: i64,
+}
+
+impl Window {
+    pub(super) fn new(read: &HistoryResult, from_ms: i64, to_ms: i64, now_ms: i64) -> Self {
+        let width = read.bucket_ms.max(1);
+        let from = floor_to(from_ms, width);
+        let to = ceil_to(to_ms, width).min(now_ms).max(from);
+        Self { from, to, width }
+    }
+
+    /// The measured time of the bucket `p` starts: the part of it inside the window and
+    /// outside `gaps`, or nothing when it has no finite reading.
+    pub(super) fn measured(&self, gaps: &ModuleGaps, p: &Point) -> i64 {
+        if !p.avg.is_finite() {
+            return 0;
+        }
+        gaps.outside(p.t.max(self.from), (p.t + self.width).min(self.to))
+    }
+}
+
+/// The gaps of a read that apply to one module: host-wide ones and the module's own. An
+/// open gap runs to now. `None` (a metric this build does not know) takes host-wide gaps
+/// only.
+pub(super) struct ModuleGaps(Vec<(i64, i64)>);
+
+impl ModuleGaps {
+    pub(super) fn new(read: &HistoryResult, module: Option<Module>, now_ms: i64) -> Self {
+        let mut gaps: Vec<(i64, i64)> = read
+            .gaps
+            .iter()
+            .filter(|g| g.module.is_none_or(|m| Some(m) == module))
+            .map(|g| (g.start_ms, g.end_ms.unwrap_or(now_ms)))
+            .collect();
+        gaps.sort_unstable();
+        Self(gaps)
+    }
+
+    /// Time in `[a, b)` outside every gap.
+    fn outside(&self, a: i64, b: i64) -> i64 {
+        let mut covered = 0;
+        let mut cursor = a;
+        for &(s, e) in &self.0 {
+            let (s, e) = (s.max(cursor), e.min(b));
+            if e > s {
+                covered += e - s;
+                cursor = e;
+            }
+        }
+        (b - a - covered).max(0)
     }
 }
 
@@ -105,7 +142,7 @@ mod tests {
     use statglass_schema::{Catalog, Gap, GapReason, Labels, MetricId, Module, SeriesKey, Tier};
 
     use super::*;
-    use crate::types::{Point, SeriesPoints};
+    use crate::types::SeriesPoints;
 
     const S: i64 = 1_000;
     const W: i64 = 10 * S;

@@ -28,6 +28,9 @@ pub use crate::history::HistorySettings;
 pub struct Settings {
     #[serde(default)]
     pub remote_access: RemoteAccessSettings,
+    /// Absent from a settings file written before D-126: command-line access on.
+    #[serde(default)]
+    pub cli_access: CliAccessSettings,
     #[serde(default)]
     pub docker: crate::docker::DockerSettings,
     #[serde(default)]
@@ -51,9 +54,24 @@ pub struct Settings {
     pub alerts: AlertSettings,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+/// A missing field takes its default, so `{}` does not fail the whole settings file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, specta::Type)]
 pub struct RemoteAccessSettings {
     pub enabled: bool,
+}
+
+/// "Allow command-line access" (D-126): whether the app binds the `statglass` CLI's
+/// query socket. On by default, so `Default` is written by hand. A missing field takes
+/// its default, so `{}` decodes as on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, specta::Type)]
+pub struct CliAccessSettings {
+    pub enabled: bool,
+}
+
+impl Default for CliAccessSettings {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -96,6 +114,8 @@ macro_rules! deserialize_with_defaults {
     };
 }
 
+deserialize_with_defaults!(RemoteAccessSettings { enabled: bool });
+deserialize_with_defaults!(CliAccessSettings { enabled: bool });
 deserialize_with_defaults!(MenuBarSettings {
     bars: BarSettings,
     readouts: ReadoutSettings,
@@ -552,6 +572,7 @@ impl Default for Settings {
             popover: PopoverSettings::default(),
             modules,
             remote_access: RemoteAccessSettings::default(),
+            cli_access: CliAccessSettings::default(),
             menu_bar: MenuBarSettings::default(),
             sampling: SamplingSettings {
                 interval_ms: 1000,
@@ -1087,6 +1108,30 @@ mod tests {
             .remove("cpu");
         let s: Settings = serde_json::from_value(json).unwrap();
         assert_eq!(s.menu_bar, MenuBarSettings::default());
+    }
+
+    /// A file written before D-126 has no `cli_access`: command-line access is on.
+    #[test]
+    fn settings_without_cli_access_decode_enabled() {
+        let mut json = serde_json::to_value(Settings::default()).unwrap();
+        json.as_object_mut().unwrap().remove("cli_access");
+        let s: Settings = serde_json::from_value(json).unwrap();
+        assert!(s.cli_access.enabled);
+        assert_eq!(s, Settings::default());
+        // An empty group keeps its default rather than resetting every setting.
+        let mut json = serde_json::to_value(Settings::default()).unwrap();
+        json["cli_access"] = serde_json::json!({});
+        json["remote_access"] = serde_json::json!({});
+        let s: Settings = serde_json::from_value(json).unwrap();
+        assert!(s.cli_access.enabled);
+        assert!(!s.remote_access.enabled);
+        assert_eq!(s, Settings::default());
+        let off = r#"{"enabled":false}"#;
+        assert!(
+            !serde_json::from_str::<CliAccessSettings>(off)
+                .unwrap()
+                .enabled
+        );
     }
 
     #[test]

@@ -27,8 +27,9 @@ are outside this release workflow.
    workflow validates version agreement and manifest tests, without macOS runners.
 3. Build locally using the command below after `make agent-linux` succeeds.
    Verify the app with `codesign --verify --deep --strict`, confirm the bundled
-   helper and both Linux agents, and run `scripts/check-deps.sh` against the app
-   and helper executables. Stage with `python3 scripts/release-manifest.py TAG --stage`
+   helper, the `statglass-cli` command-line tool and both Linux agents, and run
+   `scripts/check-deps.sh` against the app, helper and command-line tool
+   executables. Stage with `python3 scripts/release-manifest.py TAG --stage`
    then sign `statglass-release.json` and generate checksums using the commands below. Run
    `cargo run -p statglass --example verify_release -- target/release-assets`. This verifies
    the catalog signature, protocol/version agreement, and every advertised binary

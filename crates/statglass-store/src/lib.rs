@@ -35,6 +35,7 @@ mod lock;
 mod perms;
 mod reader;
 mod rolldown;
+mod slots;
 mod types;
 pub mod usage;
 mod writer;
@@ -56,14 +57,16 @@ pub use perms::{
     PRIVATE_DIR_MODE, PRIVATE_FILE_MODE, create_private_dir, open_private, restrict, write_private,
 };
 pub use reader::{
-    BATTERY_CHARGE, BATTERY_CHARGING, BatteryCell, ExportQuery, ExportSummary, HistoryGrowth,
-    MIN_MEASURED_MS, MetricStats, RangeStats, Reader, UsageHistoryGrowth, fill_battery_hours,
-    history_recent, net_by_app_recent, range_stats,
+    BATTERY_CHARGE, BATTERY_CHARGING, BatteryCell, BucketValue, EventsRead, ExportQuery,
+    ExportSummary, HistoryGrowth, MIN_MEASURED_MS, MetricStats, RangeStats, Reader, RetainedSpan,
+    SeriesSummaries, SeriesSummary, UsageHistoryGrowth, fill_battery_hours, history_recent,
+    net_by_app_recent, range_stats, series_summary,
 };
 pub use rolldown::NET_TOP_APPS;
 /// The `rusqlite` behind [`StoreError::Sqlite`], so callers can match its error codes
 /// without depending on a version of their own.
 pub use rusqlite;
+pub use slots::downsample;
 pub use types::{
     BucketRow, CapTrim, CursorPage, CursorRead, FILL_MINUTES, FILL_ROLLED, FillMeasurement,
     HistoryQuery, HistoryResult, IngestReport, NetApp, NetBucket, NetByApp, NetSpan, PageEvent,

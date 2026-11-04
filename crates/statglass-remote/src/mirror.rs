@@ -251,5 +251,8 @@ impl Mirror {
     }
 }
 
+mod watermark;
+pub use watermark::SyncWatermark;
+
 #[cfg(test)]
 mod tests;

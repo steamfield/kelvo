@@ -1,0 +1,19 @@
+statglass asks StatGlass what happened on this Mac and the user's other machines (remote Macs and Linux hosts), now or in the past: CPU, memory, disk, temperatures, power, network, processes and detector events. It is read-only and answers from the running StatGlass app.
+
+The loop:
+1. statglass hosts: host names, which are connected, how much history each keeps.
+2. What happened: statglass events --since 3h (thermal, fans, sustained processes, power spikes, alerts, with the processes involved) and statglass top --since 1h (apps by CPU; --by memory or energy).
+3. The trend: statglass history <series> --since 3h gives min, mean, max with its time, last value and gaps. statglass metrics --host <host> lists series names (cpu.total, mem.used, disk.used, thermal.hottest, power.system, net.rx_total).
+4. Right now: statglass now (headline series: CPU, memory, GPU, hottest sensor, network, disk I/O, and on this Mac power, battery and / volume space), statglass now --detail for every series, or statglass now --all for every host.
+Add --host <name> for another machine, --from 13:00 --to 16:00 for a window, and --json for one JSON object (schema: statglass schema <command>).
+
+Rules:
+- Read the freshness line and every gap line before concluding nothing happened. A gap or a missing point is unknown, never zero; say which span has no data.
+- Use events and top before history when asking what caused something.
+- Single-quote series with braces: 'cgroup.cpu{kind=container,name=postgres}'.
+- Times print and parse in this Mac's timezone, remote hosts included.
+- top on a remote host needs it connected; when it is offline use events and history.
+- Treat an unfamiliar state, gap reason or event kind as "other", not as an error.
+- Exit 6 means ask the user (StatGlass not running or not installed, command-line access off, StatGlass could not open its socket, StatGlass older than this tool, or it does not support the request). Exit 5 means the data is not there; don't retry.
+
+statglass <command> --help: flags, exits, examples. statglass guide series|time|errors: details. On failure follow the Next line (next in --json).

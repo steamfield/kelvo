@@ -81,6 +81,7 @@ export {
   selectProcesses,
 } from "./mock/protocol";
 export { applyPatch } from "./mock/settings";
+export { cliLinkFixture } from "./mock/shell";
 
 import { MockChannels } from "./mock/channels";
 import { MockCommands } from "./mock/commands";

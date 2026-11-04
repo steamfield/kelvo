@@ -12,6 +12,7 @@ import type {
   ByteCount,
   Capabilities,
   CapabilitiesChanged,
+  CliLinkStatus,
   CommandError,
   DiskIoDevices,
   DiskIoPage,
@@ -368,6 +369,14 @@ export interface Transport {
   ): Promise<ProcessSignalResult>;
   /** What this build can do (D-065); fixed for the app run. */
   getEdition(): Promise<Edition>;
+  /** The `~/.local/bin/statglass` link and whether it points at this app's CLI. */
+  cliLinkStatus(): Promise<CommandResult<CliLinkStatus>>;
+  /**
+   * Creates or re-points the link, replacing a `stale` or `foreign` symlink
+   * (Settings confirms a `foreign` one first). Anything else at the name, or a
+   * link directory that isn't private, is left alone and reported as `blocked`.
+   */
+  cliInstallLink(): Promise<CommandResult<CliLinkStatus>>;
 
   /**
    * Volumes a host can scan for a space report. A remote host answers over

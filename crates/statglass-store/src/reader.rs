@@ -9,13 +9,14 @@ use std::sync::Arc;
 use rusqlite::{Connection, OptionalExtension, params};
 use statglass_schema::{
     Cursor, Event, Gap, GapReason, HostId, HostInfo, HostRecord, Labels, MetricId, Module,
-    SeriesKey, SyncKinds, SyncRowKind, Tier, floor_to,
+    SeriesKey, SyncKinds, SyncRowKind, Tier,
 };
 use uuid::Uuid;
 
 use crate::blob;
 use crate::db::{self, tier_table, tier_width};
 use crate::error::{Result, StoreError};
+use crate::slots::{Acc, Slots};
 use crate::types::{
     BucketRow, CursorPage, CursorRead, HistoryQuery, HistoryResult, PageEvent, PageGap, PageLayout,
     PageRow, Point, ProcResolution, ProcRow, ProcessesAt, Retention, SeriesPoints, TierChoice,
@@ -24,8 +25,10 @@ use crate::types::{
 mod export;
 mod growth;
 mod heatmap;
+mod inventory;
 mod net;
 mod stats;
+mod summary;
 mod usage;
 mod usage_growth;
 pub use usage_growth::UsageHistoryGrowth;
@@ -33,8 +36,10 @@ pub use usage_growth::UsageHistoryGrowth;
 pub use export::{ExportQuery, ExportSummary};
 pub use growth::{HistoryGrowth, MIN_MEASURED_MS};
 pub use heatmap::{BATTERY_CHARGE, BATTERY_CHARGING, BatteryCell, fill_battery_hours};
+pub use inventory::{EventsRead, RetainedSpan};
 pub use net::net_by_app_recent;
 pub use stats::{MetricStats, RangeStats, range_stats};
+pub use summary::{BucketValue, SeriesSummaries, SeriesSummary, series_summary};
 
 /// How far from the requested instant a process snapshot still counts as "at" it: half
 /// the widest snapshot spacing (30 s in Performance mode, D-088), so an instant between
@@ -217,7 +222,7 @@ impl Reader {
         let rows: Vec<(i64, u32, Vec<u8>, u32)> = self
             .conn
             .prepare_cached(&sql)?
-            .query_map(params![host_ref, merge.base, q.to_ms], |r| {
+            .query_map(params![host_ref, merge.slots.base, q.to_ms], |r| {
                 Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -250,10 +255,17 @@ impl Reader {
         merge.add_recent(&recent)?;
         Ok(HistoryResult {
             tier,
-            bucket_ms: merge.slot_w,
+            bucket_ms: merge.slots.slot_w,
             series: merge.finish(),
             gaps,
         })
+    }
+
+    /// The tier a [`TierChoice::Auto`] read of `host` over `[from_ms, to_ms)` uses, without
+    /// reading it.
+    pub fn auto_tier_for(&mut self, host: HostId, from_ms: i64, to_ms: i64) -> Result<Tier> {
+        let host_ref = self.host_ref(host)?;
+        self.auto_tier(host_ref, from_ms, to_ms)
     }
 
     /// `S10` when the range fits in the 10 s tier's window, pruning has not removed
@@ -311,23 +323,9 @@ impl Reader {
 
     /// `query_events`: the events with `from_ms <= ts < to_ms`, oldest first. A payload
     /// this build cannot decode, a kind from a newer build among them, is skipped (D-083).
+    /// [`Reader::events_counted`] reports how many were skipped.
     pub fn events(&mut self, host: HostId, from_ms: i64, to_ms: i64) -> Result<Vec<Event>> {
-        let host_ref = self.host_ref(host)?;
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT payload FROM events WHERE host_id = ?1 AND ts >= ?2 AND ts < ?3
-             ORDER BY ts, kind",
-        )?;
-        let rows = stmt.query_map(params![host_ref, from_ms, to_ms], |r| {
-            r.get::<_, Vec<u8>>(0)
-        })?;
-        let mut out = Vec::new();
-        for payload in rows {
-            match ciborium::from_reader::<Event, _>(payload?.as_slice()) {
-                Ok(e) => out.push(e),
-                Err(e) => tracing::debug!("skipping an event this build cannot decode: {e}"),
-            }
-        }
-        Ok(out)
+        Ok(self.events_counted(host, from_ms, to_ms)?.events)
     }
 
     // --- processes ------------------------------------------------------------------------
@@ -653,23 +651,16 @@ pub fn history_recent(q: &HistoryQuery, recent: &[BucketRow]) -> Result<HistoryR
     merge.add_recent(&recent)?;
     Ok(HistoryResult {
         tier,
-        bucket_ms: merge.slot_w,
+        bucket_ms: merge.slots.slot_w,
         series: merge.finish(),
         gaps: Vec::new(),
     })
 }
 
-/// A history read in progress: slots of whole buckets, per-series accumulators by slot.
+/// A history read in progress: per-series accumulators on the [`Slots`] grid.
 struct Merge<'q> {
     q: &'q HistoryQuery,
-    /// Start of the bucket holding `from`.
-    base: i64,
-    /// The width each returned point averages over, which the client labels
-    /// ("10 MIN AVG"): as few whole buckets as keep the slot count at or under
-    /// `max_points`.
-    slot_w: i64,
-    /// Source weights are minutes for M15 reads, otherwise one source bucket.
-    unit_w: i64,
+    slots: Slots,
     /// Result series in key order.
     index: BTreeMap<SeriesKey, usize>,
     /// Per series, accumulators by slot index.
@@ -678,15 +669,9 @@ struct Merge<'q> {
 
 impl<'q> Merge<'q> {
     fn new(q: &'q HistoryQuery, width: i64) -> Self {
-        let base = floor_to(q.from_ms, width);
-        let buckets = (q.to_ms - base + width - 1) / width;
-        let per_slot =
-            (buckets + i64::from(q.max_points.max(1)) - 1) / i64::from(q.max_points.max(1));
         Self {
             q,
-            base,
-            slot_w: width * per_slot.max(1),
-            unit_w: if width == 900_000 { 60_000 } else { width },
+            slots: Slots::new(q.from_ms, q.to_ms, width, q.max_points),
             index: BTreeMap::new(),
             accs: Vec::new(),
         }
@@ -697,7 +682,9 @@ impl<'q> Merge<'q> {
     fn recent<'r>(&self, rows: &'r [BucketRow], tier: Tier) -> Vec<&'r BucketRow> {
         let want = if tier == Tier::M15 { Tier::M1 } else { tier };
         rows.iter()
-            .filter(|r| r.tier == want && r.bucket_ts >= self.base && r.bucket_ts < self.q.to_ms)
+            .filter(|r| {
+                r.tier == want && r.bucket_ts >= self.slots.base && r.bucket_ts < self.q.to_ms
+            })
             .collect()
     }
 
@@ -725,7 +712,7 @@ impl<'q> Merge<'q> {
         stat: impl Fn(usize) -> Option<f32>,
         weight: u32,
     ) -> Result<()> {
-        let slot = (ts - self.base) / self.slot_w;
+        let slot = self.slots.index(ts);
         for &(i, pos) in positions {
             let (Some(min), Some(max), Some(avg)) =
                 (stat(pos * 3), stat(pos * 3 + 1), stat(pos * 3 + 2))
@@ -772,19 +759,7 @@ impl<'q> Merge<'q> {
             };
             let points: Vec<Point> = std::mem::take(slots)
                 .into_iter()
-                .map(|(slot, a)| Point {
-                    t: self.base + slot * self.slot_w,
-                    min: a.min,
-                    max: a.max,
-                    avg: (a.sum
-                        / if statglass_schema::disk_io::preserves_request_integral(
-                            key.metric.as_str(),
-                        ) {
-                            (self.slot_w / self.unit_w) as f64
-                        } else {
-                            f64::from(a.weight)
-                        }) as f32,
-                })
+                .map(|(slot, a)| self.slots.point(slot, &a, key.metric.as_str()))
                 .collect();
             if !points.is_empty() {
                 series.push(SeriesPoints { key, points });
@@ -830,31 +805,6 @@ pub(crate) fn load_layout(
     let layout: Arc<[SeriesKey]> = keys.into();
     cache.insert(id, Arc::clone(&layout));
     Ok(layout)
-}
-
-#[derive(Default)]
-struct Acc {
-    min: f32,
-    max: f32,
-    /// Sum of averages times their weights.
-    sum: f64,
-    weight: u32,
-}
-
-impl Acc {
-    /// Adds one bucket's stats; `weight` is its width in tier units (minutes for an M15
-    /// read, 1 otherwise).
-    fn add(&mut self, min: f32, max: f32, avg: f32, weight: u32) {
-        if self.weight == 0 {
-            self.min = min;
-            self.max = max;
-        } else {
-            self.min = self.min.min(min);
-            self.max = self.max.max(max);
-        }
-        self.sum += f64::from(avg) * f64::from(weight);
-        self.weight += weight;
-    }
 }
 
 fn f32_at(blob: &[u8], i: usize) -> Option<f32> {

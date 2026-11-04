@@ -7,6 +7,7 @@
 mod addresses;
 mod bench;
 mod calibration;
+mod cli_link;
 mod commands;
 mod disk_space;
 mod docker;
@@ -24,6 +25,7 @@ mod notify;
 mod platform;
 pub mod popover;
 pub mod process_signal;
+mod query;
 pub mod remote;
 pub mod remote_network;
 pub mod settings;
@@ -120,6 +122,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::sensor_dump,
             commands::process_signal,
             commands::get_edition,
+            cli_link::cli_link_status, cli_link::cli_install_link,
             updates::check_for_updates,
             updates::get_update_status,
             updates::install_update,
@@ -219,6 +222,8 @@ pub fn run() {
                 popover::create(app.handle())?;
             }
             remote::start(app.handle())?;
+            query::start(app.handle());
+            cli_link::repair(app.handle());
             match bench::scenario() {
                 Some(scenario) => bench::start(app.handle(), scenario),
                 None => {
@@ -288,6 +293,7 @@ pub fn run() {
         }
         RunEvent::Exit => {
             remote::shutdown(app);
+            query::shutdown(app);
             if let Some(state) = app.try_state::<AppState>() {
                 state.shutdown();
             }

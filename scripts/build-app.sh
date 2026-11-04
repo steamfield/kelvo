@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Package the SSH stdio bridge alongside the app, and the static Linux agents
+# Package the SSH stdio bridge and the statglass command-line tool alongside the app, and the static Linux agents
 # (make agent-linux) as resources under Contents/Resources/agent/. Keep this overlay out
 # of tauri.conf.json so cargo test/check and ordinary development need no sidecar.
 set -euo pipefail
@@ -26,11 +26,15 @@ if [[ "$TARGET" != aarch64-apple-darwin ]]; then
   exit 1
 fi
 
-CARGO_ARGS=(build -p statglass-remote-helper --bin statglass-remote-helper --target "$TARGET")
+# The command-line tool ships beside the helper as Contents/MacOS/statglass-cli;
+# install.sh links ~/.local/bin/statglass to it (D-126).
+CARGO_ARGS=(build -p statglass-remote-helper --bin statglass-remote-helper -p statglass-cli --bin statglass-cli --target "$TARGET")
 if [[ "$PROFILE" == release ]]; then CARGO_ARGS+=(--release); fi
 cargo "${CARGO_ARGS[@]}"
 mkdir -p "$ROOT/src-tauri/binaries"
-cp "$ROOT/target/$TARGET/$PROFILE/statglass-remote-helper" "$ROOT/src-tauri/binaries/statglass-remote-helper-$TARGET"
+for bin in statglass-remote-helper statglass-cli; do
+  cp "$ROOT/target/$TARGET/$PROFILE/$bin" "$ROOT/src-tauri/binaries/$bin-$TARGET"
+done
 # The agents are Linux resources, not app binaries, so they build for their own targets
 # whatever the app's; build.rs compiles their digests into this build. They need the
 # pinned zig and cargo-zigbuild. Without them the app is packaged without agents and

@@ -34,6 +34,8 @@ statglass-engine.workspace = true
 statglass-proto.workspace = true
 statglass-remote.workspace = true
 statglass-update.workspace = true
+# The `statglass` CLI's query contract, served on `cli/query.sock` (D-126).
+statglass-query.workspace = true
 # `specta` implements specta::Type for `tauri::ipc::Channel`, so `subscribe_live` exports.
 tauri = { version = "2.12.1", features = ["specta", "tray-icon"] }
 tauri-plugin-opener = "2.7.0"
@@ -56,13 +58,15 @@ serde_json.workspace = true
 specta = { workspace = true, features = ["derive"] }
 specta-typescript.workspace = true
 tauri-specta = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["sync", "macros", "time", "rt"] }
+tokio = { workspace = true, features = ["sync", "macros", "time", "rt", "net", "io-util"] }
 uuid = { workspace = true, features = ["v4"] }
 thiserror.workspace = true
 anyhow.workspace = true
 # Re-hashes the bundled Linux agent against the digest build.rs compiled in.
 sha2 = "0.10.9"
 tracing.workspace = true
+# `cli_link`: the effective uid, and RENAME_SWAP so the link swap never clobbers a file.
+rustix = { workspace = true, features = ["process"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2.5"
 

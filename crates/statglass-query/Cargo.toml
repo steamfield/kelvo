@@ -1,0 +1,27 @@
+[package]
+name = "statglass-query"
+description = "The statglass CLI's query contract: requests, answers, framing, blocking client and JSON Schemas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+statglass-schema.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# The CLI contract's published JSON Schemas (`statglass schema`).
+schemars = { version = "1.2.2", features = ["derive"] }
+# RFC 3339 output in the system zone and bare-time parsing with DST disambiguation.
+jiff = "0.2.37"
+# Optimal-string-alignment distance for did-you-mean.
+strsim = "0.11.1"
+# `geteuid` for the socket directory ownership check, without unsafe FFI.
+rustix = { workspace = true, features = ["process"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

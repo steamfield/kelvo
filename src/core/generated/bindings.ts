@@ -310,6 +310,14 @@ export const commands = {
 	processSignal: (host: HostId, pid: number, startTimeUs: Micros, kind: SignalKind) => typedError<null, ProcessSignalError>(__TAURI_INVOKE("process_signal", { host, pid, startTimeUs, kind })),
 	/**  What this build can do (D-065). Fixed for the process; the UI reads it once. */
 	getEdition: () => __TAURI_INVOKE<Edition>("get_edition"),
+	cliLinkStatus: () => typedError<CliLinkStatus, CommandError>(__TAURI_INVOKE("cli_link_status")),
+	/**
+	 *  Creates or re-points the link, replacing a `stale` or `foreign` symlink (Settings
+	 *  confirms a `foreign` one first). Anything else at the name, or a link directory that
+	 *  isn't private, is left alone and reported as `blocked`; `invalid_argument` in a build
+	 *  without a bundled CLI.
+	 */
+	cliInstallLink: () => typedError<CliLinkStatus, CommandError>(__TAURI_INVOKE("cli_install_link")),
 	/**  Explicit checks work even when automatic checks are disabled. */
 	checkForUpdates: () => typedError<UpdateStatus, CommandError>(__TAURI_INVOKE("check_for_updates")),
 	getUpdateStatus: () => __TAURI_INVOKE<UpdateStatus>("get_update_status"),
@@ -594,6 +602,55 @@ export type ChartWindow = "5m" | "15m" | "30m" | "1h" |
 	from_ms: number,
 	to_ms: number,
 } }) & { relative?: never };
+
+export type CliAccessPatch = {
+	enabled?: boolean | null,
+};
+
+/**
+ *  "Allow command-line access" (D-126): whether the app binds the `statglass` CLI's
+ *  query socket. On by default, so `Default` is written by hand. A missing field takes
+ *  its default, so `{}` decodes as on.
+ */
+export type CliAccessSettings = {
+	enabled: boolean,
+};
+
+export type CliLinkState =
+/**  No link, or this build has no bundled CLI to link to (a development build). */
+"missing" |
+/**  The link points at this app's CLI. */
+"current" |
+/**
+ *  A link to another copy of StatGlass's CLI (`<X>.app/Contents/MacOS/statglass-cli`),
+ *  installed or not; installing re-points it.
+ */
+"stale" |
+/**  A link to anything else, presumably the user's own; replaced only on request. */
+"foreign" |
+/**
+ *  Something other than a link is at the name, or the link's directory is not
+ *  private to this user. Never replaced; `reason` says which.
+ */
+"blocked";
+
+export type CliLinkStatus = {
+	/**  `~/.local/bin/statglass`. */
+	link_path: string,
+	/**  The bundled CLI the link should point at; `null` without a bundle. */
+	target: string | null,
+	state: CliLinkState,
+	/**  Where the existing link points, as stored in it; `null` when there is no link. */
+	points_to: string | null,
+	/**  Why the state is `blocked`, as a sentence for Settings; `null` otherwise. */
+	reason: string | null,
+	/**
+	 *  Whether the link's directory is on this app's `PATH`. An app opened from Finder
+	 *  sees launchd's short `PATH`, so false can mean "not in a GUI app's PATH" while a
+	 *  login shell has it.
+	 */
+	on_path: boolean,
+};
 
 /**  One CPU cluster and its DVFS state table. */
 export type ClusterInfo = {
@@ -2368,6 +2425,7 @@ export type RemoteAccessPatch = {
 	enabled?: boolean | null,
 };
 
+/**  A missing field takes its default, so `{}` does not fail the whole settings file. */
 export type RemoteAccessSettings = {
 	enabled: boolean,
 };
@@ -2562,6 +2620,8 @@ export type SeriesStats = {
 
 export type Settings = {
 	remote_access?: RemoteAccessSettings,
+	/**  Absent from a settings file written before D-126: command-line access on. */
+	cli_access?: CliAccessSettings,
 	docker?: DockerSettings,
 	popover?: PopoverSettings,
 	/**
@@ -2590,6 +2650,7 @@ export type SettingsChanged = {
 /**  A partial change. Every field is optional; absent fields keep their value. */
 export type SettingsPatch = {
 	remote_access?: RemoteAccessPatch | null,
+	cli_access?: CliAccessPatch | null,
 	popover?: PopoverPatch | null,
 	docker?: DockerSettings | null,
 	modules?: Partial<{ [key in Module]: ModulePatch }> | null,

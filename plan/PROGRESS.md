@@ -4,6 +4,31 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Agent CLI (2026-11-03, branch `feat/agent-cli`)
+
+Implements [rfc-agent-cli.md](rfc-agent-cli.md): a read-only `statglass` CLI
+(`crates/statglass-cli`) over an owner-only socket at `<app_data>/cli/query.sock`, with the
+contract in `crates/statglass-query` and the app side in `src-tauri/src/query/`. Commands:
+guide, hosts, now (headline set, `--detail`), metrics, history (per-series summary, explicit
+gaps including `not_synced`, `no_data` and `before_retention`), events, top, doctor, schema,
+skill install. Store and mirror additions: `series_summary`, `stored_series`,
+`retained_span`, `events_counted`, `downsample`, `SyncWatermark`. Settings gains "Allow
+command-line access" (default on) and the `~/.local/bin/statglass` link; `install-app.sh`
+links it too. MCP is deferred.
+
+Verified: `make check` targets pass (58 Rust suites including `perf_gates` on a quiet
+machine, 1,404 Vitest tests, lint, typecheck, architecture and verification tests) and
+`make e2e-perf` (13 passed). `updater-patch-test` cannot run from a nested worktree (cargo
+finds the parent workspace) and was not run. Exercised against the dev app with the release
+app's remote mirrors copied in: hosts, now --all, history on local and m1-linux, events, top
+local and remote, error paths. Two code-review rounds; all findings fixed except the
+`stored_series` EXISTS rewrite, which measured about 30x slower on real data and is
+documented instead.
+
+Open: D-126 is not written to `decisions.md`; the coalition bench for the idle listener
+was not run; the agent acceptance questions in the RFC were not run as a fresh Claude Code
+session; the release app has no query socket until the next release.
+
 ## Agent memory under process churn (2026-11-03, branch `fix/agent-memory-retention`)
 
 The Linux agent on m1-linux was killed 26 times by systemd-oomd at 140 to 155 MB

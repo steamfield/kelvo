@@ -10,6 +10,7 @@ import { Switch } from "~/components/ui/switch";
 import { useWriteSettings } from "~/hooks/use-write-settings";
 import { useSettings } from "~/stores/settings-store";
 import { AlertsPanel } from "./_components/alerts-panel";
+import { CommandLinePanel } from "./_components/command-line-panel";
 import { GeneralPanel } from "./_components/general-panel";
 import { MenuBarPanel } from "./_components/menu-bar-panel";
 import { ModulesPanel } from "./_components/modules-panel";
@@ -102,6 +103,7 @@ export default function SettingsRoute() {
                 />
               </SettingsRow>
             </SettingsPanel>
+            <CommandLinePanel enabled={settings.cli_access?.enabled ?? true} />
           </div>
         </div>
       )}

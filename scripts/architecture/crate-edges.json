@@ -38,9 +38,15 @@
       "statglass-store",
       "statglass-engine",
       "statglass-remote",
-      "statglass-update"
+      "statglass-update",
+      "statglass-query"
     ],
     "dev": []
   },
-  "statglass-update": { "normal": [], "dev": [] }
+  "statglass-update": { "normal": [], "dev": [] },
+  "statglass-query": { "normal": ["statglass-schema"], "dev": [] },
+  "statglass-cli": {
+    "normal": ["statglass-query", "statglass-schema"],
+    "dev": []
+  }
 }

@@ -17,6 +17,7 @@ This folder is the plan for StatGlass, from the first installable build through 
 | [docker-container-monitoring.md](docker-container-monitoring.md) | Local Docker tab implemented and merged: aggregate/runtime and per-container stats, history, logs; real-world release acceptance remains open |
 | [docker-monitoring-ux-rfc.md](docker-monitoring-ux-rfc.md) | Implemented and verified Containers UX revision: per-container comparison, repaired history, bounded tables and automatic engine inventory |
 | [docker-storage-cleanup.md](docker-storage-cleanup.md) | In progress: on-demand Docker storage inventory, cleanup review, confirmed local actions and resource review |
+| [rfc-agent-cli.md](rfc-agent-cli.md) | Draft: read-only `statglass` CLI for agents over an owner-only query socket, local and mirrored hosts; MCP deferred |
 | [io-performance-ux.md](io-performance-ux.md) | Draft: storage response-time history and process attribution in Disk; counter validation is the next step |
 | [disk-space-report.md](disk-space-report.md) | v1 implemented (D-114): on-demand Space view in Disk with a progressive, drillable treemap of what uses a volume; real-hardware privacy and lateness checks remain |
 | [decisions.md](decisions.md) | ADR log: every decision with its reasoning and when to revisit it |

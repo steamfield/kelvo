@@ -64,6 +64,10 @@ fn main() -> anyhow::Result<()> {
             .is_file(),
         "remote helper missing"
     );
+    ensure!(
+        bundle.join("Contents/MacOS/statglass-cli").is_file(),
+        "command-line tool missing"
+    );
     verify_agents(&catalog, &bundle.join("Contents/Resources/agent"))?;
     ensure!(
         Command::new("codesign")

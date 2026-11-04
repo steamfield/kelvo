@@ -24,6 +24,7 @@ use statglass_schema::settings::{
 use crate::error::CommandError;
 use crate::ipc::SettingsSnapshot;
 
+pub mod cli_access;
 mod popover;
 pub use popover::PopoverPatch;
 
@@ -33,6 +34,8 @@ pub use popover::PopoverPatch;
 pub struct SettingsPatch {
     #[specta(optional)]
     pub remote_access: Option<RemoteAccessPatch>,
+    #[specta(optional)]
+    pub cli_access: Option<cli_access::CliAccessPatch>,
     #[specta(optional)]
     pub popover: Option<PopoverPatch>,
     #[specta(optional)]
@@ -276,6 +279,7 @@ impl SettingsPatch {
         if let Some(p) = self.remote_access {
             set(&mut s.remote_access.enabled, p.enabled);
         }
+        cli_access::apply(self.cli_access, &mut s.cli_access);
         if let Some(p) = self.general {
             set(&mut s.general.show_menu_bar, p.show_menu_bar);
             set(&mut s.general.launch_at_login, p.launch_at_login);

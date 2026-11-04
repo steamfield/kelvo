@@ -110,7 +110,7 @@ impl History {
     /// its copies are never older than them; the recent rows alone when the store is
     /// unavailable. The store can close between a check and the read, so the read's own
     /// `history_unavailable` is what sends this to the recent rows.
-    fn history_through_now(
+    pub(crate) fn history_through_now(
         &self,
         query: &HistoryQuery,
         recent: impl Fn() -> Vec<BucketRow>,
