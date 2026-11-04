@@ -33,7 +33,7 @@ Docs pages are Markdown files in `src/content/docs/`, validated at build time ag
 
 ## Analytics
 
-PostHog is wired up but stays off until `PUBLIC_POSTHOG_KEY` is set at build time (and optionally `PUBLIC_POSTHOG_HOST`, which defaults to US cloud). `BaseLayout.astro` reads both and passes them to `initAnalytics` in `src/lib/analytics.ts`; with no key the SDK is never loaded.
+PostHog is wired up but stays off until `PUBLIC_POSTHOG_KEY` is set at build time (and optionally `PUBLIC_POSTHOG_HOST`, which defaults to US cloud). `BaseLayout.astro` reads both and passes them to `initAnalytics` in `src/lib/analytics.ts`; with no key the SDK is never loaded. With a key, every visitor is counted without cookies (pageviews, clicks, web vitals), and heatmaps and masked session recordings run only after the visitor accepts the consent banner; see `AGENTS.md` and https://steamfield.io/privacy.
 
 ## License
 
