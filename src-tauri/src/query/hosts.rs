@@ -5,16 +5,18 @@ use statglass_query::{
     API_VERSION, ErrorDetails, ErrorTag, HostDto, HostsAnswer, MetricsAnswer, StatusAnswer,
     suggest::closest, time::timezone_name,
 };
+use statglass_remote::SyncWatermark;
 use statglass_schema::Module;
 
 use super::map::{
     err_with, from_command, host_kind, host_ref, host_state, is_live, last_seen_ms, metric,
-    metrics as catalog_metrics, rfc, sync_state, synced_through,
+    metrics as catalog_metrics, rfc, sync_state,
 };
 use super::{Backend, HostView};
 
 /// The host `input` names: `None` or `local` for this Mac, else a display name, then a
-/// host id, matched case-insensitively.
+/// host id, matched case-insensitively. A name several hosts share is `UnknownHost` with
+/// their ids as suggestions.
 pub(super) fn resolve(backend: &dyn Backend, input: Option<&str>) -> Result<HostView, Fail> {
     let hosts = backend.hosts();
     let local = backend.local();
@@ -23,14 +25,28 @@ pub(super) fn resolve(backend: &dyn Backend, input: Option<&str>) -> Result<Host
         Some(name) if name.eq_ignore_ascii_case("local") => {
             hosts.iter().find(|h| h.record.id == local)
         }
-        Some(name) => hosts
-            .iter()
-            .find(|h| h.record.display_name.eq_ignore_ascii_case(name))
-            .or_else(|| {
+        Some(name) => {
+            let named: Vec<&HostView> = hosts
+                .iter()
+                .filter(|h| h.record.display_name.eq_ignore_ascii_case(name))
+                .collect();
+            if named.len() > 1 {
+                return Err(err_with(
+                    ErrorTag::UnknownHost,
+                    ErrorDetails {
+                        suggestions: named.iter().map(|h| h.record.id.to_string()).collect(),
+                        host: Some(name.to_owned()),
+                        hint: Some("several hosts have this name; pass the id".to_owned()),
+                        ..Default::default()
+                    },
+                ));
+            }
+            named.first().copied().or_else(|| {
                 hosts
                     .iter()
                     .find(|h| h.record.id.to_string().eq_ignore_ascii_case(name))
-            }),
+            })
+        }
     };
     found.cloned().ok_or_else(|| {
         let input = input.unwrap_or("local");
@@ -114,7 +130,10 @@ fn host_dto(backend: &dyn Backend, view: &HostView) -> HostDto {
         state: host_state(view),
         last_seen: last_seen_ms(view).map(rfc),
         sync: view.remote.as_ref().map(|v| sync_state(&v.status.sync)),
-        synced_through: watermark.as_ref().and_then(synced_through).map(rfc),
+        synced_through: watermark
+            .as_ref()
+            .and_then(SyncWatermark::synced_through)
+            .map(rfc),
         retained_from: span.map(|s| rfc(s.from_ms)),
         retained_to: retained_to.map(rfc),
         os_version: Some(r.info.os_version.clone()).filter(|v| !v.is_empty()),

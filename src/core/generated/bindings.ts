@@ -312,8 +312,10 @@ export const commands = {
 	getEdition: () => __TAURI_INVOKE<Edition>("get_edition"),
 	cliLinkStatus: () => typedError<CliLinkStatus, CommandError>(__TAURI_INVOKE("cli_link_status")),
 	/**
-	 *  Creates or re-points the link. A file that is not a link is left alone and reported
-	 *  as `blocked`; `invalid_argument` in a build without a bundled CLI.
+	 *  Creates or re-points the link, replacing a `stale` or `foreign` symlink (Settings
+	 *  confirms a `foreign` one first). Anything else at the name, or a link directory that
+	 *  isn't private, is left alone and reported as `blocked`; `invalid_argument` in a build
+	 *  without a bundled CLI.
 	 */
 	cliInstallLink: () => typedError<CliLinkStatus, CommandError>(__TAURI_INVOKE("cli_install_link")),
 	/**  Explicit checks work even when automatic checks are disabled. */
@@ -607,7 +609,8 @@ export type CliAccessPatch = {
 
 /**
  *  "Allow command-line access" (D-126): whether the app binds the `statglass` CLI's
- *  query socket. On by default, so `Default` is written by hand.
+ *  query socket. On by default, so `Default` is written by hand. A missing field takes
+ *  its default, so `{}` decodes as on.
  */
 export type CliAccessSettings = {
 	enabled: boolean,
@@ -618,9 +621,17 @@ export type CliLinkState =
 "missing" |
 /**  The link points at this app's CLI. */
 "current" |
-/**  A link that points somewhere else; installing re-points it. */
+/**
+ *  A link to another copy of StatGlass's CLI (`<X>.app/Contents/MacOS/statglass-cli`),
+ *  installed or not; installing re-points it.
+ */
 "stale" |
-/**  Something other than a link is there; it is never replaced. */
+/**  A link to anything else, presumably the user's own; replaced only on request. */
+"foreign" |
+/**
+ *  Something other than a link is at the name, or the link's directory is not
+ *  private to this user. Never replaced; `reason` says which.
+ */
 "blocked";
 
 export type CliLinkStatus = {
@@ -629,6 +640,10 @@ export type CliLinkStatus = {
 	/**  The bundled CLI the link should point at; `null` without a bundle. */
 	target: string | null,
 	state: CliLinkState,
+	/**  Where the existing link points, as stored in it; `null` when there is no link. */
+	points_to: string | null,
+	/**  Why the state is `blocked`, as a sentence for Settings; `null` otherwise. */
+	reason: string | null,
 	/**
 	 *  Whether the link's directory is on this app's `PATH`. An app opened from Finder
 	 *  sees launchd's short `PATH`, so false can mean "not in a GUI app's PATH" while a
@@ -2410,6 +2425,7 @@ export type RemoteAccessPatch = {
 	enabled?: boolean | null,
 };
 
+/**  A missing field takes its default, so `{}` does not fail the whole settings file. */
 export type RemoteAccessSettings = {
 	enabled: boolean,
 };

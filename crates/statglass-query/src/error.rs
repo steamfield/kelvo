@@ -19,6 +19,8 @@ pub enum ErrorTag {
     PeerTooOld,
     HistoryUnavailable,
     AccessDisabled,
+    /// The app is running with command-line access on but could not open its socket.
+    AccessUnavailable,
     AppNotRunning,
     AppNotInstalled,
     AppOutdated,
@@ -44,6 +46,7 @@ impl ErrorTag {
             ErrorTag::PeerTooOld => "The host runs a StatGlass version that cannot answer this.",
             ErrorTag::HistoryUnavailable => "History is unavailable; only recent data is served.",
             ErrorTag::AccessDisabled => "Command-line access is turned off in StatGlass Settings.",
+            ErrorTag::AccessUnavailable => "StatGlass could not open its command-line socket.",
             ErrorTag::AppNotRunning => "StatGlass is not running.",
             ErrorTag::AppNotInstalled => "StatGlass has never run for this user.",
             ErrorTag::AppOutdated => "The running StatGlass is older than this command-line tool.",
@@ -71,6 +74,7 @@ impl ErrorTag {
             | ErrorTag::HistoryUnavailable
             | ErrorTag::Unsupported => 5,
             ErrorTag::AccessDisabled
+            | ErrorTag::AccessUnavailable
             | ErrorTag::AppNotRunning
             | ErrorTag::AppNotInstalled
             | ErrorTag::AppOutdated => 6,

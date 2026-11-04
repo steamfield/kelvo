@@ -413,6 +413,7 @@ fn exit_codes_follow_the_rfc_table() {
         (HistoryUnavailable, 5),
         (Unsupported, 5),
         (AccessDisabled, 6),
+        (AccessUnavailable, 6),
         (AppNotRunning, 6),
         (AppNotInstalled, 6),
         (AppOutdated, 6),

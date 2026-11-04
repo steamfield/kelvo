@@ -27,7 +27,9 @@ pub struct SyncWatermark {
 
 impl SyncWatermark {
     /// The watermark of `tier`; `None` for a tier that is not persisted. A caller that read
-    /// one tier should measure what is unsynced against that tier's watermark.
+    /// one tier should measure what is unsynced against that tier's watermark, not
+    /// [`SyncWatermark::synced_through`]: a minute tier ahead of the 10 s one does not put
+    /// rows into a 10 s read.
     pub fn tier(&self, tier: Tier) -> Option<i64> {
         match tier {
             Tier::S10 => self.s10_ms,
@@ -37,11 +39,16 @@ impl SyncWatermark {
         }
     }
 
-    /// `synced_through_ms` for freshness: the finest tier that holds rows. The 10 s tier
-    /// syncs first and closes buckets soonest; once retention has emptied it, minutes,
-    /// then 15-minute buckets.
-    pub fn synced_through_ms(&self) -> Option<i64> {
-        self.s10_ms.or(self.m1_ms).or(self.m15_ms)
+    /// How far the mirror is complete through, for freshness. The 10 s tier normally
+    /// leads; when it is behind the minute tier (an S10 truncation can leave a hole there
+    /// with no gap, and pruning during a long offline spell can empty or lower it), the
+    /// minute tier's watermark is the truer one. The 15-minute tier counts only when
+    /// neither finer tier holds rows.
+    pub fn synced_through(&self) -> Option<i64> {
+        match (self.s10_ms, self.m1_ms) {
+            (Some(s10), Some(m1)) => Some(s10.max(m1)),
+            (s10, m1) => s10.or(m1).or(self.m15_ms),
+        }
     }
 }
 
@@ -60,5 +67,28 @@ impl Mirror {
             }
         }
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn w(s10_ms: Option<i64>, m1_ms: Option<i64>, m15_ms: Option<i64>) -> SyncWatermark {
+        SyncWatermark {
+            s10_ms,
+            m1_ms,
+            m15_ms,
+        }
+    }
+
+    #[test]
+    fn synced_through_takes_the_furthest_fine_tier_then_m15() {
+        assert_eq!(w(Some(20), Some(10), Some(5)).synced_through(), Some(20));
+        assert_eq!(w(Some(10), Some(20), Some(5)).synced_through(), Some(20));
+        assert_eq!(w(None, Some(20), Some(30)).synced_through(), Some(20));
+        assert_eq!(w(Some(10), None, Some(30)).synced_through(), Some(10));
+        assert_eq!(w(None, None, Some(30)).synced_through(), Some(30));
+        assert_eq!(w(None, None, None).synced_through(), None);
     }
 }

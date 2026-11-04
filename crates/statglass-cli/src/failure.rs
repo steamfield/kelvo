@@ -83,9 +83,14 @@ impl From<ClientError> for Failure {
             hint: Some(e.to_string()),
             ..ErrorDetails::default()
         };
-        if let ClientError::AppOutdated { app_version, api } = &e {
-            details.app_version = Some(app_version.clone());
-            details.api = Some(*api);
+        match &e {
+            ClientError::AppOutdated { app_version, api } => {
+                details.app_version = Some(app_version.clone());
+                details.api = Some(*api);
+            }
+            // What the app recorded, without the CLI's own wording around it.
+            ClientError::BindFailed { error, .. } => details.hint = Some(error.clone()),
+            _ => {}
         }
         Self::new(e.tag(), details)
     }
@@ -143,6 +148,9 @@ pub const fn next_for(tag: ErrorTag) -> &'static str {
         ErrorTag::AccessDisabled => {
             "ask the user to turn on Allow command-line access in StatGlass Settings"
         }
+        ErrorTag::AccessUnavailable => {
+            "ask the user to check StatGlass's logs or restart it; statglass doctor shows the error"
+        }
         ErrorTag::AppNotInstalled => {
             "ask the user to install StatGlass and open it once (open -a StatGlass), then rerun"
         }
@@ -163,7 +171,7 @@ mod tests {
 
     /// Every tag. `next_for`'s exhaustive match forces a string for a new tag; this list
     /// makes the test check it is a real instruction.
-    const ALL_TAGS: [ErrorTag; 17] = [
+    const ALL_TAGS: [ErrorTag; 18] = [
         ErrorTag::Usage,
         ErrorTag::UnknownHost,
         ErrorTag::UnknownMetric,
@@ -174,6 +182,7 @@ mod tests {
         ErrorTag::PeerTooOld,
         ErrorTag::HistoryUnavailable,
         ErrorTag::AccessDisabled,
+        ErrorTag::AccessUnavailable,
         ErrorTag::AppNotRunning,
         ErrorTag::AppNotInstalled,
         ErrorTag::AppOutdated,

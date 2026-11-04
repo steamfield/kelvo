@@ -5,7 +5,7 @@ use super::map::Fail;
 use statglass_query::{
     ErrorDetails, ErrorTag, EventDto, EventProcess, EventsAnswer, Range, suggest::closest,
 };
-use statglass_schema::Event;
+use statglass_schema::{Event, EventDetail};
 
 use super::Backend;
 use super::history::{MAX_RANGE_DAYS, available_history, check_range, retained_from};
@@ -15,15 +15,6 @@ use super::map::{err_with, freshness, from_command, host_ref, rfc};
 /// Retained history begins on a bucket boundary; a start less than a minute after the
 /// request's is not a clamp worth reporting.
 const MINUTE_MS: i64 = 60_000;
-
-/// Every `EventDetail` kind this build records.
-const KINDS: [&str; 5] = [
-    "alert",
-    "fans_ramped",
-    "power_spike",
-    "sustained_process",
-    "thermal_state",
-];
 
 pub(super) fn answer(
     backend: &dyn Backend,
@@ -64,16 +55,18 @@ pub(super) fn answer(
 }
 
 fn parse_kind(input: &str) -> Result<&'static str, Fail> {
-    KINDS
-        .into_iter()
+    let kinds = EventDetail::KINDS;
+    kinds
+        .iter()
+        .copied()
         .find(|k| k.eq_ignore_ascii_case(input.trim()))
         .ok_or_else(|| {
             err_with(
                 ErrorTag::Usage,
                 ErrorDetails {
-                    suggestions: closest(input, KINDS),
+                    suggestions: closest(input, kinds.iter().copied()),
                     input: Some(input.to_owned()),
-                    hint: Some(format!("kinds: {}", KINDS.join(", "))),
+                    hint: Some(format!("kinds: {}", kinds.join(", "))),
                     ..Default::default()
                 },
             )

@@ -59,8 +59,7 @@ pub fn install(project: bool, json: bool) -> Result<Output, Failure> {
     let mut written = Vec::new();
     for (rel, content) in files() {
         let path = dir.join(rel);
-        let status = write_if_changed(&path, &content)
-            .map_err(|e| Failure::defect(format!("cannot write {}: {e}", path.display())))?;
+        let status = write_if_changed(&path, &content).map_err(|e| unwritable(&path, &e))?;
         written.push((path, status));
     }
     if json {
@@ -75,6 +74,15 @@ pub fn install(project: bool, json: bool) -> Result<Output, Failure> {
         .map(|(p, s)| format!("{} {}\n", s.as_str(), p.display()))
         .collect();
     Ok(Output::Text(text))
+}
+
+/// A file the install could not read or write. Every such failure comes from the user's
+/// filesystem (permissions, a read-only volume, a file where a directory should be), not
+/// from a bug here, so it is `Usage` naming the path.
+fn unwritable(path: &Path, e: &std::io::Error) -> Failure {
+    let shown = path.display().to_string();
+    let hint = format!("cannot write {shown}: {e}; check permissions or use --user/--project");
+    Failure::usage(Some(&shown), hint, Vec::new())
 }
 
 fn write_if_changed(path: &Path, content: &str) -> std::io::Result<Status> {

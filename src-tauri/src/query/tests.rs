@@ -998,3 +998,363 @@ async fn top_reports_a_clamp_only_when_usage_starts_late() {
         Some(rfc(NOW - 120 * MIN))
     );
 }
+
+/// Serves `fake` on its app data dir's query socket; returns the stop sender and task.
+async fn serving(
+    fake: &Arc<Fake>,
+) -> (
+    tokio::sync::watch::Sender<bool>,
+    tokio::task::JoinHandle<Result<(), RemoteError>>,
+) {
+    let socket = AppPaths::new(fake._dir.path()).query_socket();
+    let (stop, stopped) = tokio::sync::watch::channel(false);
+    let backend: Arc<dyn Backend> = fake.clone();
+    let server = tokio::spawn(serve(
+        socket.clone(),
+        backend,
+        Arc::new(Limits::default()),
+        stopped,
+    ));
+    for _ in 0..200 {
+        if socket.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    (stop, server)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_connection_over_the_cap_is_answered_busy() {
+    let fake = fixture();
+    let app_data = fake._dir.path().to_owned();
+    let (stop, server) = serving(&fake).await;
+    let socket = AppPaths::new(&app_data).query_socket();
+    // Connections that never send a request hold every place until the read deadline.
+    let held: Vec<_> = (0..server::MAX_CONNECTIONS)
+        .map(|_| std::os::unix::net::UnixStream::connect(&socket).unwrap())
+        .collect();
+    let response = tokio::task::spawn_blocking(move || {
+        Client::new(AppPaths::new(app_data))
+            .request(&QueryRequest::new(Op::Hosts), Duration::from_secs(5))
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    let Body::Error(e) = response.body else {
+        panic!("{response:?}")
+    };
+    assert_eq!(e.tag, ErrorTag::Busy);
+    drop(held);
+    stop.send(true).unwrap();
+    server.await.unwrap().unwrap();
+}
+
+#[test]
+fn requests_from_a_newer_cli_are_unsupported_and_non_objects_are_usage() {
+    let decode = |text: &str| super::server::decode_request(text.as_bytes(), || "1.2.3".into());
+    for newer in [
+        // A known op with a value added since.
+        r#"{"api":1,"op":"top","from_ms":0,"to_ms":1,"by":"disk","limit":5}"#,
+        r#"{"api":2,"op":"hosts"}"#,
+        r#"{"api":2,"op":"top","by":"disk"}"#,
+        r#"{"api":1,"op":"history","series":"cpu.total"}"#,
+    ] {
+        let e = decode(newer).unwrap_err();
+        assert_eq!(e.tag, ErrorTag::Unsupported, "{newer}");
+        let d = e.details.unwrap();
+        assert_eq!(
+            (d.api, d.app_version.as_deref()),
+            (Some(API_VERSION), Some("1.2.3"))
+        );
+    }
+    for garbage in ["[1]", "\"hosts\"", "{{", "7"] {
+        assert_eq!(
+            decode(garbage).unwrap_err().tag,
+            ErrorTag::Usage,
+            "{garbage}"
+        );
+    }
+    assert_eq!(
+        decode(r#"{"api":1,"op":"top","from_ms":0,"to_ms":1,"by":"cpu","limit":5}"#)
+            .unwrap()
+            .op
+            .name(),
+        "top"
+    );
+    assert_eq!(
+        decode(r#"{"api":1,"op":"frobnicate"}"#).unwrap().op,
+        Op::Unknown
+    );
+}
+
+/// Polls from another thread, as fast as it can, until `done` holds, failing if the CLI
+/// would ever find neither the socket nor the access-disabled marker. `marker_first`
+/// orders the two checks so that a state passed through between them cannot read as
+/// neither: the marker first while access turns on (it goes after the socket appears),
+/// the socket first while it turns off (it goes after the marker is written).
+fn never_neither(
+    socket: PathBuf,
+    marker: PathBuf,
+    marker_first: bool,
+    done: impl Fn(bool, bool) -> bool + Send + 'static,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let start = std::time::Instant::now();
+        loop {
+            let (s, m) = if marker_first {
+                let m = marker.exists();
+                (socket.exists(), m)
+            } else {
+                let s = socket.exists();
+                (s, marker.exists())
+            };
+            assert!(s || m, "neither the socket nor the marker");
+            if done(s, m) {
+                return;
+            }
+            assert!(start.elapsed() < Duration::from_secs(5), "never settled");
+        }
+    })
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_cli_always_finds_the_socket_or_the_access_disabled_marker() {
+    let fake = fixture();
+    let paths = AppPaths::new(fake._dir.path());
+    let (socket, marker) = (paths.query_socket(), paths.access_disabled_marker());
+    let (desired, rx) = tokio::sync::watch::channel(false);
+    let backend: Arc<dyn Backend> = fake.clone();
+    let owner = tokio::spawn(own_socket(paths, backend, rx));
+    for _ in 0..200 {
+        if marker.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    for _ in 0..20 {
+        let watch = never_neither(socket.clone(), marker.clone(), true, |s, m| s && !m);
+        desired.send(true).unwrap();
+        tokio::task::spawn_blocking(move || watch.join().unwrap())
+            .await
+            .unwrap();
+        let watch = never_neither(socket.clone(), marker.clone(), false, |s, m| m && !s);
+        desired.send(false).unwrap();
+        tokio::task::spawn_blocking(move || watch.join().unwrap())
+            .await
+            .unwrap();
+    }
+    drop(desired);
+    owner.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_bind_failure_is_recorded_for_the_cli_until_the_socket_binds() {
+    let fake = fixture();
+    let paths = AppPaths::new(fake._dir.path());
+    let (socket, failed) = (paths.query_socket(), paths.bind_failed_marker());
+    // Something else already serves the socket path, so binding fails.
+    let squatter = statglass_remote::bind_private(&socket).unwrap();
+    let (desired, rx) = tokio::sync::watch::channel(true);
+    let backend: Arc<dyn Backend> = fake.clone();
+    let owner = tokio::spawn(own_socket(paths.clone(), backend, rx));
+    let mut text = String::new();
+    for _ in 0..200 {
+        text = std::fs::read_to_string(&failed).unwrap_or_default();
+        if !text.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(text.contains("already serving"), "{text:?}");
+    // The squatter goes; the next attempt, after the first back-off, binds.
+    drop(squatter);
+    let mut answered = None;
+    for _ in 0..400 {
+        if !failed.exists() {
+            let paths = paths.clone();
+            answered = tokio::task::spawn_blocking(move || {
+                Client::new(paths).request(&QueryRequest::new(Op::Hosts), Duration::from_secs(5))
+            })
+            .await
+            .unwrap()
+            .ok();
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(!failed.exists(), "the marker outlived the failure");
+    let answered = answered.expect("the socket answers once bound");
+    assert!(matches!(answered.body, Body::Ok(Answer::Hosts(_))));
+    drop(desired);
+    owner.await.unwrap();
+    assert!(!socket.exists());
+}
+
+#[tokio::test]
+async fn a_range_wholly_before_retention_is_reported_as_before_retention() {
+    let fake = fixture();
+    let (from_ms, to_ms) = (NOW - 5 * 60 * MIN, NOW - 2 * 60 * MIN);
+    let op = Op::History {
+        host: None,
+        series: vec!["cpu.total".into(), "cpu.load{core=2}".into()],
+        from_ms,
+        to_ms,
+        points: Some(10),
+    };
+    let Answer::History(h) = ask(&fake, op).await.unwrap() else {
+        panic!()
+    };
+    assert_eq!(h.range.from, rfc(from_ms));
+    assert_eq!(
+        h.range.retained_from.as_deref(),
+        Some(rfc(NOW - 60 * MIN).as_str())
+    );
+    let keys: Vec<_> = h.series.iter().map(|s| s.key.as_str()).collect();
+    assert_eq!(keys, ["cpu.total", "cpu.load{core=2}"]);
+    assert!(h.series.iter().all(|s| s.points.is_empty()
+        && s.summary.mean.is_none()
+        && s.summary.measured_fraction == 0.0));
+    let [gap] = h.gaps.as_slice() else {
+        panic!("{:?}", h.gaps)
+    };
+    assert_eq!(
+        (gap.reason.as_str(), gap.from.as_str(), gap.to.as_deref()),
+        (
+            "before_retention",
+            rfc(from_ms).as_str(),
+            Some(rfc(to_ms).as_str())
+        )
+    );
+
+    // Events over the same range say the same: nothing, and where history starts.
+    let events = Op::Events {
+        host: None,
+        from_ms,
+        to_ms,
+        kind: None,
+    };
+    let Answer::Events(e) = ask(&fake, events).await.unwrap() else {
+        panic!()
+    };
+    assert!(e.events.is_empty());
+    assert_eq!(e.range.from, rfc(from_ms));
+    assert_eq!(e.range.retained_from, h.range.retained_from);
+}
+
+#[tokio::test]
+async fn points_are_what_a_store_read_with_that_many_points_returns() {
+    let fake = fixture();
+    let h = history(&fake, "local", &["cpu.load", "cpu.total"])
+        .await
+        .unwrap();
+    let mac = fake.local;
+    for s in &h.series {
+        let key = SeriesKey::parse(&s.key).unwrap();
+        let query = statglass_store::HistoryQuery {
+            host: mac,
+            selectors: vec![statglass_schema::SeriesSelector {
+                metric: key.metric.clone(),
+                labels: key.labels.clone(),
+            }],
+            from_ms: NOW - 60 * MIN,
+            to_ms: NOW,
+            tier: statglass_store::TierChoice::Auto,
+            max_points: 6,
+        };
+        let read = fake.histories[&mac].read(|r| r.history(&query)).unwrap();
+        let want: Vec<_> = read.series[0]
+            .points
+            .iter()
+            .map(|p| statglass_query::PointDto {
+                t: rfc(p.t),
+                min: f64::from(p.min),
+                max: f64::from(p.max),
+                avg: f64::from(p.avg),
+            })
+            .collect();
+        assert!(!want.is_empty());
+        assert_eq!(s.points, want, "{}", s.key);
+    }
+}
+
+#[tokio::test]
+async fn a_name_several_hosts_share_asks_for_the_id() {
+    let mut fake = owned_fixture();
+    let twin = record(9, "M1-Linux", false, OsKind::Linux);
+    fake.hosts
+        .push(remote(twin.clone(), true, RemoteState::Connected));
+    let linux = fake.hosts[2].record.id;
+    let fake = Arc::new(fake);
+    let e = history(&fake, "m1-linux", &["cpu.total"])
+        .await
+        .unwrap_err();
+    assert_eq!(e.tag, ErrorTag::UnknownHost);
+    let d = e.details.unwrap();
+    assert_eq!(d.suggestions, [linux.to_string(), twin.id.to_string()]);
+    assert_eq!(
+        d.hint.as_deref(),
+        Some("several hosts have this name; pass the id")
+    );
+    let h = history(&fake, &linux.to_string(), &["cpu.total"])
+        .await
+        .unwrap();
+    assert_eq!(h.host.id, linux.to_string());
+}
+
+#[tokio::test]
+async fn now_orders_readings_with_numbers_compared_as_numbers() {
+    let mut fake = owned_fixture();
+    let layout = Arc::new(FrameLayout {
+        layout_no: 2,
+        series: keys(&["cpu.load{core=10}", "cpu.load{core=2}", "cpu.load{core=1}"]),
+    });
+    fake.frames
+        .insert(fake.local, frame(&layout, NOW - S, &[1.0, 2.0, 3.0]));
+    let fake = Arc::new(fake);
+    let op = Op::Now {
+        host: None,
+        all: false,
+        detail: true,
+    };
+    let Answer::Now(n) = ask(&fake, op).await.unwrap() else {
+        panic!()
+    };
+    let got: Vec<_> = n.hosts[0]
+        .readings
+        .iter()
+        .map(|r| r.series.as_str())
+        .collect();
+    assert_eq!(
+        got,
+        ["cpu.load{core=1}", "cpu.load{core=2}", "cpu.load{core=10}"]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_newer_cli_over_the_socket_gets_unsupported() {
+    let fake = fixture();
+    let socket = AppPaths::new(fake._dir.path()).query_socket();
+    let (stop, server) = serving(&fake).await;
+    let response = tokio::task::spawn_blocking(move || {
+        use statglass_query::frame::{read_frame, write_frame};
+        let mut stream = std::os::unix::net::UnixStream::connect(&socket).unwrap();
+        let newer = serde_json::json!({
+            "api": 1, "op": "top", "from_ms": 0, "to_ms": 1, "by": "disk", "limit": 5
+        });
+        write_frame(&mut stream, &newer, statglass_query::MAX_REQUEST_BYTES).unwrap();
+        read_frame::<_, statglass_query::QueryResponse>(
+            &mut stream,
+            statglass_query::MAX_RESPONSE_BYTES,
+        )
+        .unwrap()
+    })
+    .await
+    .unwrap();
+    let Body::Error(e) = response.body else {
+        panic!("{response:?}")
+    };
+    assert_eq!(e.tag, ErrorTag::Unsupported);
+    stop.send(true).unwrap();
+    server.await.unwrap().unwrap();
+}

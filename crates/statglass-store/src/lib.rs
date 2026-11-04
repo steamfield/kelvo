@@ -35,6 +35,7 @@ mod lock;
 mod perms;
 mod reader;
 mod rolldown;
+mod slots;
 mod types;
 pub mod usage;
 mod writer;
@@ -65,6 +66,7 @@ pub use rolldown::NET_TOP_APPS;
 /// The `rusqlite` behind [`StoreError::Sqlite`], so callers can match its error codes
 /// without depending on a version of their own.
 pub use rusqlite;
+pub use slots::downsample;
 pub use types::{
     BucketRow, CapTrim, CursorPage, CursorRead, FILL_MINUTES, FILL_ROLLED, FillMeasurement,
     HistoryQuery, HistoryResult, IngestReport, NetApp, NetBucket, NetByApp, NetSpan, PageEvent,

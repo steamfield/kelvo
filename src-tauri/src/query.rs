@@ -46,7 +46,9 @@ mod now;
 mod server;
 mod top;
 
-pub(crate) use server::{Limits, serve};
+pub(crate) use server::Limits;
+#[cfg(test)]
+pub(crate) use server::serve;
 
 /// One host as the handlers see it, in `HostRegistry::all` order.
 #[derive(Clone, Debug)]
@@ -288,28 +290,79 @@ pub fn refresh(app: &AppHandle, enabled: bool) {
     tauri::async_runtime::spawn(own_socket(paths, backend, rx));
 }
 
-/// Writes or removes `<app_data>/cli/access-disabled`, which tells the CLI that a
-/// missing socket means access is off rather than an app older than the CLI.
-fn mark_disabled(paths: &statglass_query::AppPaths, disabled: bool) {
-    let marker = paths.access_disabled_marker();
-    let result = if disabled {
-        marker
+/// Writes `contents` to `marker` (creating its private directory), or removes it with
+/// `None`; a missing marker is already removed.
+fn set_marker(marker: &std::path::Path, contents: Option<&[u8]>) {
+    let result = match contents {
+        Some(bytes) => marker
             .parent()
             .map_or(Ok(()), statglass_store::create_private_dir)
-            .and_then(|()| statglass_store::write_private(&marker, b""))
-    } else {
-        match std::fs::remove_file(&marker) {
+            .and_then(|()| statglass_store::write_private(marker, bytes)),
+        None => match std::fs::remove_file(marker) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             other => other,
-        }
+        },
     };
     if let Err(e) = result {
         tracing::warn!("updating {}: {e}", marker.display());
     }
 }
 
-/// Serves while `desired` is true, rebinding after a failure; stops when it turns false
-/// (leaving the access-disabled marker) and when its sender is dropped.
+/// Writes or removes `<app_data>/cli/access-disabled`, which tells the CLI that a
+/// missing socket means access is off rather than an app older than the CLI.
+fn mark_disabled(paths: &statglass_query::AppPaths, disabled: bool) {
+    set_marker(
+        &paths.access_disabled_marker(),
+        disabled.then_some(&b""[..]),
+    );
+}
+
+/// The first wait after a failed bind, doubled per failure up to [`MAX_REBIND_WAIT`].
+const FIRST_REBIND_WAIT: std::time::Duration = std::time::Duration::from_secs(1);
+const MAX_REBIND_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// A run of failed binds: the wait before the next attempt and the last error logged, so
+/// a failure that persists is logged once, not every attempt.
+#[derive(Default)]
+struct BindFailures {
+    wait: Option<std::time::Duration>,
+    logged: Option<String>,
+}
+
+impl BindFailures {
+    /// Records `e` in the bind-failed marker the CLI reads, logs it if it differs from the
+    /// last one logged, and returns how long to wait before binding again.
+    fn failed(
+        &mut self,
+        paths: &statglass_query::AppPaths,
+        e: &RemoteError,
+    ) -> std::time::Duration {
+        let text = e.to_string();
+        set_marker(&paths.bind_failed_marker(), Some(text.as_bytes()));
+        if self.logged.as_deref() == Some(text.as_str()) {
+            tracing::debug!("CLI query socket still cannot bind: {text}");
+        } else {
+            tracing::error!("CLI query socket cannot bind; retrying with back-off: {text}");
+            self.logged = Some(text);
+        }
+        let wait = self
+            .wait
+            .map_or(FIRST_REBIND_WAIT, |w| (w * 2).min(MAX_REBIND_WAIT));
+        self.wait = Some(wait);
+        wait
+    }
+
+    /// The socket is bound: the run is over and the CLI no longer reads a failure.
+    fn bound(&mut self, paths: &statglass_query::AppPaths) {
+        *self = Self::default();
+        set_marker(&paths.bind_failed_marker(), None);
+    }
+}
+
+/// Serves while `desired` is true, rebinding after a failure with back-off; stops when it
+/// turns false and when its sender is dropped. The CLI always sees one of the socket or
+/// the access-disabled marker while the app runs: the marker is removed only once the
+/// socket is bound, and written before serving stops.
 async fn own_socket(
     paths: statglass_query::AppPaths,
     backend: Arc<dyn Backend>,
@@ -317,31 +370,47 @@ async fn own_socket(
 ) {
     let limits = Arc::new(Limits::default());
     let path = paths.query_socket();
+    let mut failures = BindFailures::default();
     loop {
         if !*desired.borrow_and_update() {
             mark_disabled(&paths, true);
+            // Access off is the answer now, not a stale bind failure.
+            failures.bound(&paths);
             if desired.changed().await.is_err() {
                 break;
             }
             continue;
         }
-        mark_disabled(&paths, false);
-        let (stop, stopped) = tokio::sync::watch::channel(false);
-        let server = serve(path.clone(), backend.clone(), limits.clone(), stopped);
-        tokio::pin!(server);
-        tokio::select! {
-            result = &mut server => {
-                if let Err(e) = result {
-                    tracing::error!("CLI query socket: {e}");
-                }
+        let listener = match server::bind(&path) {
+            Ok(listener) => listener,
+            Err(e) => {
+                let wait = failures.failed(&paths, &e);
                 tokio::select! {
-                    () = tokio::time::sleep(std::time::Duration::from_secs(1)) => {}
+                    () = tokio::time::sleep(wait) => {}
                     changed = desired.changed() => if changed.is_err() { break },
                 }
+                continue;
             }
+        };
+        failures.bound(&paths);
+        mark_disabled(&paths, false);
+        let (stop, stopped) = tokio::sync::watch::channel(false);
+        let server = server::serve_on(
+            listener,
+            path.clone(),
+            backend.clone(),
+            limits.clone(),
+            stopped,
+        );
+        tokio::pin!(server);
+        tokio::select! {
+            () = &mut server => {}
             changed = desired.changed() => {
+                if changed.is_ok() && !*desired.borrow() {
+                    mark_disabled(&paths, true);
+                }
                 let _ = stop.send(true);
-                let _ = server.await;
+                server.await;
                 if changed.is_err() {
                     break;
                 }

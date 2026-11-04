@@ -9,6 +9,8 @@ const LINK: CliLinkStatus = {
   link_path: "/Users/riley/.local/bin/statglass",
   target: "/Applications/StatGlass.app/Contents/MacOS/statglass-cli",
   state: "missing",
+  points_to: null,
+  reason: null,
   on_path: true,
 };
 /** The link row's label and sub. */
@@ -67,13 +69,13 @@ describe("Command line settings (D-126)", () => {
     );
   });
 
-  it("repairs a link to an older copy", async () => {
+  it("repairs a link to another copy", async () => {
     const { transport, user } = renderWithProviders(
       <CommandLinePanel enabled />,
       { transportOptions: { cliLink: { ...LINK, state: "stale" } } }
     );
     await expectLink(
-      "~/.local/bin/statglass points to an older copy of StatGlass."
+      "~/.local/bin/statglass points to another copy of StatGlass."
     );
     await user.click(screen.getByRole("button", { name: "Repair" }));
     await expectLink("Installed at");
@@ -83,13 +85,53 @@ describe("Command line settings (D-126)", () => {
     });
   });
 
-  it("does not offer to replace a file that isn't a link", async () => {
+  it("replaces a link the user made only after confirming", async () => {
+    const foreign: CliLinkStatus = {
+      ...LINK,
+      state: "foreign",
+      points_to: "/Users/riley/bin/my-statglass",
+    };
+    const { transport, user } = renderWithProviders(
+      <CommandLinePanel enabled />,
+      { transportOptions: { cliLink: foreign } }
+    );
+    await expectLink(
+      "~/.local/bin/statglass points to ~/bin/my-statglass, not StatGlass."
+    );
+    const installs = () =>
+      transport.calls.filter((c) => c.command === "cli_install_link");
+
+    await user.click(screen.getByRole("button", { name: "Replace" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("~/bin/my-statglass");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(installs()).toHaveLength(0);
+    expect(linkRow()).toHaveTextContent("not StatGlass.");
+
+    await user.click(screen.getByRole("button", { name: "Replace" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Replace link" })
+    );
+    await expectLink("Installed at ~/.local/bin/statglass.");
+    expect(installs()).toHaveLength(1);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("says why it can't install and offers nothing to replace", async () => {
     renderWithProviders(<CommandLinePanel enabled />, {
-      transportOptions: { cliLink: { ...LINK, state: "blocked" } },
+      transportOptions: {
+        cliLink: {
+          ...LINK,
+          state: "blocked",
+          reason:
+            "/Users/riley/.local/bin is writable by other users. Remove their write access to install.",
+        },
+      },
     });
     await expectLink(
-      "~/.local/bin/statglass is a file, not a link. Move it to install."
+      "~/.local/bin is writable by other users. Remove their write access to install."
     );
+    expect(linkRow()).not.toHaveTextContent(/is a file/);
     expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
   });
 

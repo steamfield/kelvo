@@ -54,14 +54,16 @@ pub struct Settings {
     pub alerts: AlertSettings,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+/// A missing field takes its default, so `{}` does not fail the whole settings file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, specta::Type)]
 pub struct RemoteAccessSettings {
     pub enabled: bool,
 }
 
 /// "Allow command-line access" (D-126): whether the app binds the `statglass` CLI's
-/// query socket. On by default, so `Default` is written by hand.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+/// query socket. On by default, so `Default` is written by hand. A missing field takes
+/// its default, so `{}` decodes as on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, specta::Type)]
 pub struct CliAccessSettings {
     pub enabled: bool,
 }
@@ -112,6 +114,8 @@ macro_rules! deserialize_with_defaults {
     };
 }
 
+deserialize_with_defaults!(RemoteAccessSettings { enabled: bool });
+deserialize_with_defaults!(CliAccessSettings { enabled: bool });
 deserialize_with_defaults!(MenuBarSettings {
     bars: BarSettings,
     readouts: ReadoutSettings,
@@ -1113,6 +1117,14 @@ mod tests {
         json.as_object_mut().unwrap().remove("cli_access");
         let s: Settings = serde_json::from_value(json).unwrap();
         assert!(s.cli_access.enabled);
+        assert_eq!(s, Settings::default());
+        // An empty group keeps its default rather than resetting every setting.
+        let mut json = serde_json::to_value(Settings::default()).unwrap();
+        json["cli_access"] = serde_json::json!({});
+        json["remote_access"] = serde_json::json!({});
+        let s: Settings = serde_json::from_value(json).unwrap();
+        assert!(s.cli_access.enabled);
+        assert!(!s.remote_access.enabled);
         assert_eq!(s, Settings::default());
         let off = r#"{"enabled":false}"#;
         assert!(

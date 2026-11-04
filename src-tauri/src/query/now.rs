@@ -15,7 +15,7 @@ use statglass_remote::headline_metrics;
 use statglass_schema::SeriesKey;
 
 use super::hosts::resolve;
-use super::map::{Fail, freshness, host_ref, is_live, metric, rfc};
+use super::map::{Fail, freshness, host_ref, is_live, metric, natural_cmp, rfc};
 use super::{Backend, HostView};
 
 /// This Mac's headline series beyond [`headline_metrics`]: `(metric, labels)`, where
@@ -86,7 +86,7 @@ fn now_host(backend: &dyn Backend, view: &HostView, detail: bool) -> NowHost {
             .collect(),
         _ => Vec::new(),
     };
-    readings.sort_by(|a, b| a.series.cmp(&b.series));
+    readings.sort_by(|a, b| natural_cmp(&a.series, &b.series));
     let watermark = view
         .remote
         .as_ref()

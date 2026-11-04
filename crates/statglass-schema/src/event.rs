@@ -73,6 +73,15 @@ impl EventDetail {
             EventDetail::Alert { .. } => "alert",
         }
     }
+
+    /// Every [`EventDetail::kind`] this build records, sorted.
+    pub const KINDS: &[&str] = &[
+        "alert",
+        "fans_ramped",
+        "power_spike",
+        "sustained_process",
+        "thermal_state",
+    ];
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -245,6 +254,51 @@ mod tests {
             let json = serde_json::to_string(&e).unwrap();
             assert_eq!(serde_json::from_str::<Event>(&json).unwrap(), e);
         }
+    }
+
+    /// One of each variant: adding one breaks this match until it is listed here, and so
+    /// in [`EventDetail::KINDS`].
+    #[test]
+    fn kinds_lists_every_variant() {
+        let every = [
+            EventDetail::FansRamped {
+                from_rpm: 0.0,
+                to_rpm: 1.0,
+            },
+            EventDetail::ThermalState {
+                from: None,
+                to: ThermalState::Nominal,
+            },
+            EventDetail::SustainedProcess {
+                process: "p".into(),
+                cpu_pct: 1.0,
+                secs: 1,
+            },
+            EventDetail::PowerSpike {
+                component: PowerComponent::Package,
+                watts: 1.0,
+                baseline_watts: 0.5,
+            },
+            EventDetail::Alert {
+                rule_id: Uuid::nil(),
+                rule_name: "r".into(),
+                cause: AlertCause::ThermalState {
+                    state: ThermalState::Critical,
+                },
+            },
+        ];
+        for detail in &every {
+            match detail {
+                EventDetail::FansRamped { .. }
+                | EventDetail::ThermalState { .. }
+                | EventDetail::SustainedProcess { .. }
+                | EventDetail::PowerSpike { .. }
+                | EventDetail::Alert { .. } => {}
+            }
+        }
+        let mut kinds: Vec<&str> = every.iter().map(EventDetail::kind).collect();
+        kinds.sort_unstable();
+        assert_eq!(kinds, EventDetail::KINDS);
     }
 
     #[test]

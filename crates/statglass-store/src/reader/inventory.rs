@@ -40,6 +40,13 @@ impl Reader {
     /// may still hold no measured value for it. Metrics this build does not know (from a
     /// newer peer) are listed as stored. [`crate::StoreError::UnknownHost`] when the host
     /// was never registered.
+    ///
+    /// One pass over the host's range of each tier's `(host_id, bucket_ts, layout_id)`
+    /// index: retention bounds it to about 20k rows a host, under a millisecond. Layouts
+    /// are never deleted and most of a long-lived host's have no rows left (32 of 37 on
+    /// one real database), so neither listing every registered layout nor an `EXISTS`
+    /// per layout fits: without a `(host_id, layout_id)` index each `EXISTS` for a
+    /// rowless layout walks that same range again, about 30 times slower in total.
     pub fn stored_series(&mut self, host: HostId) -> Result<Vec<SeriesKey>> {
         let host_ref = self.host_ref(host)?;
         let sql = TIERS

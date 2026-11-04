@@ -65,6 +65,8 @@ anyhow.workspace = true
 # Re-hashes the bundled Linux agent against the digest build.rs compiled in.
 sha2 = "0.10.9"
 tracing.workspace = true
+# `cli_link`: the effective uid, and RENAME_SWAP so the link swap never clobbers a file.
+rustix = { workspace = true, features = ["process"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2.5"
 

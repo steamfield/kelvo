@@ -1,4 +1,8 @@
-import type { CliLinkStatus, UpdateStatus } from "@core/generated/bindings";
+import type {
+  CliLinkState,
+  CliLinkStatus,
+  UpdateStatus,
+} from "@core/generated/bindings";
 import type { MockCommands } from "./commands";
 import type { MockTransport, MockTransportOptions } from "./contracts";
 import type { MockEmitters } from "./emitters";
@@ -6,6 +10,31 @@ import type { MockPower } from "./power";
 import { ok } from "./protocol";
 import type { MockRing } from "./ring";
 import type { MockSettings } from "./settings";
+
+const LINK_PATH = "/Users/you/.local/bin/statglass";
+const CLI_TARGET = "/Applications/StatGlass.app/Contents/MacOS/statglass-cli";
+/** A plausible `cli_link_status` for each state (dev server `?cli_link=`). */
+export function cliLinkFixture(state: CliLinkState): CliLinkStatus {
+  const points_to = {
+    missing: null,
+    current: CLI_TARGET,
+    stale: "/Users/you/Downloads/StatGlass.app/Contents/MacOS/statglass-cli",
+    foreign: "/opt/homebrew/bin/statglass",
+    blocked: null,
+  }[state];
+  const reason =
+    state === "blocked"
+      ? `${LINK_PATH} is not a link. Move it to install.`
+      : null;
+  return {
+    link_path: LINK_PATH,
+    target: CLI_TARGET,
+    state,
+    points_to,
+    reason,
+    on_path: false,
+  };
+}
 export class MockShell {
   private updateStatus: UpdateStatus;
   private cliLink: CliLinkStatus;
@@ -18,12 +47,7 @@ export class MockShell {
     private readonly options: MockTransportOptions
   ) {
     this.updateStatus = options.updateStatus ?? { kind: "idle" };
-    this.cliLink = options.cliLink ?? {
-      link_path: "/Users/you/.local/bin/statglass",
-      target: "/Applications/StatGlass.app/Contents/MacOS/statglass-cli",
-      state: "missing",
-      on_path: false,
-    };
+    this.cliLink = options.cliLink ?? cliLinkFixture("missing");
   }
   readonly requestNavigate: MockTransport["requestNavigate"] = (route) => {
     this.emitters.navigate.emit({ route });
@@ -51,7 +75,7 @@ export class MockShell {
     this.commands.record("cli_link_status");
     return ok(this.cliLink);
   };
-  /** As `cli_install_link`: a file that isn't a link stays `blocked`. */
+  /** As `cli_install_link`: `blocked` stays; any symlink is re-pointed at the target. */
   readonly cliInstallLink: MockTransport["cliInstallLink"] = async () => {
     this.commands.record("cli_install_link");
     if (this.cliLink.target === null)
@@ -63,7 +87,12 @@ export class MockShell {
         },
       };
     if (this.cliLink.state !== "blocked")
-      this.cliLink = { ...this.cliLink, state: "current" };
+      this.cliLink = {
+        ...this.cliLink,
+        state: "current",
+        points_to: this.cliLink.target,
+        reason: null,
+      };
     return ok(this.cliLink);
   };
   readonly getUpdateStatus: MockTransport["getUpdateStatus"] = async () =>

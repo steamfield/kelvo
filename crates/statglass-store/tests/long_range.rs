@@ -219,6 +219,27 @@ fn utc(days_from_t0: i64, hour: i64) -> i64 {
     T0 + days_from_t0 * DAY + hour * HOUR
 }
 
+/// Points merged in memory from a full-resolution read equal a read with that
+/// `max_points`, on minutes and on quarters (rolled rows and loose minutes both).
+#[test]
+fn downsampling_a_full_read_matches_the_stores_own_merge() {
+    let dir = temp_dir("downsample");
+    let (store, h) = thirty_days(&dir);
+    let mut r = store.reader().unwrap();
+    for (from, to, max_points) in [
+        (NOW - 2 * DAY + 7 * MIN, NOW - 3 * MIN, 37),
+        (NOW - 7 * DAY, NOW, 2016),
+        (NOW - 30 * DAY, NOW, 100),
+        (NOW - 30 * DAY + 5 * MIN, NOW - DAY, 1),
+    ] {
+        let full = history(&mut r, h, from, to, u32::MAX);
+        let want = history(&mut r, h, from, to, max_points);
+        assert!(want.bucket_ms > full.bucket_ms, "the read merged buckets");
+        let got = statglass_store::downsample(&full, from, to, max_points).unwrap();
+        assert_eq!(got, want, "{from}..{to} at {max_points}");
+    }
+}
+
 #[test]
 fn heatmap_hours_follow_dst_in_both_directions() {
     let dir = temp_dir("heatmap-dst");

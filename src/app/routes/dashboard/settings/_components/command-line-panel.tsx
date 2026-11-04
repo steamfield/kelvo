@@ -3,6 +3,7 @@ import { appKeys } from "@core/query-keys";
 import { unwrap } from "@core/transport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { ConfirmDialog } from "~/components/confirm-dialog";
 import { SettingsPanel, SettingsRow } from "~/components/settings-row";
 import { Button } from "~/components/ui/button";
 import { Switch } from "~/components/ui/switch";
@@ -11,8 +12,8 @@ import { useTransport } from "~/lib/transport-context";
 
 const SKILL_COMMAND = "statglass skill install";
 
-/** `/Users/name/.local/bin/statglass` as a shell user writes it. */
-const tilde = (path: string) => path.replace(/^\/Users\/[^/]+\//, "~/");
+/** `/Users/name/...` paths in `text` as a shell user writes them. */
+const tilde = (text: string) => text.replace(/\/Users\/[^/\s]+\//g, "~/");
 
 function linkMessage(link: CliLinkStatus): string {
   const path = tilde(link.link_path);
@@ -29,11 +30,20 @@ function linkMessage(link: CliLinkStatus): string {
         ? "This build has no bundled command-line tool."
         : "Not installed.";
     case "stale":
-      return `${path} points to an older copy of StatGlass.`;
+      return `${path} points to another copy of StatGlass.`;
+    case "foreign":
+      return `${path} points to ${tilde(link.points_to ?? "something else")}, not StatGlass.`;
     case "blocked":
-      return `${path} is a file, not a link. Move it to install.`;
+      return tilde(link.reason ?? `${path} is not a link.`);
   }
 }
+
+const ACTION_LABEL = {
+  missing: "Install",
+  stale: "Repair",
+  foreign: "Replace",
+  blocked: "Install",
+} as const;
 
 function CliLinkRow() {
   const transport = useTransport();
@@ -44,6 +54,7 @@ function CliLinkRow() {
   });
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const install = async () => {
     setPending(true);
@@ -63,6 +74,7 @@ function CliLinkRow() {
       setFailure(String(error));
     } finally {
       setPending(false);
+      setConfirming(false);
     }
   };
 
@@ -84,10 +96,32 @@ function CliLinkRow() {
           variant="outline"
           size="sm"
           disabled={pending || link.state === "blocked" || link.target === null}
-          onClick={install}
+          onClick={
+            link.state === "foreign" ? () => setConfirming(true) : install
+          }
         >
-          {link.state === "stale" ? "Repair" : "Install"}
+          {ACTION_LABEL[link.state]}
         </Button>
+      )}
+      {link?.state === "foreign" && (
+        <ConfirmDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          className="sm:max-w-sm"
+          title="Replace the statglass link?"
+          description={
+            <>
+              {tilde(link.link_path)} points to{" "}
+              {tilde(link.points_to ?? "something else")}. Replacing it makes
+              statglass run this app's command-line tool. The file it points to
+              isn't changed.
+            </>
+          }
+          confirmLabel="Replace link"
+          confirmVariant="destructive"
+          onConfirm={install}
+          busy={pending}
+        />
       )}
     </SettingsRow>
   );

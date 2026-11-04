@@ -492,6 +492,29 @@ fn doctor_reports_problems_with_exit_0() {
 }
 
 #[test]
+fn doctor_reports_an_unsafe_socket_as_a_problem() {
+    use std::os::unix::fs::PermissionsExt;
+    let fake = Fake::serving(Reply::Garbage);
+    let socket = fake.app_data().join("cli/query.sock");
+    std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o666)).unwrap();
+    let run = fake.run(&["doctor", "--json"]);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let report: statglass_query::DoctorReport = run.json();
+    let [problem] = report.problems.as_slice() else {
+        panic!("{:?}", report.problems)
+    };
+    assert_eq!(problem.tag, ErrorTag::AccessUnavailable);
+    let detail = problem.detail.as_deref().unwrap();
+    assert!(detail.contains("socket mode is not 0600"), "{detail}");
+    assert!(detail.contains("query.sock"), "{detail}");
+    assert_failure(
+        &fake.run(&["hosts", "--json"]),
+        6,
+        ErrorTag::AccessUnavailable,
+    );
+}
+
+#[test]
 fn schema_lists_prints_and_suggests() {
     let run = run_with(&["schema"], |_| {});
     assert_eq!(run.code, 0);
@@ -572,6 +595,27 @@ fn skill_install_creates_then_leaves_unchanged() {
             .join(".claude/skills/statglass/SKILL.md")
             .is_file()
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn skill_install_into_an_unwritable_directory_is_a_usage_error_naming_the_path() {
+    use std::os::unix::fs::PermissionsExt;
+    let home = tempfile::tempdir().unwrap();
+    std::fs::set_permissions(home.path(), std::fs::Permissions::from_mode(0o500)).unwrap();
+    let run = run_with(&["skill", "install", "--json"], |c| {
+        c.env("HOME", home.path());
+    });
+    std::fs::set_permissions(home.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let e = assert_failure(&run, 2, ErrorTag::Usage);
+    let skill = home.path().join(".claude/skills/statglass/SKILL.md");
+    let details = e.details.unwrap();
+    assert_eq!(
+        details.input.as_deref(),
+        Some(&*skill.display().to_string())
+    );
+    let hint = details.hint.unwrap();
+    assert!(hint.contains("check permissions"), "{hint}");
 }
 
 #[test]

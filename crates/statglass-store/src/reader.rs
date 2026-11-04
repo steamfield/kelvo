@@ -9,13 +9,14 @@ use std::sync::Arc;
 use rusqlite::{Connection, OptionalExtension, params};
 use statglass_schema::{
     Cursor, Event, Gap, GapReason, HostId, HostInfo, HostRecord, Labels, MetricId, Module,
-    SeriesKey, SyncKinds, SyncRowKind, Tier, floor_to,
+    SeriesKey, SyncKinds, SyncRowKind, Tier,
 };
 use uuid::Uuid;
 
 use crate::blob;
 use crate::db::{self, tier_table, tier_width};
 use crate::error::{Result, StoreError};
+use crate::slots::{Acc, Slots};
 use crate::types::{
     BucketRow, CursorPage, CursorRead, HistoryQuery, HistoryResult, PageEvent, PageGap, PageLayout,
     PageRow, Point, ProcResolution, ProcRow, ProcessesAt, Retention, SeriesPoints, TierChoice,
@@ -221,7 +222,7 @@ impl Reader {
         let rows: Vec<(i64, u32, Vec<u8>, u32)> = self
             .conn
             .prepare_cached(&sql)?
-            .query_map(params![host_ref, merge.base, q.to_ms], |r| {
+            .query_map(params![host_ref, merge.slots.base, q.to_ms], |r| {
                 Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -254,7 +255,7 @@ impl Reader {
         merge.add_recent(&recent)?;
         Ok(HistoryResult {
             tier,
-            bucket_ms: merge.slot_w,
+            bucket_ms: merge.slots.slot_w,
             series: merge.finish(),
             gaps,
         })
@@ -643,23 +644,16 @@ pub fn history_recent(q: &HistoryQuery, recent: &[BucketRow]) -> Result<HistoryR
     merge.add_recent(&recent)?;
     Ok(HistoryResult {
         tier,
-        bucket_ms: merge.slot_w,
+        bucket_ms: merge.slots.slot_w,
         series: merge.finish(),
         gaps: Vec::new(),
     })
 }
 
-/// A history read in progress: slots of whole buckets, per-series accumulators by slot.
+/// A history read in progress: per-series accumulators on the [`Slots`] grid.
 struct Merge<'q> {
     q: &'q HistoryQuery,
-    /// Start of the bucket holding `from`.
-    base: i64,
-    /// The width each returned point averages over, which the client labels
-    /// ("10 MIN AVG"): as few whole buckets as keep the slot count at or under
-    /// `max_points`.
-    slot_w: i64,
-    /// Source weights are minutes for M15 reads, otherwise one source bucket.
-    unit_w: i64,
+    slots: Slots,
     /// Result series in key order.
     index: BTreeMap<SeriesKey, usize>,
     /// Per series, accumulators by slot index.
@@ -668,15 +662,9 @@ struct Merge<'q> {
 
 impl<'q> Merge<'q> {
     fn new(q: &'q HistoryQuery, width: i64) -> Self {
-        let base = floor_to(q.from_ms, width);
-        let buckets = (q.to_ms - base + width - 1) / width;
-        let per_slot =
-            (buckets + i64::from(q.max_points.max(1)) - 1) / i64::from(q.max_points.max(1));
         Self {
             q,
-            base,
-            slot_w: width * per_slot.max(1),
-            unit_w: if width == 900_000 { 60_000 } else { width },
+            slots: Slots::new(q.from_ms, q.to_ms, width, q.max_points),
             index: BTreeMap::new(),
             accs: Vec::new(),
         }
@@ -687,7 +675,9 @@ impl<'q> Merge<'q> {
     fn recent<'r>(&self, rows: &'r [BucketRow], tier: Tier) -> Vec<&'r BucketRow> {
         let want = if tier == Tier::M15 { Tier::M1 } else { tier };
         rows.iter()
-            .filter(|r| r.tier == want && r.bucket_ts >= self.base && r.bucket_ts < self.q.to_ms)
+            .filter(|r| {
+                r.tier == want && r.bucket_ts >= self.slots.base && r.bucket_ts < self.q.to_ms
+            })
             .collect()
     }
 
@@ -715,7 +705,7 @@ impl<'q> Merge<'q> {
         stat: impl Fn(usize) -> Option<f32>,
         weight: u32,
     ) -> Result<()> {
-        let slot = (ts - self.base) / self.slot_w;
+        let slot = self.slots.index(ts);
         for &(i, pos) in positions {
             let (Some(min), Some(max), Some(avg)) =
                 (stat(pos * 3), stat(pos * 3 + 1), stat(pos * 3 + 2))
@@ -762,19 +752,7 @@ impl<'q> Merge<'q> {
             };
             let points: Vec<Point> = std::mem::take(slots)
                 .into_iter()
-                .map(|(slot, a)| Point {
-                    t: self.base + slot * self.slot_w,
-                    min: a.min,
-                    max: a.max,
-                    avg: (a.sum
-                        / if statglass_schema::disk_io::preserves_request_integral(
-                            key.metric.as_str(),
-                        ) {
-                            (self.slot_w / self.unit_w) as f64
-                        } else {
-                            f64::from(a.weight)
-                        }) as f32,
-                })
+                .map(|(slot, a)| self.slots.point(slot, &a, key.metric.as_str()))
                 .collect();
             if !points.is_empty() {
                 series.push(SeriesPoints { key, points });
@@ -820,31 +798,6 @@ pub(crate) fn load_layout(
     let layout: Arc<[SeriesKey]> = keys.into();
     cache.insert(id, Arc::clone(&layout));
     Ok(layout)
-}
-
-#[derive(Default)]
-struct Acc {
-    min: f32,
-    max: f32,
-    /// Sum of averages times their weights.
-    sum: f64,
-    weight: u32,
-}
-
-impl Acc {
-    /// Adds one bucket's stats; `weight` is its width in tier units (minutes for an M15
-    /// read, 1 otherwise).
-    fn add(&mut self, min: f32, max: f32, avg: f32, weight: u32) {
-        if self.weight == 0 {
-            self.min = min;
-            self.max = max;
-        } else {
-            self.min = self.min.min(min);
-            self.max = self.max.max(max);
-        }
-        self.sum += f64::from(avg) * f64::from(weight);
-        self.weight += weight;
-    }
 }
 
 fn f32_at(blob: &[u8], i: usize) -> Option<f32> {

@@ -452,7 +452,8 @@ fn sync_watermark_tracks_committed_pages_per_tier() {
         m15_ms: None,
     };
     assert_eq!(m.sync_watermark().unwrap(), after_sync);
-    assert_eq!(after_sync.synced_through_ms(), Some(TS + 10_000));
+    assert_eq!(after_sync.synced_through(), Some(TS + 60_000));
+    assert_eq!(after_sync.tier(Tier::S10), Some(TS + 10_000));
     assert_eq!(after_sync.tier(Tier::M1), Some(TS + 60_000));
 
     // Truncation keeps the rows held, so the watermark stays at their end.

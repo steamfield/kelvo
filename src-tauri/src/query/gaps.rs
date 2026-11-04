@@ -11,6 +11,9 @@ use super::map::rfc;
 
 /// The reason for a span with no point and no stored gap.
 pub(super) const NO_DATA: &str = "no_data";
+/// The reason for a range that ends before the host's retained history begins: pruned,
+/// not unrecorded.
+pub(super) const BEFORE_RETENTION: &str = "before_retention";
 
 /// A gap in milliseconds; `to` is `None` while it is open.
 #[derive(Clone, Debug, PartialEq, Eq)]

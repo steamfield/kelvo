@@ -1,5 +1,6 @@
 //! Internal types to the CLI contract's DTOs and errors, in one place.
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
@@ -195,23 +196,43 @@ pub(super) fn last_seen_ms(view: &HostView) -> Option<i64> {
     ms.is_finite().then_some(ms as i64)
 }
 
-/// How far a mirror is complete through. The 10 s tier normally leads; when it is behind
-/// the minute tier (an S10 truncation can leave a hole there with no gap, and pruning
-/// during a long offline spell can empty or lower it), the minute tier's watermark is
-/// the truer one. The 15-minute tier counts only when neither finer tier holds rows.
-pub(super) fn synced_through(w: &SyncWatermark) -> Option<i64> {
-    match (w.s10_ms, w.m1_ms) {
-        (Some(s10), Some(m1)) => Some(s10.max(m1)),
-        (s10, m1) => s10.or(m1).or(w.m15_ms),
-    }
-}
-
 /// `freshness` for a remote host; `None` for this Mac.
 pub(super) fn freshness(view: &HostView, watermark: Option<&SyncWatermark>) -> Option<Freshness> {
     view.remote.as_ref()?;
     Some(Freshness {
         state: host_state(view),
         last_seen: last_seen_ms(view).map(rfc),
-        synced_through: watermark.and_then(synced_through).map(rfc),
+        synced_through: watermark.and_then(SyncWatermark::synced_through).map(rfc),
     })
+}
+
+/// Text order with runs of digits compared as numbers: `core=2` before `core=10`.
+pub(super) fn natural_cmp(a: &str, b: &str) -> Ordering {
+    let (mut a, mut b) = (a, b);
+    loop {
+        let (Some(ca), Some(cb)) = (a.chars().next(), b.chars().next()) else {
+            return a.len().cmp(&b.len());
+        };
+        if ca.is_ascii_digit() && cb.is_ascii_digit() {
+            let da = a.len() - a.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+            let db = b.len() - b.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+            let (na, ra) = a.split_at(da);
+            let (nb, rb) = b.split_at(db);
+            let (ta, tb) = (na.trim_start_matches('0'), nb.trim_start_matches('0'));
+            let ord = ta
+                .len()
+                .cmp(&tb.len())
+                .then_with(|| ta.cmp(tb))
+                .then(da.cmp(&db));
+            if ord != Ordering::Equal {
+                return ord;
+            }
+            (a, b) = (ra, rb);
+        } else {
+            if ca != cb {
+                return ca.cmp(&cb);
+            }
+            (a, b) = (&a[ca.len_utf8()..], &b[cb.len_utf8()..]);
+        }
+    }
 }

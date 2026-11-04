@@ -24,7 +24,7 @@ export interface MockTransportOptions {
   embed?: MockEmbed;
   updateStatus?: UpdateStatus;
   updateFails?: boolean;
-  /** What `cli_link_status` answers first. Defaults to `missing`; installing makes it `current`. */
+  /** What `cli_link_status` answers first. Defaults to `missing`; installing makes any state but `blocked` `current`. */
   cliLink?: CliLinkStatus;
   /** A bounded setup delay for cancellation tests. */
   remoteSetupDelayMs?: number;

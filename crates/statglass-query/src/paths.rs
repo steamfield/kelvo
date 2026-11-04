@@ -72,6 +72,12 @@ impl AppPaths {
         self.app_data.join("cli").join("access-disabled")
     }
 
+    /// `<app_data>/cli/bind-failed`: present while access is on but the query socket
+    /// cannot be bound, holding the error, so the CLI can say why instead of guessing.
+    pub fn bind_failed_marker(&self) -> PathBuf {
+        self.app_data.join("cli").join("bind-failed")
+    }
+
     /// `<app_data>/remote/control.sock`, the remote helper's socket. The CLI only checks
     /// whether it answers, to tell "access disabled" from "not running".
     pub fn control_socket(&self) -> PathBuf {

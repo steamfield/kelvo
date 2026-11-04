@@ -2,10 +2,11 @@
 //! concurrency and deadline rules every answer runs under.
 
 use super::map::Fail;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::Deserialize;
 use statglass_query::{
     API_VERSION, Body, ErrorDetails, ErrorTag, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, Op,
     QueryRequest, QueryResponse,
@@ -13,7 +14,7 @@ use statglass_query::{
 };
 use statglass_remote::RemoteError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixStream;
+use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, watch};
 
 use super::map::{err, err_with, hint};
@@ -21,8 +22,9 @@ use super::{Backend, events, history, hosts, now, top};
 
 /// Requests answered at once; one more gets `Busy`.
 const MAX_IN_FLIGHT: usize = 4;
-/// Connections open at once, most of them waiting for a slot or writing an answer.
-const MAX_CONNECTIONS: usize = 32;
+/// Connections open at once, most of them waiting for a slot or writing an answer. One
+/// more is answered `Busy` and closed.
+pub(super) const MAX_CONNECTIONS: usize = 32;
 /// How long a client has to send its request.
 const READ_REQUEST_WITHIN: Duration = Duration::from_secs(5);
 
@@ -109,14 +111,7 @@ pub(super) async fn answer(
     request: QueryRequest,
 ) -> Body {
     if request.api > API_VERSION || matches!(request.op, Op::Unknown) {
-        return Body::Error(*err_with(
-            ErrorTag::Unsupported,
-            ErrorDetails {
-                api: Some(API_VERSION),
-                app_version: Some(backend.app_version()),
-                ..Default::default()
-            },
-        ));
+        return Body::Error(*unsupported(backend.app_version(), None));
     }
     let Some(slot) = limits.try_slot() else {
         return Body::Error(*err(ErrorTag::Busy));
@@ -134,6 +129,50 @@ pub(super) async fn answer(
         Ok(answer) => Body::Ok(answer),
         Err(e) => Body::Error(*e),
     }
+}
+
+/// `Unsupported`, with this app's api and version: a request from a newer CLI.
+fn unsupported(app_version: String, hint: Option<String>) -> Fail {
+    err_with(
+        ErrorTag::Unsupported,
+        ErrorDetails {
+            api: Some(API_VERSION),
+            app_version: Some(app_version),
+            hint,
+            ..Default::default()
+        },
+    )
+}
+
+/// The request in `body`. Its `api` is read first: a newer api, or a body this build
+/// cannot decode (a newer op's fields, or a known op with a value added since), is
+/// `Unsupported`, because the CLI validated its input before sending. Only a frame that
+/// is not a JSON object at all is `Usage`.
+pub(super) fn decode_request(
+    body: &[u8],
+    app_version: impl FnOnce() -> String,
+) -> Result<QueryRequest, Fail> {
+    #[derive(serde::Deserialize)]
+    struct Head {
+        api: u16,
+    }
+    let value: serde_json::Value = serde_json::from_slice(body)
+        .map_err(|e| hint(ErrorTag::Usage, format!("unreadable request: {e}")))?;
+    if !value.is_object() {
+        return Err(hint(ErrorTag::Usage, "a request is a JSON object"));
+    }
+    let newer = |e: String| unsupported(app_version(), Some(e));
+    match Head::deserialize(&value) {
+        Ok(head) if head.api > API_VERSION => {
+            return Err(newer(format!(
+                "api {} is newer than {API_VERSION}",
+                head.api
+            )));
+        }
+        Ok(_) => {}
+        Err(e) => return Err(newer(e.to_string())),
+    }
+    QueryRequest::deserialize(value).map_err(|e| newer(e.to_string()))
 }
 
 /// Every operation answered on the blocking pool.
@@ -195,7 +234,12 @@ fn response_frame(app_version: String, body: Body) -> Result<Vec<u8>, FrameError
 
 /// Reads one request, answers it and closes.
 async fn connection(mut stream: UnixStream, backend: Arc<dyn Backend>, limits: Arc<Limits>) {
-    let request = tokio::time::timeout(READ_REQUEST_WITHIN, read_request(&mut stream)).await;
+    let app_version = backend.app_version();
+    let request = tokio::time::timeout(
+        READ_REQUEST_WITHIN,
+        read_request(&mut stream, move || app_version),
+    )
+    .await;
     let body = match request {
         Err(_) => return,
         Ok(Err(None)) => return,
@@ -214,15 +258,17 @@ async fn connection(mut stream: UnixStream, backend: Arc<dyn Backend>, limits: A
 }
 
 /// The request, a typed error to answer with, or `None` when the client went away.
-async fn read_request(stream: &mut UnixStream) -> Result<QueryRequest, Option<Fail>> {
+async fn read_request(
+    stream: &mut UnixStream,
+    app_version: impl FnOnce() -> String,
+) -> Result<QueryRequest, Option<Fail>> {
     let mut prefix = [0u8; 4];
     stream.read_exact(&mut prefix).await.map_err(|_| None)?;
     let len = decode_len(prefix, MAX_REQUEST_BYTES)
         .map_err(|e| Some(hint(ErrorTag::Usage, e.to_string())))?;
     let mut body = vec![0u8; len];
     stream.read_exact(&mut body).await.map_err(|_| None)?;
-    serde_json::from_slice(&body)
-        .map_err(|e| Some(hint(ErrorTag::Usage, format!("unreadable request: {e}"))))
+    decode_request(&body, app_version).map_err(Some)
 }
 
 /// Removes the socket file when serving stops.
@@ -234,15 +280,24 @@ impl Drop for Unlink {
     }
 }
 
-/// Binds `path` owner-only and serves until `shutdown` changes.
-pub(crate) async fn serve(
+/// Binds `path` owner-only.
+pub(crate) fn bind(path: &Path) -> Result<UnixListener, RemoteError> {
+    statglass_remote::bind_private(path)
+}
+
+/// Serves `listener`, bound at `path`, until `shutdown` changes; removes the socket file
+/// when it stops.
+pub(crate) async fn serve_on(
+    listener: UnixListener,
     path: PathBuf,
     backend: Arc<dyn Backend>,
     limits: Arc<Limits>,
     mut shutdown: watch::Receiver<bool>,
-) -> Result<(), RemoteError> {
-    let listener = statglass_remote::bind_private(&path)?;
+) {
     let _unlink = Unlink(path);
+    // Pre-encoded: answering a connection over the cap must not cost the accept loop.
+    let busy = response_frame(backend.app_version(), Body::Error(*err(ErrorTag::Busy)))
+        .unwrap_or_default();
     let mut connections = tokio::task::JoinSet::new();
     loop {
         tokio::select! {
@@ -256,7 +311,11 @@ pub(crate) async fn serve(
                         continue;
                     }
                 };
-                if statglass_remote::same_uid(&stream).is_err() || connections.len() >= MAX_CONNECTIONS {
+                if statglass_remote::same_uid(&stream).is_err() {
+                    continue;
+                }
+                if connections.len() >= MAX_CONNECTIONS {
+                    refuse_busy(stream, &busy);
                     continue;
                 }
                 connections.spawn(connection(stream, backend.clone(), limits.clone()));
@@ -266,5 +325,29 @@ pub(crate) async fn serve(
     }
     connections.abort_all();
     while connections.join_next().await.is_some() {}
+}
+
+/// Answers a connection over the cap with the pre-encoded `Busy` frame and closes it. The
+/// write never waits: a peer whose buffer is full gets nothing, rather than holding the
+/// accept loop. Written through the std socket, which stays non-blocking: tokio's
+/// `try_write` reports a fresh stream not ready before the reactor has polled it.
+fn refuse_busy(stream: UnixStream, busy: &[u8]) {
+    use std::io::Write;
+    let written = stream.into_std().and_then(|mut s| s.write(busy));
+    if !matches!(written, Ok(n) if n == busy.len()) {
+        tracing::debug!("CLI query client over the cap missed its Busy answer");
+    }
+}
+
+/// Binds `path` owner-only and serves until `shutdown` changes.
+#[cfg(test)]
+pub(crate) async fn serve(
+    path: PathBuf,
+    backend: Arc<dyn Backend>,
+    limits: Arc<Limits>,
+    shutdown: watch::Receiver<bool>,
+) -> Result<(), RemoteError> {
+    let listener = bind(&path)?;
+    serve_on(listener, path, backend, limits, shutdown).await;
     Ok(())
 }

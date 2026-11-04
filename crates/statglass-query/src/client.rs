@@ -24,6 +24,9 @@ use crate::{
 /// forwarded to a remote host, so the app's typed answer arrives first.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(25);
 
+/// The longest bind error the client reports from the app's bind-failed marker.
+pub const MAX_BIND_ERROR_CHARS: usize = 200;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
     #[error("neither STATGLASS_APP_DATA nor HOME is set")]
@@ -36,6 +39,10 @@ pub enum ClientError {
     AccessDisabled(PathBuf),
     #[error("refusing to connect to {path}: {reason}")]
     UnsafeSocket { path: PathBuf, reason: &'static str },
+    /// The app is running with access on but could not bind its socket; `error` is the
+    /// first line of what it recorded, capped at [`MAX_BIND_ERROR_CHARS`].
+    #[error("StatGlass could not bind {path}: {error}")]
+    BindFailed { path: PathBuf, error: String },
     /// The app is running but has no query socket and never turned access off: it is
     /// older than the CLI.
     #[error("the running StatGlass predates the command-line tool ({0} is not bound)")]
@@ -57,14 +64,20 @@ impl ClientError {
             ClientError::AppNotInstalled(_) => ErrorTag::AppNotInstalled,
             ClientError::AppNotRunning(_) => ErrorTag::AppNotRunning,
             ClientError::AccessDisabled(_) => ErrorTag::AccessDisabled,
+            ClientError::UnsafeSocket { .. } | ClientError::BindFailed { .. } => {
+                ErrorTag::AccessUnavailable
+            }
+            // A socket we may not open is one the app cannot serve either; any other
+            // connect failure means nothing is listening.
+            ClientError::Connect(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                ErrorTag::AccessUnavailable
+            }
+            ClientError::Connect(_) => ErrorTag::AppNotRunning,
             ClientError::Timeout => ErrorTag::Busy,
             ClientError::AppOutdated { .. } | ClientError::AppPredatesCli(_) => {
                 ErrorTag::AppOutdated
             }
-            ClientError::NoHome
-            | ClientError::UnsafeSocket { .. }
-            | ClientError::Connect(_)
-            | ClientError::Frame(_) => ErrorTag::Defect,
+            ClientError::NoHome | ClientError::Frame(_) => ErrorTag::Defect,
         }
     }
 }
@@ -105,8 +118,9 @@ impl Client {
     /// Failure classification, in order: no app data directory is `AppNotInstalled`; a
     /// missing or refusing query socket is `AppNotRunning` when `control.sock` does not
     /// connect either, `AccessDisabled` when it does and the app's access-disabled marker
-    /// is present, and `AppOutdated` (an app older than the CLI) when it does without one; a
-    /// socket that fails the ownership check is a defect; a deadline passing is `Busy`.
+    /// is present, `AccessUnavailable` when the app's bind-failed marker is, and
+    /// `AppOutdated` (an app older than the CLI) when it does without either; a socket
+    /// that fails the ownership check is `AccessUnavailable`; a deadline passing is `Busy`.
     /// An `Unsupported` answer means the running app predates an operation this CLI
     /// sent, which is `AppOutdated`. Every other answer, error answers included, is
     /// returned as the response.
@@ -141,8 +155,13 @@ impl Client {
             .set_read_timeout(Some(timeout))
             .and_then(|()| stream.set_write_timeout(Some(timeout)))
             .map_err(ClientError::Connect)?;
-        frame::write_frame(&mut stream, request, MAX_REQUEST_BYTES)?;
-        let response: QueryResponse = frame::read_frame(&mut stream, MAX_RESPONSE_BYTES)?;
+        // An app at its connection cap answers `Busy` and closes without reading, so a
+        // request that could not be written may still have an answer waiting.
+        let written = frame::write_frame(&mut stream, request, MAX_REQUEST_BYTES);
+        let response: QueryResponse = match frame::read_frame(&mut stream, MAX_RESPONSE_BYTES) {
+            Ok(response) => response,
+            Err(e) => return Err(written.err().unwrap_or(e).into()),
+        };
         if let Body::Error(e) = &response.body
             && e.tag == ErrorTag::Unsupported
         {
@@ -156,16 +175,35 @@ impl Client {
 
     /// The query socket is absent or refusing. The app's always-bound control socket
     /// tells running from not running; while running, the marker the app writes when
-    /// command-line access is off tells "access off" from an app that predates the CLI.
+    /// command-line access is off tells "access off", and the one it writes while binding
+    /// fails tells "could not bind", from an app that predates the CLI.
     fn not_answering(&self, socket: PathBuf) -> ClientError {
         if UnixStream::connect(self.paths.control_socket()).is_err() {
             ClientError::AppNotRunning(socket)
         } else if self.paths.access_disabled_marker().exists() {
             ClientError::AccessDisabled(socket)
+        } else if let Some(error) = bind_error(&self.paths.bind_failed_marker()) {
+            ClientError::BindFailed {
+                path: socket,
+                error,
+            }
         } else {
             ClientError::AppPredatesCli(socket)
         }
     }
+}
+
+/// The first line of the bind-failed marker at `path`, capped; `None` when there is none.
+fn bind_error(path: &Path) -> Option<String> {
+    let text = std::fs::read(path).ok()?;
+    let text = String::from_utf8_lossy(&text);
+    let line = text.lines().next().unwrap_or("").trim();
+    let line: String = line.chars().take(MAX_BIND_ERROR_CHARS).collect();
+    Some(if line.is_empty() {
+        "no error recorded".to_owned()
+    } else {
+        line
+    })
 }
 
 /// The socket's directory is a real directory owned by us with mode 0700, and the socket

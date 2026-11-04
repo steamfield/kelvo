@@ -2,13 +2,13 @@
 //! resolution, the range's gaps (see `gaps`), and optionally downsampled points.
 
 use super::map::Fail;
-use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
 use statglass_query::{
     ErrorDetails, ErrorTag, HistoryAnswer, PointDto, Range, SeriesHistory, Summary,
     suggest::closest,
 };
+use statglass_remote::SyncWatermark;
 use statglass_schema::{Module, SeriesKey, SeriesSelector};
 use statglass_store::{HistoryQuery, HistoryResult, SeriesSummary, TierChoice, series_summary};
 
@@ -16,7 +16,7 @@ use super::gaps::{self, Span};
 use super::hosts::resolve_enabled;
 use super::map::{
     CATALOG_INDEX, bad_range, err, err_with, freshness, from_command, host_ref, is_current, metric,
-    metrics, rfc, synced_through, unit_of,
+    metrics, natural_cmp, rfc, unit_of,
 };
 use super::{Backend, HostView};
 use crate::history::History;
@@ -92,34 +92,52 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
     let view = resolve_enabled(backend, ask.host)?;
     let history = available_history(backend, &view)?;
     let id = view.record.id;
+    let now = backend.host_now(id);
+    let starts = retained_from(&history, &view, ask.from_ms, 0);
     // Read from where history begins: nothing is stored before it, and a later start can
     // let the read use a finer tier.
-    let read_from = retained_from(&history, &view, ask.from_ms, 0)
-        .filter(|&r| r < ask.to_ms)
-        .unwrap_or(ask.from_ms);
+    let read_from = starts.filter(|&r| r < ask.to_ms).unwrap_or(ask.from_ms);
     // Enough points that no buckets merge: the summary needs full resolution.
     let unmerged =
         u32::try_from((ask.to_ms - read_from) / FINEST_BUCKET_MS + 2).unwrap_or(u32::MAX);
     let full = read(
         backend, &history, &view, &selectors, read_from, ask.to_ms, unmerged,
     )?;
+    let watermark = view
+        .remote
+        .as_ref()
+        .and_then(|_| backend.sync_watermark(id));
+    let mut answer = HistoryAnswer {
+        host: host_ref(&view.record),
+        freshness: freshness(&view, watermark.as_ref()),
+        range: Range {
+            from: rfc(ask.from_ms),
+            to: rfc(ask.to_ms),
+            retained_from: None,
+        },
+        tier: full.tier.as_str().to_owned(),
+        bucket_s: u32::try_from(full.bucket_ms / 1_000).unwrap_or(u32::MAX),
+        series: Vec::new(),
+        gaps: Vec::new(),
+    };
+    if let Some(start) = starts.filter(|&r| r >= ask.to_ms) {
+        before_retention(&mut answer, &selectors, ask, start, now);
+        return Ok(answer);
+    }
     // Only a start more than one bucket late is a clamp worth reporting.
     let retained = (read_from - ask.from_ms > full.bucket_ms).then_some(read_from);
     let from_ms = retained.unwrap_or(ask.from_ms);
-    let now = backend.host_now(id);
     let summaries = series_summary(&full, &CATALOG_INDEX, from_ms, ask.to_ms, now);
     let keep = selected(&selectors, summaries.series.iter().map(|s| &s.key));
     let points = ask.points.unwrap_or(0).min(MAX_POINTS);
+    // The points come from the full read, merged in memory by the store's own rule.
     let sampled = (points > 0)
-        .then(|| {
-            read(
-                backend, &history, &view, &selectors, from_ms, ask.to_ms, points,
-            )
-        })
-        .transpose()?;
+        .then(|| statglass_store::downsample(&full, from_ms, ask.to_ms, points))
+        .transpose()
+        .map_err(|e| from_command(e.into()))?;
     let bucket_s = u32::try_from(summaries.bucket_ms / 1_000).unwrap_or(u32::MAX);
     let window = summaries.to_ms.saturating_sub(summaries.from_ms);
-    let mut series: Vec<SeriesHistory> = summaries
+    answer.series = summaries
         .series
         .iter()
         .filter(|s| keep.contains(&s.key.to_string()))
@@ -132,39 +150,85 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
                 .map_or_else(Vec::new, |r| points_of(r, &s.key)),
         })
         .collect();
-    series.sort_by(|a, b| natural_cmp(&a.key, &b.key));
-    let watermark = view
-        .remote
-        .as_ref()
-        .and_then(|_| backend.sync_watermark(id));
-    let not_synced = (view.remote.is_some() && !is_current(&view))
-        .then(|| watermark.as_ref().and_then(synced_through))
-        .and_then(|synced| {
-            synced.is_none_or(|s| s < ask.to_ms).then(|| Span {
-                from: synced.map_or(from_ms, |s| s.max(from_ms)),
-                to: (ask.to_ms < now).then_some(ask.to_ms),
-                reason: "not_synced".to_owned(),
-                module: None,
-            })
-        });
+    answer.series.sort_by(|a, b| natural_cmp(&a.key, &b.key));
     let range = Window {
         from_ms,
         to_ms: ask.to_ms,
         now,
     };
-    let gaps = gaps(&full, &selectors, &keep, not_synced, &range);
-    Ok(HistoryAnswer {
-        host: host_ref(&view.record),
-        freshness: freshness(&view, watermark.as_ref()),
-        range: Range {
-            from: rfc(from_ms),
-            to: rfc(ask.to_ms),
-            retained_from: retained.map(rfc),
-        },
-        tier: full.tier.as_str().to_owned(),
-        bucket_s,
-        series,
-        gaps: gaps.iter().map(Span::dto).collect(),
+    let not_synced = not_synced(&view, watermark.as_ref(), &full, &range);
+    answer.gaps = gaps(&full, &selectors, &keep, not_synced, &range)
+        .iter()
+        .map(Span::dto)
+        .collect();
+    answer.range.from = rfc(from_ms);
+    answer.range.retained_from = retained.map(rfc);
+    answer.bucket_s = bucket_s;
+    Ok(answer)
+}
+
+/// Fills `answer` for a range that ends before retained history begins at `start`: one
+/// empty series per selector and a `before_retention` gap over the whole range, so the
+/// answer says the data was pruned rather than never recorded.
+fn before_retention(
+    answer: &mut HistoryAnswer,
+    selectors: &[SeriesSelector],
+    ask: &Ask<'_>,
+    start: i64,
+    now: i64,
+) {
+    answer.range.retained_from = Some(rfc(start));
+    answer.series = selectors
+        .iter()
+        .map(|sel| {
+            let key = SeriesKey::new(sel.metric.clone(), sel.labels.clone());
+            SeriesHistory {
+                key: key.to_string(),
+                unit: unit_of(sel.metric.as_str()),
+                summary: Summary {
+                    min: None,
+                    max: None,
+                    max_at: None,
+                    max_bucket_s: None,
+                    mean: None,
+                    mean_approximate: false,
+                    last: None,
+                    last_at: None,
+                    measured_fraction: 0.0,
+                },
+                points: Vec::new(),
+            }
+        })
+        .collect();
+    answer.gaps = vec![
+        Span {
+            from: ask.from_ms,
+            to: (ask.to_ms < now).then_some(ask.to_ms),
+            reason: gaps::BEFORE_RETENTION.to_owned(),
+            module: None,
+        }
+        .dto(),
+    ];
+}
+
+/// The `not_synced` tail of a remote host whose mirror is not current: from where the
+/// tier `full` read is synced through (rows past it in that tier have not arrived; a finer
+/// or coarser tier being further along adds nothing to this read) to the range's end.
+fn not_synced(
+    view: &HostView,
+    watermark: Option<&SyncWatermark>,
+    full: &HistoryResult,
+    w: &Window,
+) -> Option<Span> {
+    if view.remote.is_none() || is_current(view) {
+        return None;
+    }
+    let synced = watermark.and_then(|w| w.tier(full.tier));
+    synced.is_none_or(|s| s < w.to_ms).then(|| Span {
+        from: synced.map_or(w.from_ms, |s| s.max(w.from_ms)),
+        to: (w.to_ms < w.now).then_some(w.to_ms),
+        reason: "not_synced".to_owned(),
+        module: None,
     })
 }
 
@@ -366,35 +430,4 @@ fn points_of(read: &HistoryResult, key: &SeriesKey) -> Vec<PointDto> {
                 })
                 .collect()
         })
-}
-
-/// Text order with runs of digits compared as numbers: `core=2` before `core=10`.
-pub(super) fn natural_cmp(a: &str, b: &str) -> Ordering {
-    let (mut a, mut b) = (a, b);
-    loop {
-        let (Some(ca), Some(cb)) = (a.chars().next(), b.chars().next()) else {
-            return a.len().cmp(&b.len());
-        };
-        if ca.is_ascii_digit() && cb.is_ascii_digit() {
-            let da = a.len() - a.trim_start_matches(|c: char| c.is_ascii_digit()).len();
-            let db = b.len() - b.trim_start_matches(|c: char| c.is_ascii_digit()).len();
-            let (na, ra) = a.split_at(da);
-            let (nb, rb) = b.split_at(db);
-            let (ta, tb) = (na.trim_start_matches('0'), nb.trim_start_matches('0'));
-            let ord = ta
-                .len()
-                .cmp(&tb.len())
-                .then_with(|| ta.cmp(tb))
-                .then(da.cmp(&db));
-            if ord != Ordering::Equal {
-                return ord;
-            }
-            (a, b) = (ra, rb);
-        } else {
-            if ca != cb {
-                return ca.cmp(&cb);
-            }
-            (a, b) = (&a[ca.len_utf8()..], &b[cb.len_utf8()..]);
-        }
-    }
 }

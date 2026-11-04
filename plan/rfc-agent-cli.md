@@ -288,7 +288,8 @@ about "3pm" in local time and misread epoch milliseconds. Text output shows `HH:
 today and dates otherwise.
 
 Every answer about a remote host carries `freshness: {state, last_seen, synced_through}`, and
-every span StatGlass has no data for is a gap with a reason, including `not_synced`. Agent text
+every span StatGlass has no data for is a gap with a reason, including `not_synced`, `no_data`
+(nothing recorded and no stored gap explains it) and `before_retention`. Agent text
 prints one line when data is not current (`m1-linux offline since 09:12; history through
 09:12`).
 
@@ -325,14 +326,18 @@ verify report.
 | 2 | Fix the input | `Usage`, `UnknownHost`, `UnknownMetric`, `BadRange` |
 | 4 | Retry shortly | `Busy` |
 | 5 | Don't retry; this data isn't available, and `details` says why and what to use instead | `HostOffline`, `HostDisabled`, `PeerTooOld`, `HistoryUnavailable` |
-| 6 | Ask the human | `AppNotRunning`, `AccessDisabled`, `AppNotInstalled`, `AppOutdated` |
+| 6 | Ask the human | `AppNotRunning`, `AccessDisabled`, `AccessUnavailable`, `AppNotInstalled`, `AppOutdated` |
 | 130 | Interrupted | `Interrupted` |
 
 `AppNotRunning` is exit 6, not 4, so an agent doesn't loop on a retry that can't succeed. Its
 `next` is "ask the user to open StatGlass (`open -a StatGlass`)", and the CLI never launches the
 app. `HistoryUnavailable` covers the app serving only recent rows because its store failed to
 open (`commands.rs:124-127`). `PeerTooOld` is a remote host that answers `Unsupported` to a
-usage query.
+usage query. `AccessUnavailable` is the app running with access on but unable to bind its
+socket, or a socket whose permissions fail the client's check; the app writes the bind error to
+`cli/bind-failed` so the CLI can show it. A request this app cannot decode, including one from
+a newer CLI, is answered `Unsupported`, which the CLI reports as `AppOutdated`, and a connection
+over the server's cap is answered `Busy`.
 
 ### Installing onto PATH
 
@@ -342,7 +347,10 @@ signed with the bundle. A Settings action, "Install command-line tool", links
 `~/.local/bin/statglass` to it and warns when `~/.local/bin` is not on PATH;
 `scripts/install.sh` does the same. The link points into the bundle, so automatic updates keep
 it current. If the app has moved, the shell reports a dangling link before the CLI can run, so
-on every launch the app re-points a link it created when the target has changed.
+on every launch the app re-points a link it created when that link's target no longer exists.
+A link to another installed copy is left alone, so two copies don't take turns owning it. The
+link is only ever swapped in for a symlink (atomically, with `RENAME_SWAP`), and only into a
+`~/.local/bin` owned by the user and writable by no one else.
 
 ### Agent discovery
 

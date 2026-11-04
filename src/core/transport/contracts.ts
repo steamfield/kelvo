@@ -372,8 +372,9 @@ export interface Transport {
   /** The `~/.local/bin/statglass` link and whether it points at this app's CLI. */
   cliLinkStatus(): Promise<CommandResult<CliLinkStatus>>;
   /**
-   * Creates or re-points the link; a file that is not a link is left alone
-   * and reported as `blocked`.
+   * Creates or re-points the link, replacing a `stale` or `foreign` symlink
+   * (Settings confirms a `foreign` one first). Anything else at the name, or a
+   * link directory that isn't private, is left alone and reported as `blocked`.
    */
   cliInstallLink(): Promise<CommandResult<CliLinkStatus>>;
 

@@ -51,6 +51,30 @@ fn stored_series_lists_each_key_once_across_tiers_and_hosts_stay_apart() {
 }
 
 #[test]
+fn stored_series_leaves_out_a_layout_whose_rows_are_all_gone() {
+    let dir = temp_dir("inventory-stale-layout");
+    let store = open(&dir, "h.sqlite");
+    let w = store.writer();
+    let h = host(1);
+    w.upsert_host(h.clone()).unwrap();
+    let old = layout(&["cpu.total", "net.rx{iface=en5}"]);
+    let current = layout(&["cpu.total"]);
+    w.write_bucket(bucket(h.id, Tier::M1, T0 - DAY, &old, 5.0))
+        .unwrap();
+    w.write_bucket(bucket(h.id, Tier::M1, T0, &current, 5.0))
+        .unwrap();
+    w.flush().unwrap();
+    // Pruning removes rows and keeps their layout registered.
+    let conn = rusqlite::Connection::open(store.path()).unwrap();
+    conn.execute("DELETE FROM tier_1m WHERE bucket_ts < ?1", [T0])
+        .unwrap();
+    assert_eq!(count(&conn, "SELECT count(*) FROM layouts"), 2);
+
+    let mut r = store.reader().unwrap();
+    assert_eq!(r.stored_series(h.id).unwrap(), vec![key("cpu.total")]);
+}
+
+#[test]
 fn retained_span_runs_from_the_oldest_bucket_to_the_end_of_the_newest() {
     let dir = temp_dir("inventory-span");
     let store = open(&dir, "h.sqlite");

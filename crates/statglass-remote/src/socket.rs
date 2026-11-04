@@ -91,8 +91,24 @@ pub fn bind_private(path: &Path) -> Result<UnixListener> {
         }
         std::fs::remove_file(path)?;
     }
-    let listener = UnixListener::bind(path)?;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    // Bound under a temporary name and renamed into place once it is 0600, so the final
+    // path never shows a socket at the umask's mode. The directory is ours and 0700, so
+    // nobody else can see or take the temporary name either.
+    let name = path
+        .file_name()
+        .ok_or_else(|| RemoteError::Protocol("socket needs a file name".into()))?;
+    let mut temp_name = std::ffi::OsString::from(".");
+    temp_name.push(name);
+    temp_name.push(format!(".{}", std::process::id()));
+    let temp = parent.join(temp_name);
+    let _ = std::fs::remove_file(&temp);
+    let listener = UnixListener::bind(&temp)?;
+    let placed = std::fs::set_permissions(&temp, std::fs::Permissions::from_mode(0o600))
+        .and_then(|()| std::fs::rename(&temp, path));
+    if let Err(e) = placed {
+        let _ = std::fs::remove_file(&temp);
+        return Err(e.into());
+    }
     Ok(listener)
 }
 /// Makes `dir` the socket's private directory: created owner-only when missing, and
@@ -292,6 +308,49 @@ mod tests {
             std::fs::metadata(&fresh).unwrap().permissions().mode() & 0o777,
             0o700
         );
+    }
+
+    /// A watcher polling the final path while sockets are bound there again and again
+    /// never sees one at the umask's mode, and no temporary name is left behind.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn the_final_path_only_ever_holds_a_0600_socket() {
+        let dir = tempfile::tempdir_in("/tmp").unwrap();
+        let path = dir.path().join("s/q.sock");
+        let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = std::thread::spawn({
+            let (path, done) = (path.clone(), done.clone());
+            move || {
+                let mut seen = Vec::new();
+                while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                    if let Ok(meta) = std::fs::symlink_metadata(&path) {
+                        seen.push(meta.mode() & 0o7777);
+                    }
+                }
+                seen
+            }
+        });
+        for _ in 0..300 {
+            let listener = bind_private(&path).unwrap();
+            drop(listener);
+            std::fs::remove_file(&path).unwrap();
+        }
+        let listener = bind_private(&path).unwrap();
+        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        let seen = watcher.join().unwrap();
+        assert!(!seen.is_empty(), "the watcher never saw the socket");
+        assert!(seen.iter().all(|&m| m == 0o600), "modes seen: {:?}", {
+            let mut odd: Vec<_> = seen.iter().filter(|&&m| m != 0o600).collect();
+            odd.dedup();
+            odd
+        });
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o7777;
+        assert_eq!(mode, 0o600);
+        let names: Vec<_> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names, ["q.sock"]);
+        drop(listener);
     }
 
     #[tokio::test]
