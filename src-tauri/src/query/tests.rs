@@ -498,6 +498,59 @@ async fn a_mirror_behind_the_range_reports_the_unsynced_tail() {
 }
 
 #[tokio::test]
+async fn a_connected_mirror_still_catching_up_reports_the_unsynced_tail() {
+    // A host the sync loop calls current still lags by up to a sync interval; the read's
+    // tail past the watermark is unsynced, not unrecorded.
+    let Ok(mut fake) = Arc::try_unwrap(fixture()) else {
+        panic!("fixture is shared")
+    };
+    let linux = fake.hosts[2].record.clone();
+    let mut view = remote(linux, true, RemoteState::Connected);
+    if let Some(r) = view.remote.as_mut() {
+        r.status.sync = RemoteSync::Current;
+    }
+    fake.hosts[2] = view;
+    let fake = Arc::new(fake);
+    let h = history(&fake, "m1-linux", &["cpu.total"]).await.unwrap();
+    assert_eq!(h.freshness.unwrap().state, HostState::Connected);
+    let tail: Vec<_> = h
+        .gaps
+        .iter()
+        .map(|g| (g.reason.as_str(), g.from.as_str(), g.to.as_deref()))
+        .collect();
+    assert_eq!(tail, [("not_synced", rfc(SYNCED).as_str(), None)]);
+}
+
+#[tokio::test]
+async fn a_mistyped_label_value_is_an_unknown_series_with_stored_suggestions() {
+    let fake = fixture();
+    let e = history(&fake, "local", &["cpu.load{core=3}"])
+        .await
+        .unwrap_err();
+    assert_eq!(e.tag, ErrorTag::UnknownMetric);
+    let d = e.details.unwrap_or_default();
+    assert_eq!(d.series.as_deref(), Some("cpu.load{core=3}"));
+    assert_eq!(
+        d.suggestions,
+        ["cpu.load{core=0}", "cpu.load{core=2}", "cpu.load{core=10}"]
+    );
+    assert!(
+        d.hint
+            .as_deref()
+            .is_some_and(|h| h.contains("has stored 3 cpu.load series")),
+        "{:?}",
+        d.hint
+    );
+
+    // A metric the host never stored keeps the ordinary answer and its gaps.
+    let disk = history(&fake, "local", &["disk.used{vol=/}"])
+        .await
+        .unwrap();
+    assert!(disk.series.is_empty());
+    assert!(disk.gaps.iter().any(|g| g.reason == "module_disabled"));
+}
+
+#[tokio::test]
 async fn a_bare_labelled_metric_expands_in_numeric_label_order() {
     let fake = fixture();
     let h = history(&fake, "local", &["cpu.load", "cpu.total"])

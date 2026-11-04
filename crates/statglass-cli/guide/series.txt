@@ -6,7 +6,7 @@ A series is a metric id plus labels, written the way the catalog prints it:
   'cgroup.cpu{kind=container,name=postgres}'
   'net.rx{iface=en0}'
 
-statglass metrics lists every metric id with its label keys, unit and whether it keeps history beyond the last hour. statglass metrics --host <host> also lists the series that host has stored: those are the exact names statglass history takes. A bare labelled metric (cpu.load) selects every series of that metric, up to its max_cardinality.
+statglass metrics lists every metric id with its label keys, unit and whether it keeps history beyond the last hour. statglass metrics --host <host> lists only the metrics that host has stored, with their series: those are the exact names statglass history takes. A bare labelled metric (cpu.load) selects every series of that metric, up to its max_cardinality.
 
 Quoting: braces and commas are shell syntax. zsh and bash expand an unquoted cgroup.cpu{kind=container,name=postgres} into two words, and sensor labels contain spaces. Always single-quote a series that has braces. An argument with = but no braces is what that expansion leaves behind; the UnknownMetric error then says to quote it.
 

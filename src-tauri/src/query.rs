@@ -45,6 +45,7 @@ mod map;
 mod now;
 mod server;
 mod top;
+mod unmatched;
 
 pub(crate) use server::Limits;
 #[cfg(test)]

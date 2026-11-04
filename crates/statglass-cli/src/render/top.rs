@@ -1,13 +1,13 @@
-use statglass_query::TopAnswer;
+use statglass_query::{TopAnswer, UsageBy};
 
-use super::{Ctx, freshness_line, range_text, snake};
+use super::{Ctx, freshness_line, range_clock, range_text, snake};
 use crate::format;
 
 /// Processes printed under each app; `--json` has them all.
 const MAX_PROCESSES: usize = 3;
 
 pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
-    let clock = &ctx.clock;
+    let clock = &range_clock(&a.range, &ctx.clock);
     let mut out = String::new();
     if let Some(line) = freshness_line(&a.host.name, a.freshness.as_ref(), clock) {
         out.push_str(&line);
@@ -23,7 +23,7 @@ pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
     let header = format!(
         "top {} apps by {} on {}, {}",
         a.apps.len(),
-        snake(&a.by),
+        by_text(a.by),
         a.host.name,
         range_text(&a.range, clock)
     );
@@ -41,7 +41,10 @@ pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
     }
     let mut rows: Vec<Vec<String>> = Vec::new();
     for app in &a.apps {
-        let share = app.share.map(format::percent).unwrap_or_default();
+        let share = app
+            .share
+            .map(|f| format!("{} of host", format::percent(f)))
+            .unwrap_or_default();
         rows.push(vec![
             app.name.clone(),
             format::value(app.value, &app.unit),
@@ -69,4 +72,15 @@ pub fn render(a: &TopAnswer, ctx: &Ctx) -> String {
     }
     out.push_str(&format::table(&rows, ctx.style.aligned(), ""));
     out
+}
+
+/// What the values are: CPU is the average percent of one core over the range, memory
+/// each app's and process's peak footprint (an app's peak is its processes' largest
+/// concurrent total, so it can be below the sum of its processes' own peaks).
+fn by_text(by: UsageBy) -> String {
+    match by {
+        UsageBy::Cpu => "average CPU".to_owned(),
+        UsageBy::Memory => "peak memory".to_owned(),
+        other => snake(&other),
+    }
 }
