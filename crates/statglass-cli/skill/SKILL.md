@@ -21,7 +21,9 @@ Add `--host <name>` for another machine and `--json` for one JSON object.
 
 Before concluding that nothing happened, read the freshness line and every gap line (and the
 `more gaps` summary line): a gap is unknown data, never zero. Single-quote series with braces. Exit 6 means ask the user
-(StatGlass not running, or command-line access off); exit 5 means the data is not there.
+(StatGlass not running or not installed, command-line access off, StatGlass could not open its
+socket, StatGlass older than this tool, or it does not support the request); exit 5 means the
+data is not there.
 
 Read `reference/statglass.md` for series syntax and quoting, time flags, freshness, gaps
 and every exit code.

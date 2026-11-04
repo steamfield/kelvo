@@ -7,7 +7,8 @@ use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 const ROOT_ABOUT: &str = "Ask StatGlass what happened on this Mac and the user's other machines: \
 current readings, history with explicit gaps, detector events and per-app usage.";
 
-const ROOT_LONG: &str = "Ask StatGlass what happened on this Mac and the user's other machines: \
+pub(crate) const ROOT_LONG: &str =
+    "Ask StatGlass what happened on this Mac and the user's other machines: \
 current readings, history with explicit gaps, detector events and per-app usage. Answers come \
 from the running StatGlass app over a private socket; this tool never reads storage and never \
 changes anything. Run statglass with no arguments for the agent guide.
@@ -17,7 +18,9 @@ Output: text for agents and pipes, aligned text at a terminal, one JSON object w
 line, or with one JSON error envelope under --json.
 
 Exit codes: 0 success, 1 bug, 2 fix the input, 4 retry shortly, 5 the data is not available \
-(don't retry), 6 ask the user (StatGlass not running, access off, outdated), 130 interrupted.";
+(don't retry), 6 ask the user (StatGlass not running or not installed, command-line access \
+off, StatGlass could not open its socket, StatGlass older than this tool, or it does not \
+support the request), 130 interrupted.";
 
 const ROOT_AFTER: &str = "Start here (agents): statglass hosts, then statglass events --since 3h \
 and statglass top --since 1h to find what happened.

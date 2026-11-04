@@ -91,25 +91,52 @@ pub fn bind_private(path: &Path) -> Result<UnixListener> {
         }
         std::fs::remove_file(path)?;
     }
-    // Bound under a temporary name and renamed into place once it is 0600, so the final
+    // Bound under a temporary name and linked into place once it is 0600, so the final
     // path never shows a socket at the umask's mode. The directory is ours and 0700, so
     // nobody else can see or take the temporary name either.
     let name = path
         .file_name()
         .ok_or_else(|| RemoteError::Protocol("socket needs a file name".into()))?;
-    let mut temp_name = std::ffi::OsString::from(".");
-    temp_name.push(name);
-    temp_name.push(format!(".{}", std::process::id()));
-    let temp = parent.join(temp_name);
+    let temp = parent.join(temp_name(name));
+    // A crash between bind and link leaves the temporary name behind.
     let _ = std::fs::remove_file(&temp);
     let listener = UnixListener::bind(&temp)?;
-    let placed = std::fs::set_permissions(&temp, std::fs::Permissions::from_mode(0o600))
-        .and_then(|()| std::fs::rename(&temp, path));
-    if let Err(e) = placed {
-        let _ = std::fs::remove_file(&temp);
-        return Err(e.into());
-    }
+    link_into_place(&temp, path)?;
     Ok(listener)
+}
+
+/// Makes the socket bound at `temp` 0600 and links it at `path`, then removes `temp`.
+/// Linking fails if something took `path` since the caller checked it, where a rename
+/// would silently replace it, possibly another instance's live socket.
+fn link_into_place(temp: &Path, path: &Path) -> Result<()> {
+    let placed = std::fs::set_permissions(temp, std::fs::Permissions::from_mode(0o600))
+        .and_then(|()| std::fs::hard_link(temp, path));
+    let _ = std::fs::remove_file(temp);
+    match placed {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            Err(RemoteError::Protocol("socket already serving".into()))
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// The temporary name `name` is bound under: `name` with its first byte replaced, so it is
+/// never longer (sun_path holds 104 bytes on macOS) and never equal. The same name every
+/// time, so a leftover from a crash is found and removed rather than accumulating.
+fn temp_name(name: &std::ffi::OsStr) -> std::ffi::OsString {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    let bytes = name.as_bytes();
+    let (first, rest) = bytes.split_first().unwrap_or((&b'_', &[]));
+    let mut swap = if *first == b'.' { b'~' } else { b'.' };
+    // "." and ".." are not file names.
+    if swap == b'.' && matches!(rest, [] | [b'.']) {
+        swap = if *first == b'~' { b'_' } else { b'~' };
+    }
+    let mut out = Vec::with_capacity(bytes.len().max(1));
+    out.push(swap);
+    out.extend_from_slice(rest);
+    std::ffi::OsString::from_vec(out)
 }
 /// Makes `dir` the socket's private directory: created owner-only when missing, and
 /// tightened to 0700 when it is already ours. A directory that is shared (world-writable
@@ -351,6 +378,65 @@ mod tests {
             .collect();
         assert_eq!(names, ["q.sock"]);
         drop(listener);
+    }
+
+    #[test]
+    fn the_temporary_name_is_never_longer_than_the_final_one_nor_equal() {
+        use std::ffi::OsStr;
+        for name in [
+            "query.sock",
+            "metrics.sock",
+            "control.sock",
+            "q.sock",
+            ".q",
+            "~",
+            "x",
+            "x.",
+            "~.",
+            "_",
+        ] {
+            let temp = temp_name(OsStr::new(name));
+            assert!(temp.len() <= name.len(), "{name:?} -> {temp:?}");
+            assert_ne!(temp, OsStr::new(name));
+            assert!(temp != "." && temp != "..", "{name:?} -> {temp:?}");
+        }
+        assert_eq!(temp_name(OsStr::new("query.sock")), ".uery.sock");
+    }
+
+    #[tokio::test]
+    async fn a_leftover_temporary_socket_is_removed() {
+        let dir = tempfile::tempdir_in("/tmp").unwrap();
+        let path = dir.path().join("s/q.sock");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let temp = path.with_file_name(temp_name(path.file_name().unwrap()));
+        // What a crash between bind and link leaves.
+        drop(std::os::unix::net::UnixListener::bind(&temp).unwrap());
+        let listener = bind_private(&path).unwrap();
+        assert!(!temp.exists(), "the leftover temporary socket remains");
+        assert!(std::os::unix::net::UnixStream::connect(&path).is_ok());
+        drop(listener);
+    }
+
+    /// Another instance binds the final path between the existence check and the link.
+    #[test]
+    fn a_socket_that_appears_at_the_path_after_the_check_is_not_replaced() {
+        let dir = tempfile::tempdir_in("/tmp").unwrap();
+        let path = dir.path().join("q.sock");
+        let other = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        let temp = path.with_file_name(temp_name(path.file_name().unwrap()));
+        let ours = std::os::unix::net::UnixListener::bind(&temp).unwrap();
+        let e = link_into_place(&temp, &path).unwrap_err();
+        assert!(e.to_string().contains("socket already serving"), "{e}");
+        assert!(!temp.exists(), "the temporary name was left behind");
+        // The path still reaches the other instance, not ours.
+        ours.set_nonblocking(true).unwrap();
+        let _client = std::os::unix::net::UnixStream::connect(&path).unwrap();
+        other.set_nonblocking(true).unwrap();
+        assert!(
+            other.accept().is_ok(),
+            "the other instance's socket was replaced"
+        );
+        assert!(ours.accept().is_err());
     }
 
     #[tokio::test]

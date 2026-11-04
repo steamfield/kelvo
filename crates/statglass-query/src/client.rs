@@ -121,6 +121,8 @@ impl Client {
     /// is present, `AccessUnavailable` when the app's bind-failed marker is, and
     /// `AppOutdated` (an app older than the CLI) when it does without either; a socket
     /// that fails the ownership check is `AccessUnavailable`; a deadline passing is `Busy`.
+    /// A connection the app closes without answering is classified like a missing socket
+    /// when the socket is gone, and is `Busy` while it is still there.
     /// An `Unsupported` answer means the running app predates an operation this CLI
     /// sent, which is `AppOutdated`. Every other answer, error answers included, is
     /// returned as the response.
@@ -156,10 +158,20 @@ impl Client {
             .and_then(|()| stream.set_write_timeout(Some(timeout)))
             .map_err(ClientError::Connect)?;
         // An app at its connection cap answers `Busy` and closes without reading, so a
-        // request that could not be written may still have an answer waiting.
+        // request that could not be written may still have an answer waiting. A write
+        // that ran out of time has no such answer: the app is not reading.
         let written = frame::write_frame(&mut stream, request, MAX_REQUEST_BYTES);
+        if let Err(e) = &written
+            && e.is_timeout()
+        {
+            return Err(ClientError::Timeout);
+        }
         let response: QueryResponse = match frame::read_frame(&mut stream, MAX_RESPONSE_BYTES) {
             Ok(response) => response,
+            Err(e) if e.is_timeout() => return Err(ClientError::Timeout),
+            Err(e) if is_closed(&e) || written.as_ref().err().is_some_and(is_closed) => {
+                return Err(self.closed_unanswered(socket));
+            }
             Err(e) => return Err(written.err().unwrap_or(e).into()),
         };
         if let Body::Error(e) = &response.body
@@ -171,6 +183,23 @@ impl Client {
             });
         }
         Ok(response)
+    }
+
+    /// The app closed the connection without answering: access was turned off or the app
+    /// is quitting (the socket is gone, or the control socket with it), or the app's read
+    /// deadline passed while it was still serving, which is `Timeout`.
+    fn closed_unanswered(&self, socket: PathBuf) -> ClientError {
+        let serving = std::fs::symlink_metadata(&socket).is_ok()
+            && UnixStream::connect(self.paths.control_socket()).is_ok();
+        if serving {
+            return ClientError::Timeout;
+        }
+        match self.not_answering(socket) {
+            // The socket was serving a moment ago, so this app has the CLI: with no
+            // marker it is quitting, not older than the CLI.
+            ClientError::AppPredatesCli(socket) => ClientError::AppNotRunning(socket),
+            e => e,
+        }
     }
 
     /// The query socket is absent or refusing. The app's always-bound control socket
@@ -190,6 +219,18 @@ impl Client {
         } else {
             ClientError::AppPredatesCli(socket)
         }
+    }
+}
+
+/// Whether a frame failed because the peer closed or reset the connection.
+fn is_closed(e: &FrameError) -> bool {
+    match e {
+        FrameError::Truncated => true,
+        FrameError::Io(e) => matches!(
+            e.kind(),
+            io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+        ),
+        _ => false,
     }
 }
 

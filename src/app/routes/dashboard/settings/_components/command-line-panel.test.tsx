@@ -158,6 +158,23 @@ describe("Command line settings (D-126)", () => {
     expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
   });
 
+  it("checks the link again after a failed install, which may have changed it", async () => {
+    const transport = createMockTransport({ cliLink: LINK });
+    transport.cliInstallLink = async () => ({
+      status: "error",
+      error: { kind: "internal", message: "Permission denied" },
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { user } = renderWithProviders(<CommandLinePanel enabled />, {
+      transport,
+    });
+    const checks = () =>
+      transport.calls.filter((c) => c.command === "cli_link_status").length;
+    await user.click(await screen.findByRole("button", { name: "Install" }));
+    await expectLink("Couldn't install: Permission denied");
+    await waitFor(() => expect(checks()).toBe(2));
+  });
+
   it("copies the skill install command", async () => {
     const { user } = renderWithProviders(<CommandLinePanel enabled />);
     const write = vi

@@ -339,6 +339,9 @@ impl BindFailures {
     ) -> std::time::Duration {
         let text = e.to_string();
         set_marker(&paths.bind_failed_marker(), Some(text.as_bytes()));
+        // Access is on: a marker left from turning it off would hide this failure, since
+        // the CLI checks access-disabled first.
+        mark_disabled(paths, false);
         if self.logged.as_deref() == Some(text.as_str()) {
             tracing::debug!("CLI query socket still cannot bind: {text}");
         } else {
@@ -360,9 +363,10 @@ impl BindFailures {
 }
 
 /// Serves while `desired` is true, rebinding after a failure with back-off; stops when it
-/// turns false and when its sender is dropped. The CLI always sees one of the socket or
-/// the access-disabled marker while the app runs: the marker is removed only once the
-/// socket is bound, and written before serving stops.
+/// turns false and when its sender is dropped. The CLI always sees one of the socket, the
+/// access-disabled marker or the bind-failed marker while the app runs: the access marker
+/// is removed only once the socket is bound or the bind-failed marker is written, and
+/// written before serving stops.
 async fn own_socket(
     paths: statglass_query::AppPaths,
     backend: Arc<dyn Backend>,

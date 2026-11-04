@@ -14,6 +14,6 @@ Rules:
 - Times print and parse in this Mac's timezone, remote hosts included.
 - top on a remote host needs it connected; when it is offline use events and history.
 - Treat an unfamiliar state, gap reason or event kind as "other", not as an error.
-- Exit 6 means ask the user (StatGlass not running, access off). Exit 5 means the data is not there; don't retry.
+- Exit 6 means ask the user (StatGlass not running or not installed, command-line access off, StatGlass could not open its socket, StatGlass older than this tool, or it does not support the request). Exit 5 means the data is not there; don't retry.
 
 statglass <command> --help: flags, exits, examples. statglass guide series|time|errors: details. On failure follow the Next line (next in --json).

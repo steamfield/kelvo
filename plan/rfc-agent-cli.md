@@ -322,11 +322,11 @@ verify report.
 | Exit | Next action | Tags |
 |---|---|---|
 | 0 | Use the answer; read `freshness` and gaps | |
-| 1 | Report a bug | `Defect` |
+| 1 | Report a bug | `Defect`, `Unknown` (a tag from a newer app) |
 | 2 | Fix the input | `Usage`, `UnknownHost`, `UnknownMetric`, `BadRange` |
 | 4 | Retry shortly | `Busy` |
 | 5 | Don't retry; this data isn't available, and `details` says why and what to use instead | `HostOffline`, `HostDisabled`, `PeerTooOld`, `HistoryUnavailable` |
-| 6 | Ask the human | `AppNotRunning`, `AccessDisabled`, `AccessUnavailable`, `AppNotInstalled`, `AppOutdated` |
+| 6 | Ask the human | `AppNotRunning`, `AccessDisabled`, `AccessUnavailable`, `AppNotInstalled`, `AppOutdated`, `Unsupported` |
 | 130 | Interrupted | `Interrupted` |
 
 `AppNotRunning` is exit 6, not 4, so an agent doesn't loop on a retry that can't succeed. Its

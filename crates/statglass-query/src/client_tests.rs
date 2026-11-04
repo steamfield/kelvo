@@ -300,3 +300,89 @@ fn oversize_response_is_refused() {
         "{e:?}"
     );
 }
+
+/// Accepts one connection, reads its request, runs `before_close` and closes without
+/// answering, as the app does when access turns off, it quits, or its read deadline passes.
+fn close_unanswered(
+    listener: UnixListener,
+    before_close: impl FnOnce() + Send + 'static,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let _: QueryRequest = read_frame(&mut stream, MAX_REQUEST_BYTES).unwrap();
+        before_close();
+        drop(stream);
+    })
+}
+
+#[test]
+fn a_connection_closed_unanswered_is_classified_by_what_is_left() {
+    let (_tmp, client) = app_data();
+    let socket = client.paths().query_socket();
+    let control = client.paths().control_socket();
+    fs::create_dir_all(control.parent().unwrap()).unwrap();
+    let control_listener = bind(&control);
+
+    // The socket is still there: the app's read deadline passed. Busy, not a defect.
+    let server = close_unanswered(bind(&socket), || {});
+    let e = client.request(&hosts(), SHORT).unwrap_err();
+    server.join().unwrap();
+    assert!(matches!(e, ClientError::Timeout), "{e:?}");
+    assert_eq!(e.tag(), ErrorTag::Busy);
+
+    // Access turned off mid-request: the marker is written and the socket unlinked first.
+    fs::remove_file(&socket).unwrap();
+    let marker = client.paths().access_disabled_marker();
+    let server = close_unanswered(bind(&socket), {
+        let (socket, marker) = (socket.clone(), marker.clone());
+        move || {
+            fs::write(marker, "").unwrap();
+            fs::remove_file(socket).unwrap();
+        }
+    });
+    let e = client.request(&hosts(), SHORT).unwrap_err();
+    server.join().unwrap();
+    assert_eq!(e.tag(), ErrorTag::AccessDisabled, "{e:?}");
+
+    // Quitting with access on: no marker, the control socket still up a moment longer.
+    fs::remove_file(&marker).unwrap();
+    let server = close_unanswered(bind(&socket), {
+        let socket = socket.clone();
+        move || fs::remove_file(socket).unwrap()
+    });
+    let e = client.request(&hosts(), SHORT).unwrap_err();
+    server.join().unwrap();
+    assert_eq!(e.tag(), ErrorTag::AppNotRunning, "{e:?}");
+
+    // Quit entirely: neither socket answers.
+    drop(control_listener);
+    fs::remove_file(&control).unwrap();
+    let server = close_unanswered(bind(&socket), {
+        let socket = socket.clone();
+        move || fs::remove_file(socket).unwrap()
+    });
+    let e = client.request(&hosts(), SHORT).unwrap_err();
+    server.join().unwrap();
+    assert_eq!(e.tag(), ErrorTag::AppNotRunning, "{e:?}");
+}
+
+#[test]
+fn a_write_that_runs_out_of_time_is_busy_without_waiting_to_read() {
+    let (_tmp, client) = app_data();
+    // Never accepted or read: the request below cannot fit in the socket buffer.
+    let _listener = bind(&client.paths().query_socket());
+    let big = QueryRequest::new(Op::History {
+        host: None,
+        series: vec!["x".repeat(MAX_REQUEST_BYTES / 2)],
+        from_ms: 0,
+        to_ms: 1,
+        points: None,
+    });
+    let started = std::time::Instant::now();
+    let e = client.request(&big, SHORT).unwrap_err();
+    let elapsed = started.elapsed();
+    assert!(matches!(e, ClientError::Timeout), "{e:?}");
+    // The write alone can spend two deadlines (a partial write, then one that cannot
+    // start); waiting to read after it would add a third.
+    assert!(elapsed < SHORT * 5 / 2, "took {elapsed:?}");
+}

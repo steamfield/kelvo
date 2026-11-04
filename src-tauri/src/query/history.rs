@@ -94,20 +94,11 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
     let id = view.record.id;
     let now = backend.host_now(id);
     let starts = retained_from(&history, &view, ask.from_ms, 0);
-    // Read from where history begins: nothing is stored before it, and a later start can
-    // let the read use a finer tier.
-    let read_from = starts.filter(|&r| r < ask.to_ms).unwrap_or(ask.from_ms);
-    // Enough points that no buckets merge: the summary needs full resolution.
-    let unmerged =
-        u32::try_from((ask.to_ms - read_from) / FINEST_BUCKET_MS + 2).unwrap_or(u32::MAX);
-    let full = read(
-        backend, &history, &view, &selectors, read_from, ask.to_ms, unmerged,
-    )?;
     let watermark = view
         .remote
         .as_ref()
         .and_then(|_| backend.sync_watermark(id));
-    let mut answer = HistoryAnswer {
+    let answer_with = |tier: statglass_schema::Tier, bucket_ms: i64| HistoryAnswer {
         host: host_ref(&view.record),
         freshness: freshness(&view, watermark.as_ref()),
         range: Range {
@@ -115,15 +106,30 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
             to: rfc(ask.to_ms),
             retained_from: None,
         },
-        tier: full.tier.as_str().to_owned(),
-        bucket_s: u32::try_from(full.bucket_ms / 1_000).unwrap_or(u32::MAX),
+        tier: tier.as_str().to_owned(),
+        bucket_s: u32::try_from(bucket_ms / 1_000).unwrap_or(u32::MAX),
         series: Vec::new(),
         gaps: Vec::new(),
     };
+    // Wholly before retention: nothing to read; report the tier an auto read would use.
     if let Some(start) = starts.filter(|&r| r >= ask.to_ms) {
+        let tier = history
+            .read(|r| r.auto_tier_for(id, ask.from_ms, ask.to_ms))
+            .map_err(from_command)?;
+        let mut answer = answer_with(tier, tier.bucket_ms().unwrap_or(0));
         before_retention(&mut answer, &selectors, ask, start, now);
         return Ok(answer);
     }
+    // Read from where history begins: nothing is stored before it, and a later start can
+    // let the read use a finer tier.
+    let read_from = starts.unwrap_or(ask.from_ms);
+    // Enough points that no buckets merge: the summary needs full resolution.
+    let unmerged =
+        u32::try_from((ask.to_ms - read_from) / FINEST_BUCKET_MS + 2).unwrap_or(u32::MAX);
+    let full = read(
+        backend, &history, &view, &selectors, read_from, ask.to_ms, unmerged,
+    )?;
+    let mut answer = answer_with(full.tier, full.bucket_ms);
     // Only a start more than one bucket late is a clamp worth reporting.
     let retained = (read_from - ask.from_ms > full.bucket_ms).then_some(read_from);
     let from_ms = retained.unwrap_or(ask.from_ms);

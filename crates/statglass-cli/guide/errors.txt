@@ -2,12 +2,12 @@ Errors, freshness and gaps
 
 Exit codes, each one next action:
   0    success: use the answer, after reading freshness and gaps
-  1    bug (Defect): rerun once; if it repeats, report it with statglass doctor --json
+  1    bug (Defect, Unknown): rerun once; if it repeats, report it with statglass doctor --json
   2    fix the input (Usage, UnknownHost, UnknownMetric, BadRange); follow Did you mean
   4    retry in a few seconds (Busy)
   5    the data is not available, don't retry (HostOffline, HostDisabled, PeerTooOld, HistoryUnavailable); Next says what to use instead
-  6    ask the user (AppNotRunning, AccessDisabled, AccessUnavailable, AppNotInstalled, AppOutdated)
-  130  interrupted (Ctrl+C)
+  6    ask the user: StatGlass not running (AppNotRunning) or not installed (AppNotInstalled), command-line access off (AccessDisabled), StatGlass could not open its socket (AccessUnavailable), StatGlass older than this tool (AppOutdated) or it does not support the request (Unsupported)
+  130  interrupted (Interrupted, Ctrl+C)
 
 A text failure prints a fixed message, detail lines (Host:, Did you mean:) and a final Next: line on stderr. With --json, stdout is empty and the last stderr line is one envelope, {"error":{"tag","message","retryable","next","details"}} (statglass schema error). Match on tag, never on message.
 

@@ -37,7 +37,7 @@ link_cli() {
   local bin_dir="$HOME/.local/bin"
   local link="$bin_dir/statglass"
   local target="$DEST/Contents/MacOS/statglass-cli"
-  local manual="To use this build: ln -sf \"$target\" \"$link\""
+  local manual="To use this build: ln -sfn \"$target\" \"$link\""
   [ -x "$target" ] || return 0
   if [ -L "$link" ]; then
     local current
@@ -55,6 +55,17 @@ link_cli() {
   fi
   if ! mkdir -p "$bin_dir" 2>/dev/null; then
     echo "statglass: could not create $bin_dir; the command-line tool is not linked." >&2
+    return 0
+  fi
+  # As the app's own installer does: a directory someone else can write could have the
+  # link swapped for their own program.
+  local real owner_mode
+  real="$(cd "$bin_dir" && pwd -P)" || real=""
+  owner_mode="$(stat -f '%u %Lp' "$real" 2>/dev/null)" || owner_mode=""
+  [[ "$owner_mode" =~ ^[0-9]+\ [0-7]+$ ]] || owner_mode="$(stat -c '%u %a' "$real" 2>/dev/null)" || owner_mode=""
+  if [[ ! "$owner_mode" =~ ^([0-9]+)\ ([0-7]+)$ ]] ||
+    [ "${BASH_REMATCH[1]}" != "$(id -u)" ] || (( 8#${BASH_REMATCH[2]} & 8#022 )); then
+    echo "statglass: $bin_dir is not owned by you or is writable by others; the command-line tool is not linked. $manual" >&2
     return 0
   fi
   if ! command -v python3 >/dev/null; then

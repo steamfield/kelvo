@@ -411,12 +411,12 @@ fn exit_codes_follow_the_rfc_table() {
         (HostDisabled, 5),
         (PeerTooOld, 5),
         (HistoryUnavailable, 5),
-        (Unsupported, 5),
         (AccessDisabled, 6),
         (AccessUnavailable, 6),
         (AppNotRunning, 6),
         (AppNotInstalled, 6),
         (AppOutdated, 6),
+        (Unsupported, 6),
         (Interrupted, 130),
     ];
     for (tag, code) in table {

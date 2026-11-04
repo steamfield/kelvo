@@ -71,13 +71,13 @@ impl ErrorTag {
             ErrorTag::HostOffline
             | ErrorTag::HostDisabled
             | ErrorTag::PeerTooOld
-            | ErrorTag::HistoryUnavailable
-            | ErrorTag::Unsupported => 5,
+            | ErrorTag::HistoryUnavailable => 5,
             ErrorTag::AccessDisabled
             | ErrorTag::AccessUnavailable
             | ErrorTag::AppNotRunning
             | ErrorTag::AppNotInstalled
-            | ErrorTag::AppOutdated => 6,
+            | ErrorTag::AppOutdated
+            | ErrorTag::Unsupported => 6,
             ErrorTag::Interrupted => 130,
         }
     }

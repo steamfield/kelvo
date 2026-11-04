@@ -261,6 +261,13 @@ impl Reader {
         })
     }
 
+    /// The tier a [`TierChoice::Auto`] read of `host` over `[from_ms, to_ms)` uses, without
+    /// reading it.
+    pub fn auto_tier_for(&mut self, host: HostId, from_ms: i64, to_ms: i64) -> Result<Tier> {
+        let host_ref = self.host_ref(host)?;
+        self.auto_tier(host_ref, from_ms, to_ms)
+    }
+
     /// `S10` when the range fits in the 10 s tier's window, pruning has not removed
     /// anything after its start, and low-disk mode left no holes in it (D-057).
     /// Otherwise `M15` when the range starts more than one 15-minute bucket before the

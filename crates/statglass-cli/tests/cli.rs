@@ -492,6 +492,19 @@ fn doctor_reports_problems_with_exit_0() {
 }
 
 #[test]
+fn doctor_reports_access_on_when_the_app_could_not_bind() {
+    let fake = Fake::control_only();
+    let cli = fake.app_data().join("cli");
+    std::fs::remove_file(cli.join("access-disabled")).unwrap();
+    std::fs::write(cli.join("bind-failed"), "socket already serving").unwrap();
+    let run = fake.run(&["doctor", "--json"]);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let report: statglass_query::DoctorReport = run.json();
+    assert_eq!(report.problems[0].tag, ErrorTag::AccessUnavailable);
+    assert_eq!(report.access, statglass_query::AccessState::On);
+}
+
+#[test]
 fn doctor_reports_an_unsafe_socket_as_a_problem() {
     use std::os::unix::fs::PermissionsExt;
     let fake = Fake::serving(Reply::Garbage);
@@ -504,6 +517,8 @@ fn doctor_reports_an_unsafe_socket_as_a_problem() {
         panic!("{:?}", report.problems)
     };
     assert_eq!(problem.tag, ErrorTag::AccessUnavailable);
+    // Nothing says whether access is on.
+    assert_eq!(report.access, statglass_query::AccessState::Unknown);
     let detail = problem.detail.as_deref().unwrap();
     assert!(detail.contains("socket mode is not 0600"), "{detail}");
     assert!(detail.contains("query.sock"), "{detail}");

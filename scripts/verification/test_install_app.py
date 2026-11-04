@@ -107,6 +107,15 @@ class InstallAppLinkTests(unittest.TestCase):
         self.assertIn("could not create", result.stderr)
         self.assertTrue((self.home / "Applications/StatGlass.app").is_dir())
 
+    def test_a_bin_others_can_write_is_not_linked_into(self):
+        self.bin.mkdir(parents=True)
+        self.bin.chmod(0o775)
+        result = self.install()
+        self.assertIn("writable by others", result.stderr)
+        self.assertIn("ln -sfn", result.stderr)
+        self.assertFalse(os.path.lexists(self.link))
+        self.assertTrue((self.home / "Applications/StatGlass.app").is_dir())
+
     @unittest.skipIf(os.geteuid() == 0, "root can write a read-only directory")
     def test_an_unwritable_bin_does_not_stop_the_install(self):
         self.bin.mkdir(parents=True)

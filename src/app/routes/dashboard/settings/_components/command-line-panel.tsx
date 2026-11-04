@@ -56,6 +56,10 @@ function CliLinkRow() {
   const [failure, setFailure] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
+  // A failed install may still have changed the link; show its real state.
+  const recheck = () =>
+    void client.invalidateQueries({ queryKey: appKeys.cliLink });
+
   const install = async () => {
     setPending(true);
     setFailure(null);
@@ -66,12 +70,14 @@ function CliLinkRow() {
         setFailure(
           "message" in result.error ? result.error.message : result.error.kind
         );
+        recheck();
       } else {
         client.setQueryData(appKeys.cliLink, result.data);
       }
     } catch (error) {
       console.error("[settings] cli_install_link rejected", error);
       setFailure(String(error));
+      recheck();
     } finally {
       setPending(false);
       setConfirming(false);

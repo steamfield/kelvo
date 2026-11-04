@@ -56,8 +56,14 @@ pub fn run(style: Style) -> Result<Output, Failure> {
             });
         }
         Err(f) => {
-            if f.error.tag == ErrorTag::AccessDisabled {
-                findings.access = AccessState::Off;
+            match f.error.tag {
+                ErrorTag::AccessDisabled => findings.access = AccessState::Off,
+                // The app writes this marker only while access is on and binding fails;
+                // an unsafe socket or a refused connect says nothing about the setting.
+                ErrorTag::AccessUnavailable if paths.bind_failed_marker().exists() => {
+                    findings.access = AccessState::On;
+                }
+                _ => {}
             }
             findings.problems.push(DoctorProblem {
                 tag: f.error.tag,

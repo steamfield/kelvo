@@ -1167,6 +1167,32 @@ async fn a_bind_failure_is_recorded_for_the_cli_until_the_socket_binds() {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     assert!(text.contains("already serving"), "{text:?}");
+    // Off, then on again while the squatter stays: the CLI must read the bind failure,
+    // not a stale access-disabled marker.
+    let disabled = paths.access_disabled_marker();
+    desired.send(false).unwrap();
+    for _ in 0..200 {
+        if disabled.exists() && !failed.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(
+        disabled.exists() && !failed.exists(),
+        "access off was not recorded"
+    );
+    desired.send(true).unwrap();
+    for _ in 0..200 {
+        if failed.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(failed.exists(), "the second bind failure was not recorded");
+    assert!(
+        !disabled.exists(),
+        "access is on but the access-disabled marker remains"
+    );
     // The squatter goes; the next attempt, after the first back-off, binds.
     drop(squatter);
     let mut answered = None;
@@ -1212,6 +1238,8 @@ async fn a_range_wholly_before_retention_is_reported_as_before_retention() {
     );
     let keys: Vec<_> = h.series.iter().map(|s| s.key.as_str()).collect();
     assert_eq!(keys, ["cpu.total", "cpu.load{core=2}"]);
+    // The tier an auto read of the range would use, though nothing is read.
+    assert_eq!((h.tier.as_str(), h.bucket_s), ("s10", 10));
     assert!(h.series.iter().all(|s| s.points.is_empty()
         && s.summary.mean.is_none()
         && s.summary.measured_fraction == 0.0));

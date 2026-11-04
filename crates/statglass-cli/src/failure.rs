@@ -207,6 +207,56 @@ mod tests {
         }
     }
 
+    /// `statglass guide errors` lists each tag on the line of its exit code.
+    #[test]
+    fn the_errors_guide_lists_every_tag_under_its_exit_code() {
+        let errors = crate::guide::TOPICS
+            .iter()
+            .find(|(name, _)| *name == "errors")
+            .unwrap()
+            .1;
+        for tag in ALL_TAGS {
+            let prefix = format!("{} ", tag.exit_code());
+            let line = errors
+                .lines()
+                .find(|l| l.trim_start().starts_with(&prefix))
+                .unwrap_or_else(|| panic!("no line for exit {}", tag.exit_code()));
+            assert!(line.contains(&format!("{tag:?}")), "{tag:?} not in: {line}");
+        }
+    }
+
+    /// Every way to get exit 6 is named in plain words wherever exit 6 is summarized.
+    #[test]
+    fn every_exit_6_cause_is_named_in_help_guide_and_skill() {
+        let causes = [
+            (ErrorTag::AppNotRunning, "StatGlass not running"),
+            (ErrorTag::AppNotInstalled, "not installed"),
+            (ErrorTag::AccessDisabled, "command-line access off"),
+            (ErrorTag::AccessUnavailable, "could not open its socket"),
+            (ErrorTag::AppOutdated, "older than this tool"),
+            (ErrorTag::Unsupported, "does not support the request"),
+        ];
+        for tag in ALL_TAGS {
+            let listed = causes.iter().any(|(t, _)| *t == tag);
+            assert_eq!(listed, tag.exit_code() == 6, "{tag:?}");
+        }
+        let texts = [
+            ("--help", crate::cli::ROOT_LONG),
+            ("guide", crate::guide::GUIDE),
+            ("guide errors", crate::guide::TOPICS[2].1),
+            ("SKILL.md", include_str!("../skill/SKILL.md")),
+        ];
+        for (name, text) in texts {
+            let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            for (tag, cause) in causes {
+                assert!(
+                    text.contains(cause),
+                    "{name} does not name {tag:?} ({cause})"
+                );
+            }
+        }
+    }
+
     #[test]
     fn text_ends_with_next_and_lists_suggestions() {
         let style = Style {

@@ -294,7 +294,7 @@ pub(crate) async fn serve_on(
     limits: Arc<Limits>,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let _unlink = Unlink(path);
+    let unlink = Unlink(path);
     // Pre-encoded: answering a connection over the cap must not cost the accept loop.
     let busy = response_frame(backend.app_version(), Body::Error(*err(ErrorTag::Busy)))
         .unwrap_or_default();
@@ -323,6 +323,9 @@ pub(crate) async fn serve_on(
             _ = connections.join_next(), if !connections.is_empty() => {}
         }
     }
+    // Unlink before closing connections, so a client whose connection closes finds the
+    // socket gone and reports why rather than a busy app.
+    drop(unlink);
     connections.abort_all();
     while connections.join_next().await.is_some() {}
 }
