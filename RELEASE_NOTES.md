@@ -1,15 +1,19 @@
-# StatGlass 0.4.1
+# StatGlass 0.5.0
 
 StatGlass is a free, open-source system monitor for Apple Silicon Macs running macOS
 26 or later.
 
-- The Linux agent no longer runs out of memory on busy hosts. With a dashboard open on
-  a host that starts many short-lived processes, the agent could grow past its service
-  memory limit and be stopped by the system. It now keeps less recent history in
-  memory once that history is saved to disk.
+StatGlass now includes a command-line tool, `statglass`, so coding agents and scripts can
+ask what happened on this Mac and on your remote hosts. It reads what StatGlass already
+collects: current readings, history with its gaps, detector events and the top apps
+for a time window. It only reads, and only programs running under your account can
+use it.
 
-Linux hosts with automatic updates enabled pick this up from their daily update
-check. Others can update from **Hosts → Update agent**.
+- Turn it on or off in **Settings → Command line**. Access is on by default.
+- **Settings → Command line** also adds the `statglass` command to `~/.local/bin`.
+- Run `statglass` with no arguments for a short guide. Run `statglass skill install`
+  to teach Claude Code how to use it.
+- StatGlass must be running for the command to answer.
 
 ## Moving from Kelvo
 

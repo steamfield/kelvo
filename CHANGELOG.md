@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/steamfield/statglass/compare/v0.4.1...v0.5.0) - 2026-11-03
+
+### Added
+
+- A bundled, read-only `statglass` command-line tool for agents and scripts. It
+  answers `hosts`, `now`, `metrics`, `history`, `events` and `top` for this Mac and
+  remote hosts, with JSON, agent and human output, an error envelope with a next step
+  and stable exit codes, `schema` for JSON Schemas, `doctor`, and `skill install`.
+  It asks the running app over an owner-only socket and never writes.
+- Settings → Command line: an "Allow command-line access" toggle (on by default),
+  installing or repairing the `~/.local/bin/statglass` link, and the skill install
+  command.
+
 ## [0.4.1](https://github.com/steamfield/statglass/compare/v0.4.0...v0.4.1) - 2026-11-03
 
 ### Fixed
