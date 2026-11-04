@@ -9,10 +9,14 @@
 //! Every 2 s it lists the members and adds up each one's CPU time since the previous
 //! listing (a helper that exits keeps what it used until then; one that starts counts
 //! from its start). After the run it prints one JSON line: `cpu_pct` (percent of one core
-//! over the measured span), `footprint_mb` (sum of `phys_footprint` at the end), the
-//! same per process name, and `app_threads`: the app process's CPU by thread name
-//! (`main` is AppKit and the tray image, `statglass-engine` the sampler, `tokio-rt-worker`
-//! the live channels and commands).
+//! over the measured span), `footprint_mb` (sum of `phys_footprint` at the end),
+//! `footprint_median_mb` (median of the per-listing sums over the measured span),
+//! `footprint_peak_mb` (sum of each member's `ri_lifetime_max_phys_footprint`: every
+//! process's own peak since it started, warm-up included, so it can exceed any one
+//! moment's total), the same per process name, `stale` (members that started before the
+//! app process, whose lifetime peak predates this launch), and `app_threads`: the app
+//! process's CPU by thread name (`main` is AppKit and the tray image, `statglass-engine`
+//! the sampler, `tokio-rt-worker` the live channels and commands).
 
 #[cfg(target_os = "macos")]
 fn main() {
@@ -36,6 +40,75 @@ mod mac {
     use statglass_collect::macos::self_cpu::{Coalition, Member, process_name};
 
     const EVERY: Duration = Duration::from_secs(2);
+
+    /// The middle value (upper middle for an even count); 0 for none.
+    fn median(mut v: Vec<u64>) -> u64 {
+        v.sort_unstable();
+        v.get(v.len() / 2).copied().unwrap_or(0)
+    }
+
+    /// Footprint per process name over the measured span: the last listing's footprint
+    /// and lifetime peaks, every listing's footprint for the median, and the members that
+    /// predate the app process.
+    #[derive(Default)]
+    struct Memory {
+        footprint: BTreeMap<String, u64>,
+        peak: BTreeMap<String, u64>,
+        samples: BTreeMap<String, Vec<u64>>,
+        totals: Vec<u64>,
+        stale: Vec<String>,
+    }
+
+    impl Memory {
+        fn begin_listing(&mut self) {
+            self.footprint.clear();
+            self.peak.clear();
+            self.stale.clear();
+        }
+
+        fn add(&mut self, name: String, m: &Member, app_start: u64) {
+            *self.footprint.entry(name.clone()).or_insert(0) += m.footprint_bytes;
+            *self.peak.entry(name.clone()).or_insert(0) += m.peak_footprint_bytes;
+            if m.start_abstime < app_start {
+                self.stale.push(name);
+            }
+        }
+
+        fn end_listing(&mut self) {
+            for (n, &b) in &self.footprint {
+                self.samples.entry(n.clone()).or_default().push(b);
+            }
+            self.totals.push(self.footprint.values().sum());
+        }
+
+        /// The three footprint fields for one process name, or for the whole coalition.
+        fn fields(&self, name: Option<&String>) -> String {
+            let mb = |b: u64| b as f64 / 1e6;
+            let (now, med, peak) = match name {
+                Some(n) => (
+                    self.footprint.get(n).copied().unwrap_or(0),
+                    median(self.samples.get(n).cloned().unwrap_or_default()),
+                    self.peak.get(n).copied().unwrap_or(0),
+                ),
+                None => (
+                    self.footprint.values().sum(),
+                    median(self.totals.clone()),
+                    self.peak.values().sum(),
+                ),
+            };
+            format!(
+                "\"footprint_mb\": {:.1}, \"footprint_median_mb\": {:.1}, \"footprint_peak_mb\": {:.1}",
+                mb(now),
+                mb(med),
+                mb(peak)
+            )
+        }
+
+        fn stale(&self) -> String {
+            let names: Vec<String> = self.stale.iter().map(|n| format!("{n:?}")).collect();
+            names.join(", ")
+        }
+    }
 
     struct Args {
         pid: i32,
@@ -165,12 +238,16 @@ mod mac {
         // `Instant` stops while the Mac sleeps; the wall clock does not.
         let start_wall = std::time::SystemTime::now();
         let end = start + Duration::from_secs(a.seconds);
-        let mut footprint: BTreeMap<String, u64> = BTreeMap::new();
+        let mut memory = Memory::default();
         loop {
             let left = end.saturating_duration_since(Instant::now());
             std::thread::sleep(left.min(EVERY));
             alive(&mut c, &mut members)?;
-            footprint.clear();
+            let app_start = members
+                .iter()
+                .find(|m| m.pid == a.pid)
+                .map_or(0, |m| m.start_abstime);
+            memory.begin_listing();
             for m in &members {
                 let key = (m.pid, m.start_abstime);
                 let name = names
@@ -182,8 +259,9 @@ mod mac {
                 let before = last.get(&key).copied().unwrap_or(0);
                 *used.entry(name.clone()).or_insert(0) += m.cpu_ns.saturating_sub(before);
                 last.insert(key, m.cpu_ns);
-                *footprint.entry(name).or_insert(0) += m.footprint_bytes;
+                memory.add(name, m, app_start);
             }
+            memory.end_listing();
             if Instant::now() >= end {
                 break;
             }
@@ -199,23 +277,22 @@ mod mac {
             .map(|(n, ns)| format!("{n:?}: {:.4}", pct(ns)))
             .collect();
         let total: u64 = used.values().sum();
-        let fp_total: u64 = footprint.values().sum();
-        let mb = |b: u64| b as f64 / 1e6;
         let per: Vec<String> = used
             .iter()
             .map(|(n, &ns)| {
                 format!(
-                    "{:?}: {{\"cpu_pct\": {:.4}, \"footprint_mb\": {:.1}}}",
+                    "{:?}: {{\"cpu_pct\": {:.4}, {}}}",
                     n,
                     pct(ns),
-                    mb(footprint.get(n).copied().unwrap_or(0))
+                    memory.fields(Some(n))
                 )
             })
             .collect();
         println!(
-            "{{\"cpu_pct\": {:.4}, \"footprint_mb\": {:.1}, \"wall_s\": {:.1}, \"members\": {}, \"lookups\": {}, \"processes\": {{{}}}, \"app_threads\": {{{}}}}}",
+            "{{\"cpu_pct\": {:.4}, {}, \"stale\": [{}], \"wall_s\": {:.1}, \"members\": {}, \"lookups\": {}, \"processes\": {{{}}}, \"app_threads\": {{{}}}}}",
             pct(total),
-            mb(fp_total),
+            memory.fields(None),
+            memory.stale(),
             wall,
             members.len(),
             c.lookups(),

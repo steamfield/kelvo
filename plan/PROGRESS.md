@@ -4,6 +4,30 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Memory footprint, phase 1 (2026-11-04, branch `perf/memory-footprint-bench`)
+
+Implements phase 1 of [rfc-memory-footprint.md](rfc-memory-footprint.md). `make bench` now
+reports each scenario's coalition footprint three ways: the median of 2 s samples, the
+value at the end, and the sum of each process's lifetime peak (`peak_footprint_bytes` on
+`self_cpu::Member`). A run fails when a helper predates its launch. Bench-only
+`STATGLASS_BENCH_ACTIONS` (`src-tauri/src/bench/actions.rs`) drives Timeline zooms, Back,
+Live, range changes and closing the dashboard. A step that leaves the chart window
+unchanged also fails the run. New scenarios cover every dashboard route plus
+`timeline-30d`, `zoom`, `range`, `follow` and `closed`. `SCENARIOS=all` runs them all.
+`SEED=1` seeds the bench identity (with a 330 s first launch, because the store commits
+every 5 minutes and SIGTERM skips shutdown). `scripts/bench-footprint.py` checks the runs
+and reports them against a new advisory `footprint` section in `perf-budget.json`
+(150 MB tray-only target, empty baselines).
+
+Verified: clippy with and without `bench`, the bench and `self_cpu` tests, rustfmt,
+architecture check, and the zoom and Back page scripts against the Timeline in the browser
+dev server. Full `SCENARIOS=all` run: tray-only 75 MB, dashboard routes 540 to 820 MB median,
+highest peak 1.14 GB (`range`). The results table is in the RFC.
+
+Open: the 2.7 GB spike did not reproduce on seeded history. The WebKit GPU process holds
+265 to 410 MB whenever any window is visible, and no phase covers that yet. Five clean
+runs are still needed before baselines can be recorded. Phases 2 to 6 have not started.
+
 ## Agent CLI (2026-11-03, branch `feat/agent-cli`)
 
 Implements [rfc-agent-cli.md](rfc-agent-cli.md): a read-only `statglass` CLI

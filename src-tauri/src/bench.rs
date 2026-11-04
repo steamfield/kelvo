@@ -19,14 +19,24 @@
 //! - `STATGLASS_BENCH_BATTERY=1`: the engine sees the Mac on battery, with the battery
 //!   slowdown on, so the backed-off case measures on AC.
 //! - `STATGLASS_BENCH_NO_MOTION=1`: zero popover motion tokens without changing cadence.
+//! - `STATGLASS_BENCH_ACTIONS=window=30d,zoom,wait=6,back`: steps to run once the window
+//!   is open (Timeline zooms, range changes, closing the dashboard; [`actions`]).
 
 use std::time::Duration;
 
 use tauri::AppHandle;
 
+// Without the feature nothing reads the actions; the parser stays compiled and tested.
+#[cfg_attr(not(feature = "bench"), allow(dead_code))]
+mod actions;
+
 /// How long after setup the scenario's window opens: the popover's webview has to
 /// load first.
 const OPEN_AFTER: Duration = Duration::from_secs(3);
+/// How long after the window opens `STATGLASS_BENCH_ACTIONS` starts: the route loads
+/// and draws first.
+#[cfg_attr(not(feature = "bench"), allow(dead_code))]
+const SETTLE: Duration = Duration::from_secs(5);
 
 // Without the feature nothing constructs a scenario; the type and parser stay compiled
 // so the parser is tested in every build.
@@ -232,8 +242,23 @@ pub fn start(app: &AppHandle, scenario: Scenario) {
         if let Err(e) = r {
             tracing::warn!("bench scenario: {e}");
         }
+        run_actions(&app);
     });
 }
+
+/// `STATGLASS_BENCH_ACTIONS` (see [`actions`]), after [`SETTLE`].
+#[cfg(feature = "bench")]
+fn run_actions(app: &AppHandle) {
+    let steps = actions::from_env();
+    if steps.is_empty() {
+        return;
+    }
+    std::thread::sleep(SETTLE);
+    actions::run(app, &steps);
+}
+
+#[cfg(not(feature = "bench"))]
+fn run_actions(_app: &AppHandle) {}
 
 fn open(app: &AppHandle, scenario: &Scenario) {
     match scenario {
