@@ -78,6 +78,8 @@ export function createTauriTransport(label: string): Transport {
     processSignal: (host, pid, startTimeUs, kind) =>
       commands.processSignal(host, pid, startTimeUs, kind),
     getEdition: () => commands.getEdition(),
+    cliLinkStatus: () => commands.cliLinkStatus(),
+    cliInstallLink: () => commands.cliInstallLink(),
     getUpdateStatus: () => commands.getUpdateStatus(),
     checkForUpdates: () => commands.checkForUpdates(),
     installUpdate: (version) => commands.installUpdate(version),

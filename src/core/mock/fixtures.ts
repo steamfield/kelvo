@@ -357,6 +357,7 @@ export function defaultSettings(flags: ScenarioFlags): Settings {
       chart_window: "15m",
     },
     remote_access: { enabled: false },
+    cli_access: { enabled: true },
     onboarding: { completed: true },
     alerts: { hot_process: false, thermal_serious: false },
   };

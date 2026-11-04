@@ -137,6 +137,7 @@ export function applyPatch(s: Settings, patch: SettingsPatch): Settings {
       s.remote_access ?? { enabled: false },
       patch.remote_access
     ),
+    cli_access: pick(s.cli_access ?? { enabled: true }, patch.cli_access),
     onboarding: pick(s.onboarding, patch.onboarding),
     alerts: pick(s.alerts ?? NO_ALERTS, patch.alerts),
   };

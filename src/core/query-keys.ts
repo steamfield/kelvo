@@ -238,6 +238,8 @@ export const appKeys = {
   appearance: ["app", "appearance"] as const,
   /** Build-time features (D-065); fixed for the life of the app. */
   edition: ["app", "edition"] as const,
+  /** The `statglass` command's link on PATH (D-126). */
+  cliLink: ["app", "cli-link"] as const,
   /**
    * The public address (D-093), keyed by the primary interface, its local
    * address and the egress interface: another network (a new lease, even on

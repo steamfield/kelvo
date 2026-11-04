@@ -1,4 +1,4 @@
-import type { UpdateStatus } from "@core/generated/bindings";
+import type { CliLinkStatus, UpdateStatus } from "@core/generated/bindings";
 import type { MockCommands } from "./commands";
 import type { MockTransport, MockTransportOptions } from "./contracts";
 import type { MockEmitters } from "./emitters";
@@ -8,6 +8,7 @@ import type { MockRing } from "./ring";
 import type { MockSettings } from "./settings";
 export class MockShell {
   private updateStatus: UpdateStatus;
+  private cliLink: CliLinkStatus;
   constructor(
     private readonly ring: MockRing,
     private readonly power: MockPower,
@@ -17,6 +18,12 @@ export class MockShell {
     private readonly options: MockTransportOptions
   ) {
     this.updateStatus = options.updateStatus ?? { kind: "idle" };
+    this.cliLink = options.cliLink ?? {
+      link_path: "/Users/you/.local/bin/statglass",
+      target: "/Applications/StatGlass.app/Contents/MacOS/statglass-cli",
+      state: "missing",
+      on_path: false,
+    };
   }
   readonly requestNavigate: MockTransport["requestNavigate"] = (route) => {
     this.emitters.navigate.emit({ route });
@@ -39,6 +46,25 @@ export class MockShell {
       process_signal: !this.ring.flags.appstore,
       disk_space: !this.ring.flags.appstore,
     };
+  };
+  readonly cliLinkStatus: MockTransport["cliLinkStatus"] = async () => {
+    this.commands.record("cli_link_status");
+    return ok(this.cliLink);
+  };
+  /** As `cli_install_link`: a file that isn't a link stays `blocked`. */
+  readonly cliInstallLink: MockTransport["cliInstallLink"] = async () => {
+    this.commands.record("cli_install_link");
+    if (this.cliLink.target === null)
+      return {
+        status: "error",
+        error: {
+          kind: "invalid_argument",
+          message: "This build has no bundled command-line tool",
+        },
+      };
+    if (this.cliLink.state !== "blocked")
+      this.cliLink = { ...this.cliLink, state: "current" };
+    return ok(this.cliLink);
   };
   readonly getUpdateStatus: MockTransport["getUpdateStatus"] = async () =>
     this.updateStatus;
@@ -90,6 +116,8 @@ export class MockShell {
       reportPopoverContentHeight: this.reportPopoverContentHeight,
       openDashboard: this.openDashboard,
       getEdition: this.getEdition,
+      cliLinkStatus: this.cliLinkStatus,
+      cliInstallLink: this.cliInstallLink,
       checkForUpdates: this.checkForUpdates,
       getUpdateStatus: this.getUpdateStatus,
       installUpdate: this.installUpdate,
