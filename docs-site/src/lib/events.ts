@@ -10,3 +10,4 @@ export const EVENTS = {
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
+export type EventProps = Record<string, string | number | boolean | null>;

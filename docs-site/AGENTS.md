@@ -34,9 +34,9 @@ Site code may import the app only through two aliases in `astro.config.mjs`: `@s
 
 ## Analytics
 
-`src/lib/analytics.ts` is the only module that imports `posthog-js`. It reads `PUBLIC_POSTHOG_KEY` and `PUBLIC_POSTHOG_HOST` (default US cloud). With an empty key, the normal state in dev, tests and CI, the SDK is never loaded and `track` is a silent no-op. Calls made before the SDK loads are buffered (up to 50) and replayed in order.
+`src/lib/analytics.ts` is the only module that imports `posthog-js`. It never reads env: a module script in `BaseLayout.astro` passes `PUBLIC_POSTHOG_KEY` and `PUBLIC_POSTHOG_HOST` (default US cloud) to `initAnalytics`. With an empty key, the normal state in dev, tests and CI, the SDK is never loaded and `track` is a silent no-op. Calls made before the SDK loads are buffered (up to 50) and replayed in order.
 
-Events are declared in `src/lib/events.ts`; `track()` accepts only those names. Use snake_case `object_verb` in the past tense (`download_clicked`) with snake_case properties. Never send free text users typed, emails or tokens. Config: memory persistence (no cookie banner needed), autocapture and session recording off. The docs privacy page describes this; keep it in step.
+Events are declared in `src/lib/events.ts`; `track()` accepts only those names. Use snake_case `object_verb` in the past tense (`download_clicked`) with snake_case properties. Never send free text users typed, emails or tokens. Autocapture and session recording are off. All five Steamfield sites send to one shared Steamfield PostHog project; every event carries a `site` property (stamped in `before_send`, since opting in resets super properties), `"statglass"` here. Consent: PostHog runs cookieless (`cookieless_mode: "on_reject"`, opted out by default) until the visitor accepts, then uses `localStorage+cookie` across subdomains; the decision lives in the `sf-consent` cookie on `.steamfield.io`, and the banner comes from `@steamfield/ui/consent`, wired in a follow-up commit. The consent store is the source of truth: pass it to `initAnalytics` as `consent`, and PostHog follows it (granted opts in; undecided or declined goes back to cookieless and stores nothing). The layout only calls `initAnalytics` when the build has a key, so a keyless build ships no analytics code. The docs privacy page describes analytics; keep it in step.
 
 ## Build workarounds
 
@@ -57,4 +57,4 @@ dashboard, not in this repository; keep them in step with the `build` target.
 
 ## Pending user actions
 
-- Create a PostHog project and set `PUBLIC_POSTHOG_KEY` as an environment variable on the Pages project.
+- In the shared Steamfield PostHog project, set `PUBLIC_POSTHOG_KEY` (and `PUBLIC_POSTHOG_HOST` if not US cloud) as environment variables for the Production environment only on the `statglass` Pages project, and enable "Cookieless server hash mode" and "Discard client IP data" in its settings.

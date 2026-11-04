@@ -91,7 +91,15 @@ const jsonLd = JSON.stringify({
       import { EVENTS } from "@/lib/events";
       import { enhanceCopyButtons } from "@steamfield/ui/copy";
       import { initReveal } from "@steamfield/ui/reveal";
-      void initAnalytics();
+      // A build without a key ships no analytics code: this branch is dropped.
+      const key = import.meta.env.PUBLIC_POSTHOG_KEY;
+      if (key) {
+        initAnalytics({
+          key,
+          host: import.meta.env.PUBLIC_POSTHOG_HOST,
+          site: "statglass",
+        });
+      }
       // Scroll reveals (src/styles/sf-theme.css). Without this script, or with
       // reduced motion, every section is simply visible.
       initReveal();
@@ -107,7 +115,9 @@ const jsonLd = JSON.stringify({
         "[data-track-install]"
       )) {
         link.addEventListener("click", () =>
-          track(EVENTS.downloadClicked, { from: link.dataset.trackInstall })
+          track(EVENTS.downloadClicked, {
+            from: link.dataset.trackInstall ?? "",
+          })
         );
       }
       // The header's hairline appears once the page scrolls under it.

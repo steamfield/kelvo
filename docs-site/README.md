@@ -33,7 +33,7 @@ Docs pages are Markdown files in `src/content/docs/`, validated at build time ag
 
 ## Analytics
 
-PostHog is wired up but stays off until `PUBLIC_POSTHOG_KEY` is set at build time (and optionally `PUBLIC_POSTHOG_HOST`, which defaults to US cloud). With no key the SDK is never loaded. See `src/lib/analytics.ts`.
+PostHog is wired up but stays off until `PUBLIC_POSTHOG_KEY` is set at build time (and optionally `PUBLIC_POSTHOG_HOST`, which defaults to US cloud). `BaseLayout.astro` reads both and passes them to `initAnalytics` in `src/lib/analytics.ts`; with no key the SDK is never loaded.
 
 ## License
 

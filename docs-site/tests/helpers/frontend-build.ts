@@ -7,8 +7,14 @@ export interface SiteBuild {
   stderr: string;
 }
 
-/** Runs a production `astro build` into outDir (the demo comes from public/). */
-export function buildSite(outDir: string): Promise<SiteBuild> {
+/**
+ * Runs a production `astro build` into outDir (the demo comes from public/), with
+ * env added to a minimal environment: no PostHog key unless env passes one.
+ */
+export function buildSite(
+  outDir: string,
+  env: Record<string, string> = {}
+): Promise<SiteBuild> {
   const astro = fileURLToPath(
     new URL("../../node_modules/.bin/astro", import.meta.url)
   );
@@ -22,6 +28,7 @@ export function buildSite(outDir: string): Promise<SiteBuild> {
           PATH: process.env.PATH,
           ASTRO_TELEMETRY_DISABLED: "1",
           NODE_ENV: "production",
+          ...env,
         },
         timeout: 120_000,
         maxBuffer: 8 * 1024 * 1024,
