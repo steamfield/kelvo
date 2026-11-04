@@ -89,15 +89,25 @@ const jsonLd = JSON.stringify({
     <script>
       import { initAnalytics, track } from "@/lib/analytics";
       import { EVENTS } from "@/lib/events";
+      import {
+        createConsentStore,
+        mountConsentBanner,
+      } from "@steamfield/ui/consent";
       import { enhanceCopyButtons } from "@steamfield/ui/copy";
       import { initReveal } from "@steamfield/ui/reveal";
-      // A build without a key ships no analytics code: this branch is dropped.
+      // A build without a key ships no analytics or consent code: this branch is
+      // dropped. One sf-consent cookie on .steamfield.io covers every Steamfield site.
       const key = import.meta.env.PUBLIC_POSTHOG_KEY;
       if (key) {
+        const consent = createConsentStore({ domain: "steamfield.io" });
         initAnalytics({
           key,
           host: import.meta.env.PUBLIC_POSTHOG_HOST,
           site: "statglass",
+          consent,
+        });
+        mountConsentBanner(consent, {
+          privacyHref: "https://steamfield.io/privacy",
         });
       }
       // Scroll reveals (src/styles/sf-theme.css). Without this script, or with
@@ -207,9 +217,14 @@ const jsonLd = JSON.stringify({
     <footer class="border-t border-border text-muted-foreground">
       <div class="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs sm:px-8">
         <span>{SITE.title} is free and open source.</span>
-        <a href={SITE.repo} class="hover:text-foreground">
-          Source on GitHub
-        </a>
+        <span class="flex gap-4">
+          <a href="https://steamfield.io/privacy" class="hover:text-foreground">
+            Privacy
+          </a>
+          <a href={SITE.repo} class="hover:text-foreground">
+            Source on GitHub
+          </a>
+        </span>
       </div>
     </footer>
   </body>

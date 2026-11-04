@@ -21,4 +21,4 @@ Update checks contact GitHub (see [Updates](/docs/updates)). If you enable remot
 
 ## This website
 
-This documentation site is separate from the app. It can count page views and download clicks with PostHog, configured without cookies or other stored identifiers, without automatic click capture and without session recordings. Nothing the app collects is involved.
+This documentation site is separate from the app, and nothing the app collects is involved. The site counts page views and download clicks with PostHog, without automatic click capture or session recordings. Until you accept the consent banner, and after you decline, it counts without cookies and stores nothing on your device. If you accept, PostHog stores an identifier in a cookie and localStorage on steamfield.io, shared with the other Steamfield sites. The [Steamfield privacy page](https://steamfield.io/privacy) has the details and lets you change your choice.

@@ -6,6 +6,7 @@
 @import "@steamfield/ui/reveal/styles.css";
 @import "@steamfield/ui/markdown/styles.css";
 @import "@steamfield/ui/copy/styles.css";
+@import "@steamfield/ui/consent/styles.css";
 
 :root {
   --sf-fg: var(--color-foreground);
@@ -16,6 +17,21 @@
   --sf-focus: var(--color-ring);
   --sf-font: var(--font-mono);
   --sf-radius: var(--radius-control);
+
+  /* The consent banner (BaseLayout.astro, only in builds with a PostHog key),
+     drawn like a popover with the primary button's colors. */
+  --sf-consent-background: var(--color-popover);
+  --sf-consent-foreground: var(--color-popover-foreground);
+  --sf-consent-muted: var(--color-muted-foreground);
+  --sf-consent-border: var(--color-border);
+  --sf-consent-accent: var(--color-primary);
+  --sf-consent-accent-foreground: var(--color-primary-foreground);
+  --sf-consent-radius: var(--radius-panel);
+  --sf-consent-shadow: 0 10px 30px
+    color-mix(in srgb, var(--color-foreground) 12%, transparent);
+  --sf-consent-font: var(--font-sans);
+  /* Above the sticky header (40), below the focused skip link (50). */
+  --sf-consent-z-index: 45;
 
   /* Scroll reveals. These are the site's own timings from before the library; the
      roles that differ are set on the role itself below. */

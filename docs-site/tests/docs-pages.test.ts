@@ -151,25 +151,42 @@ it("lists exactly the docs pages in llms.txt and every page in llms-full.txt", (
   );
 });
 
-// buildSite passes no PostHog key, and the layout only calls initAnalytics with one,
-// so the build bundles neither the module's init nor posthog-js.
-const scriptsIn = (dir: string) =>
+// buildSite passes no PostHog key, and the layout only calls initAnalytics, and only
+// creates the consent store and banner, with one, so the build bundles none of it.
+// The banner's stylesheet ships either way, with the other library CSS.
+const assetsIn = (dir: string, extension: string) =>
   readdirSync(join(dir, "_astro"))
-    .filter((name) => name.endsWith(".js"))
+    .filter((name) => name.endsWith(extension))
     .map((name) => readFileSync(join(dir, "_astro", name), "utf8"));
 const isAnalytics = (source: string) => source.includes("cookieless_mode");
+const isConsent = (source: string) => source.includes("sf-consent");
+const isConsentStyle = (source: string) =>
+  /\[data-part=["']?consent["']?\]/.test(source);
 
-it("ships no analytics code in a build without a PostHog key", () => {
-  expect(scriptsIn(output).filter(isAnalytics)).toEqual([]);
+it("ships no analytics or consent code in a build without a PostHog key", () => {
+  const scripts = assetsIn(output, ".js");
+  expect(scripts.filter(isAnalytics)).toEqual([]);
+  expect(scripts.filter(isConsent)).toEqual([]);
 });
 
-it("puts the key in exactly one script when the build has one", async () => {
+it("carries the key once, the consent banner and its styles when the build has a key", async () => {
   // Not a credential: any non-empty value turns analytics on for the build.
   const key = "statglass-build-test-key";
   const keyed = join(root, "keyed");
   const build = await buildSite(keyed, { PUBLIC_POSTHOG_KEY: key });
   expect(build.status, build.stderr).toBe(0);
-  const scripts = scriptsIn(keyed);
+  const scripts = assetsIn(keyed, ".js");
   expect(scripts.filter((source) => source.includes(key))).toHaveLength(1);
   expect(scripts.filter(isAnalytics)).not.toEqual([]);
+  expect(scripts.filter(isConsent)).not.toEqual([]);
+  expect(assetsIn(keyed, ".css").filter(isConsentStyle)).not.toEqual([]);
 }, 180_000);
+
+it("links the shared privacy page from the footer and the docs privacy page", () => {
+  const footerLink = 'footer a[href="https://steamfield.io/privacy"]';
+  expect(builtPage("/")?.querySelector(footerLink)).toBeTruthy();
+  const docs = builtPage("/docs/privacy");
+  expect(
+    docs?.querySelector('main a[href="https://steamfield.io/privacy"]')
+  ).toBeTruthy();
+});
