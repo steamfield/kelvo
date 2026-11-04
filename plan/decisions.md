@@ -117,6 +117,7 @@ See [README](README.md) for the roadmap and [architecture.md](architecture.md) f
 | D-119 | Independent signed automatic updates with isolated Linux trials | Implemented; login-session acceptance pending |
 | D-120 | Durable interval usage keeps facts before ranking | Accepted |
 | D-125 | Rename Kelvo to StatGlass with fresh installation identities | Accepted |
+| D-126 | Agents query StatGlass through a bundled, read-only CLI | Accepted |
 
 ---
 
@@ -3983,3 +3984,43 @@ The user later requested a one-off copy of this Mac's release and development
 data into the new namespaces. That copy preserves the source data, SQLite host
 UUIDs and history, and rebinds the copied host IDs using the new prefix. It does
 not introduce automatic migration or alter remote installations.
+
+## D-126: Agents query StatGlass through a bundled, read-only CLI
+
+Date: 2026-11-03. Design in [rfc-agent-cli.md](rfc-agent-cli.md).
+
+StatGlass ships `statglass`, a Rust command-line tool bundled in the app next to the
+remote helper, so coding agents and scripts can ask what happened on this Mac and on
+remote hosts. It is read-only. It asks the running app over an owner-only Unix socket,
+`<app_data>/cli/query.sock` (directory 0700, socket 0600), and the app answers from its
+store, the remote mirrors and, for `top`, the live remote sessions. The CLI never opens
+SQLite itself, so the app stays the single reader of what the data means.
+
+The contract lives in the new `statglass-query` crate: length-prefixed JSON requests and
+responses tagged `api: 1`, result DTOs with JSON Schemas, and a fixed set of error tags,
+each mapped to one exit code and one next action. Changes to `api: 1` are additive only;
+a breaking change gets a new api number. The CLI's output follows the agent-first
+contract from the stacks CLI: JSON, agent and human modes, an error envelope on stderr
+with a `next` step, did-you-mean suggestions, and a `schema` command.
+
+Command-line access is on by default, with a Settings toggle that unbinds the socket.
+Unlike D-104's opt-in `metrics.sock`, this socket only serves processes running as the
+same user, and most of what it returns is already in that user's SQLite files. The
+exception is `top` on a remote host, which asks that host for per-app usage that is not
+mirrored (D-120). Those are hosts the user paired, the requests are read-only, and the
+remote side already answers `Busy` when overloaded. Remote `top` on an offline host
+answers `HostOffline`; mirroring durable usage was not added for this.
+
+An MCP server and an HTTP or OpenAPI surface were considered and deferred. MCP would be a
+thin copy of the CLI for shell agents and costs standing context; HTTP adds a listening
+port and auth for no agent that a shell cannot already serve. When MCP comes, it wraps
+the CLI (`statglass-cli <command> --json`) rather than speaking the socket, so there is
+one query vocabulary and one place errors are mapped. The CLI is Rust rather than an
+Effect TypeScript binary because a compiled Bun binary would be larger than the app and
+need the JIT entitlement, and it would duplicate the Rust types.
+
+Cost: another socket and listener in the app, a second public contract to keep
+compatible, and a bundled binary (about 1.4 MB) plus a `~/.local/bin/statglass` link the
+app manages. Revisit when users ask for StatGlass in Claude Desktop or another client
+with no shell (build the MCP wrapper), or if the App Store build (D-015) moves the
+socket into a sandbox container.

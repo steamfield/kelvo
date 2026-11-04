@@ -2,7 +2,7 @@
 
 Status: Implemented 2026-11-03 (branch `feat/agent-cli`, merged locally; see
 `PROGRESS.md`). Revised after devil's-advocate review (see "Review outcome"). Decision entry:
-D-126 (proposed, not yet written to `decisions.md`). Owner questions resolved (see the end).
+D-126. Owner questions resolved (see the end).
 
 ## Problem
 

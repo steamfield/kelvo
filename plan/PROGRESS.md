@@ -25,7 +25,7 @@ local and remote, error paths. Two code-review rounds; all findings fixed except
 `stored_series` EXISTS rewrite, which measured about 30x slower on real data and is
 documented instead.
 
-Open: D-126 is not written to `decisions.md`; the coalition bench for the idle listener
+Open: the coalition bench for the idle listener
 was not run; the agent acceptance questions in the RFC were not run as a fresh Claude Code
 session; the release app has no query socket until the next release.
 
