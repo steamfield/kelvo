@@ -155,29 +155,59 @@ it("lists exactly the docs pages in llms.txt and every page in llms-full.txt", (
 // creates the consent store and banner, with one, so the build bundles none of it.
 // The banner's stylesheet ships either way, with the other library CSS.
 
-// Every JavaScript file a page loads or may load: its script tags and island
-// components and renderers, then the imports (static, and dynamic with any quote
-// style) of each file they reach. Ported from stacks-api's analytics build test.
-function scriptsReachedFrom(dir: string, page: string): Map<string, string> {
-  const html = readFileSync(join(dir, page), "utf8");
-  const entries =
-    /(?:<script[^>]*\ssrc|\scomponent-url|\srenderer-url)="\/([^"]+\.js)"/g;
-  const pending = Array.from(html.matchAll(entries), (m) => m[1] ?? "");
+// Every JavaScript file a page loads or may load: its inline scripts, script tags
+// and island components, renderers and before-hydration scripts, then the imports
+// (static, and dynamic with any quote style) of each file they reach. Ported from
+// stacks-api's analytics build test.
+function scriptsReachedFrom(root: string, page: string): Map<string, string> {
+  const html = readFileSync(join(root, page), "utf8");
   const reached = new Map<string, string>();
-  for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
-    if (reached.has(path)) continue;
-    const source = readFileSync(join(dir, path), "utf8");
-    reached.set(path, source);
-    const folder = path.slice(0, path.lastIndexOf("/") + 1);
-    for (const m of source.matchAll(/["'`](\.\/|\/)([^"'`]+\.js)["'`]/g)) {
+  const pending: string[] = [];
+  const follow = (source: string, folder: string) => {
+    // A `//host/...` target is another origin; it isn't in the build.
+    for (const m of source.matchAll(
+      /["'`](\.\/|\/(?!\/))([^"'`]+\.js)["'`]/g
+    )) {
       const target = m[2] ?? "";
       // A template such as posthog-js's `/static/${version}/${name}.js` is a URL
       // built at run time for its CDN scripts, not a file in the build.
       if (target.includes("${")) continue;
       pending.push(m[1] === "/" ? target : folder + target);
     }
+  };
+  const pageFolder = page.slice(0, page.lastIndexOf("/") + 1);
+  const inline = html.matchAll(
+    /<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g
+  );
+  for (const [index, m] of Array.from(inline).entries()) {
+    const source = m[1] ?? "";
+    reached.set(`${page}#inline-${index}`, source);
+    follow(source, pageFolder);
+  }
+  const entries =
+    /(?:<script[^>]*\ssrc|\scomponent-url|\srenderer-url|\sbefore-hydration-url)="\/(?!\/)([^"]+\.js)"/g;
+  pending.push(...Array.from(html.matchAll(entries), (m) => m[1] ?? ""));
+  for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+    if (reached.has(path)) continue;
+    const source = readFileSync(join(root, path), "utf8");
+    reached.set(path, source);
+    follow(source, path.slice(0, path.lastIndexOf("/") + 1));
   }
   return reached;
+}
+
+// The stylesheets a page links, by path, with their contents.
+function stylesheetsOf(root: string, page: string): Map<string, string> {
+  const html = readFileSync(join(root, page), "utf8");
+  const links = html.matchAll(
+    /<link[^>]*\srel="stylesheet"[^>]*\shref="\/([^"]+)"/g
+  );
+  return new Map(
+    Array.from(links, (m) => m[1] ?? "").map((path) => [
+      path,
+      readFileSync(join(root, path), "utf8"),
+    ])
+  );
 }
 
 // The paths, not the contents, so a failure prints something readable.
@@ -193,12 +223,11 @@ const analyticsMarker = "us.i.posthog.com";
 const sdkMarker = "__ph_opt_in_out_";
 // The consent store's cookie name: in @steamfield/ui/consent only.
 const consentMarker = "sf-consent";
+// A rule from @steamfield/ui/consent's stylesheet, and a variable it reads (which
+// the site's theme also sets).
+const bannerStyleMarker = "--sf-consent-background";
 const isConsentStyle = (source: string) =>
   /\[data-part=["']?consent["']?\]/.test(source);
-const stylesIn = (dir: string) =>
-  readdirSync(join(dir, "_astro"))
-    .filter((name) => name.endsWith(".css"))
-    .map((name) => readFileSync(join(dir, "_astro", name), "utf8"));
 
 it("loads no analytics or consent code in a build without a PostHog key", () => {
   const reached = scriptsReachedFrom(output, "index.html");
@@ -223,7 +252,11 @@ it("loads the key once, posthog-js, the banner and its styles when the build has
     sources.some((source) => /site:\s*["'`]statglass["'`]/.test(source))
   ).toBe(true);
   expect(sources.some((source) => source.includes("steamfield.io"))).toBe(true);
-  expect(stylesIn(keyed).filter(isConsentStyle)).not.toEqual([]);
+  const styles = [...stylesheetsOf(keyed, "index.html").values()];
+  expect(styles.some((source) => source.includes(bannerStyleMarker))).toBe(
+    true
+  );
+  expect(styles.some(isConsentStyle)).toBe(true);
 }, 180_000);
 
 it("links the shared privacy page from the footer and the docs privacy page", () => {
