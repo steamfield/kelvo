@@ -1,7 +1,8 @@
 # RFC: `statglass` command-line tool for agents
 
-Status: Draft, revised after devil's-advocate review (see "Review outcome"). Date:
-2026-11-03. Decision entry: D-126 (proposed). Owner questions resolved (see the end).
+Status: Implemented 2026-11-03 (branch `feat/agent-cli`, merged locally; see
+`PROGRESS.md`). Revised after devil's-advocate review (see "Review outcome"). Decision entry:
+D-126 (proposed, not yet written to `decisions.md`). Owner questions resolved (see the end).
 
 ## Problem
 
