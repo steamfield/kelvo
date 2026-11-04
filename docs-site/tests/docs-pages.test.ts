@@ -154,32 +154,70 @@ it("lists exactly the docs pages in llms.txt and every page in llms-full.txt", (
 // buildSite passes no PostHog key, and the layout only calls initAnalytics, and only
 // creates the consent store and banner, with one, so the build bundles none of it.
 // The banner's stylesheet ships either way, with the other library CSS.
-const assetsIn = (dir: string, extension: string) =>
-  readdirSync(join(dir, "_astro"))
-    .filter((name) => name.endsWith(extension))
-    .map((name) => readFileSync(join(dir, "_astro", name), "utf8"));
-const isAnalytics = (source: string) => source.includes("cookieless_mode");
-const isConsent = (source: string) => source.includes("sf-consent");
+
+// Every JavaScript file a page loads or may load: its script tags and island
+// components and renderers, then the imports (static, and dynamic with any quote
+// style) of each file they reach. Ported from stacks-api's analytics build test.
+function scriptsReachedFrom(dir: string, page: string): Map<string, string> {
+  const html = readFileSync(join(dir, page), "utf8");
+  const entries =
+    /(?:<script[^>]*\ssrc|\scomponent-url|\srenderer-url)="\/([^"]+\.js)"/g;
+  const pending = Array.from(html.matchAll(entries), (m) => m[1] ?? "");
+  const reached = new Map<string, string>();
+  for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+    if (reached.has(path)) continue;
+    const source = readFileSync(join(dir, path), "utf8");
+    reached.set(path, source);
+    const folder = path.slice(0, path.lastIndexOf("/") + 1);
+    for (const m of source.matchAll(/["'`](\.\/|\/)([^"'`]+\.js)["'`]/g)) {
+      const target = m[2] ?? "";
+      // A template such as posthog-js's `/static/${version}/${name}.js` is a URL
+      // built at run time for its CDN scripts, not a file in the build.
+      if (target.includes("${")) continue;
+      pending.push(m[1] === "/" ? target : folder + target);
+    }
+  }
+  return reached;
+}
+
+// The paths, not the contents, so a failure prints something readable.
+const filesContaining = (reached: Map<string, string>, text: string) =>
+  [...reached]
+    .filter(([, source]) => source.includes(text))
+    .map(([path]) => path);
+
+// The default ingest host: in the analytics module and in posthog-js, nowhere else.
+const analyticsMarker = "us.i.posthog.com";
+// posthog-js's consent record prefix: in the SDK only, so finding it means the
+// scanner followed the module's dynamic import of posthog-js.
+const sdkMarker = "__ph_opt_in_out_";
+// The consent store's cookie name: in @steamfield/ui/consent only.
+const consentMarker = "sf-consent";
 const isConsentStyle = (source: string) =>
   /\[data-part=["']?consent["']?\]/.test(source);
+const stylesIn = (dir: string) =>
+  readdirSync(join(dir, "_astro"))
+    .filter((name) => name.endsWith(".css"))
+    .map((name) => readFileSync(join(dir, "_astro", name), "utf8"));
 
-it("ships no analytics or consent code in a build without a PostHog key", () => {
-  const scripts = assetsIn(output, ".js");
-  expect(scripts.filter(isAnalytics)).toEqual([]);
-  expect(scripts.filter(isConsent)).toEqual([]);
+it("loads no analytics or consent code in a build without a PostHog key", () => {
+  const reached = scriptsReachedFrom(output, "index.html");
+  expect(reached.size).toBeGreaterThan(0);
+  expect(filesContaining(reached, analyticsMarker)).toEqual([]);
+  expect(filesContaining(reached, consentMarker)).toEqual([]);
 });
 
-it("carries the key once, the consent banner and its styles when the build has a key", async () => {
+it("loads the key once, posthog-js, the banner and its styles when the build has a key", async () => {
   // Not a credential: any non-empty value turns analytics on for the build.
   const key = "statglass-build-test-key";
   const keyed = join(root, "keyed");
   const build = await buildSite(keyed, { PUBLIC_POSTHOG_KEY: key });
   expect(build.status, build.stderr).toBe(0);
-  const scripts = assetsIn(keyed, ".js");
-  expect(scripts.filter((source) => source.includes(key))).toHaveLength(1);
-  expect(scripts.filter(isAnalytics)).not.toEqual([]);
-  expect(scripts.filter(isConsent)).not.toEqual([]);
-  expect(assetsIn(keyed, ".css").filter(isConsentStyle)).not.toEqual([]);
+  const reached = scriptsReachedFrom(keyed, "index.html");
+  expect(filesContaining(reached, key)).toHaveLength(1);
+  expect(filesContaining(reached, sdkMarker)).toHaveLength(1);
+  expect(filesContaining(reached, consentMarker)).not.toEqual([]);
+  expect(stylesIn(keyed).filter(isConsentStyle)).not.toEqual([]);
 }, 180_000);
 
 it("links the shared privacy page from the footer and the docs privacy page", () => {
