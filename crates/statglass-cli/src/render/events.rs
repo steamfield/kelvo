@@ -1,5 +1,5 @@
 use serde_json::Value;
-use statglass_query::{EventDto, EventsAnswer};
+use statglass_query::{EventDto, EventsAnswer, EventsSummary, KindSummary};
 
 use super::{Ctx, freshness_line, range_clock, range_text, retained_line};
 use crate::format::Clock;
@@ -81,4 +81,83 @@ fn detail_summary(detail: &Value) -> String {
             .join(" "),
         other => scalar(other).unwrap_or_default(),
     }
+}
+
+/// Days printed per kind before the rest are counted; `--json` has every day.
+const MAX_SUMMARY_DAYS: usize = 14;
+
+/// `events --summary`: one block per kind, most frequent first.
+pub fn summary(a: &EventsSummary, ctx: &Ctx) -> String {
+    let clock = &range_clock(&a.range, &ctx.clock);
+    let mut out = String::new();
+    if let Some(line) = freshness_line(&a.host.name, a.freshness.as_ref(), clock) {
+        out.push_str(&line);
+    }
+    if let Some(line) = retained_line(&a.range, clock) {
+        out.push_str(&line);
+    }
+    let count = match a.total {
+        0 => "no events".to_owned(),
+        1 => "1 event".to_owned(),
+        n => format!("{n} events"),
+    };
+    let range = range_text(&a.range, clock);
+    out.push_str(
+        &ctx.style
+            .bold(&format!("{count} on {}, {range}", a.host.name)),
+    );
+    out.push('\n');
+    for k in &a.kinds {
+        out.push_str(&kind_block(k, clock));
+    }
+    if a.unreadable > 0 {
+        out.push_str(&format!(
+            "{} events from a newer StatGlass could not be read and are not counted\n",
+            a.unreadable
+        ));
+    }
+    out
+}
+
+/// `fans_ramped 115, Oct 29 11:42 to Nov 3 21:16` then its processes and days.
+fn kind_block(k: &KindSummary, clock: &Clock) -> String {
+    let mut out = format!(
+        "{} {}, {} to {}\n",
+        k.kind,
+        k.count,
+        clock.short(&k.first),
+        clock.short(&k.last)
+    );
+    let mut named: Vec<String> = k
+        .processes
+        .iter()
+        .map(|p| format!("{} {}", p.name, p.count))
+        .collect();
+    if k.other_processes > 0 {
+        named.push(format!("others {}", k.other_processes));
+    }
+    if k.no_process > 0 {
+        named.push(format!("none named {}", k.no_process));
+    }
+    if !named.is_empty() {
+        out.push_str(&format!("  processes: {}\n", named.join(", ")));
+    }
+    let mut days: Vec<String> = k
+        .days
+        .iter()
+        .rev()
+        .take(MAX_SUMMARY_DAYS)
+        .rev()
+        .map(|d| format!("{} {}", clock.day(&d.day), d.count))
+        .collect();
+    if let Some(more) = k
+        .days
+        .len()
+        .checked_sub(MAX_SUMMARY_DAYS)
+        .filter(|&n| n > 0)
+    {
+        days.insert(0, format!("{more} earlier days"));
+    }
+    out.push_str(&format!("  per day: {}\n", days.join(", ")));
+    out
 }

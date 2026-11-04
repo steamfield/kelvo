@@ -2,8 +2,8 @@
 //! the answer into output.
 
 use statglass_query::{
-    Answer, Body, Client, ErrorDetails, ErrorTag, Op, QueryRequest, REQUEST_TIMEOUT, UsageBy,
-    suggest, time,
+    Answer, Body, Client, ErrorDetails, ErrorTag, EventsSummary, Op, QueryRequest, REQUEST_TIMEOUT,
+    UsageBy, suggest, time,
 };
 use statglass_schema::Module;
 
@@ -24,6 +24,7 @@ pub fn run(cmd: Command, style: Style) -> Result<Output, Failure> {
     let json = style.audience.is_json();
     let mut show_points = false;
     let mut all_gaps = false;
+    let mut summarize = false;
     let op = match cmd {
         Command::Hosts => Op::Hosts,
         Command::Now { host, all, detail } => Op::Now { host, all, detail },
@@ -51,7 +52,13 @@ pub fn run(cmd: Command, style: Style) -> Result<Output, Failure> {
                 points,
             }
         }
-        Command::Events { host, range, kind } => {
+        Command::Events {
+            host,
+            range,
+            kind,
+            summary,
+        } => {
+            summarize = summary;
             let (from_ms, to_ms) = resolve_range(&range, format::now_ms())?;
             Op::Events {
                 host,
@@ -78,15 +85,22 @@ pub fn run(cmd: Command, style: Style) -> Result<Output, Failure> {
         other => return Err(Failure::defect(format!("{other:?} is not a query command"))),
     };
     let answer = send(op)?;
-    if json {
-        return answer_json(&answer);
-    }
     let ctx = render::Ctx {
         style,
         clock: Clock::now(),
         show_points,
         all_gaps,
     };
+    if let (true, Answer::Events(events)) = (summarize, &answer) {
+        let summary = EventsSummary::of(events);
+        if json {
+            return Output::json(&summary);
+        }
+        return Ok(Output::Text(render::events_summary(&summary, &ctx)));
+    }
+    if json {
+        return answer_json(&answer);
+    }
     Ok(Output::Text(render::answer(&answer, &ctx)))
 }
 

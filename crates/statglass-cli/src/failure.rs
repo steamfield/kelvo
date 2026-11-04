@@ -131,7 +131,9 @@ pub const fn next_for(tag: ErrorTag) -> &'static str {
              series a host has stored; quote series arguments, e.g. \
              'cgroup.cpu{kind=container,name=postgres}'"
         }
-        ErrorTag::BadRange => "use --since 2h, or --from/--to with RFC 3339 or HH:MM",
+        ErrorTag::BadRange => {
+            "use --since 2h, or --from/--to as 2026-11-03 15:00, 15:00 for today, or 3h ago"
+        }
         ErrorTag::Busy => "retry in a few seconds",
         ErrorTag::HostOffline => {
             "use statglass events or statglass history for this host; per-app usage needs it \

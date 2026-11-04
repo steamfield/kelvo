@@ -519,6 +519,26 @@ async fn a_connected_mirror_still_catching_up_reports_the_unsynced_tail() {
         .map(|g| (g.reason.as_str(), g.from.as_str(), g.to.as_deref()))
         .collect();
     assert_eq!(tail, [("not_synced", rfc(SYNCED).as_str(), None)]);
+
+    // Once the mirror is within two buckets of now, the ordinary lag is not reported.
+    let linux = fake.hosts[2].record.clone();
+    let mirror = fake.histories.get(&linux.id).unwrap();
+    let w = mirror.register_host(&linux).unwrap();
+    write_s10(
+        &w,
+        linux.id,
+        &keys(&["cpu.total"]),
+        SYNCED,
+        NOW - 10 * S,
+        |_| 20.0,
+    );
+    w.flush().unwrap();
+    let h = history(&fake, "m1-linux", &["cpu.total"]).await.unwrap();
+    assert!(
+        h.gaps.iter().all(|g| g.reason != "not_synced"),
+        "{:?}",
+        h.gaps
+    );
 }
 
 #[tokio::test]
@@ -548,6 +568,32 @@ async fn a_mistyped_label_value_is_an_unknown_series_with_stored_suggestions() {
         .unwrap();
     assert!(disk.series.is_empty());
     assert!(disk.gaps.iter().any(|g| g.reason == "module_disabled"));
+}
+
+#[tokio::test]
+async fn points_report_the_slot_they_cover_and_skip_empty_slots() {
+    let fake = fixture();
+    // An hour in 6 points over 10 s buckets: 10-minute slots.
+    let h = history(&fake, "local", &["gpu.util"]).await.unwrap();
+    assert_eq!(h.point_slot_s, Some(600));
+    let times: Vec<_> = h.series[0].points.iter().map(|p| p.t.clone()).collect();
+    assert_eq!(
+        times,
+        [rfc(NOW - 40 * MIN)],
+        "gpu.util has data in one slot only"
+    );
+
+    let op = Op::History {
+        host: None,
+        series: vec!["gpu.util".into()],
+        from_ms: NOW - 60 * MIN,
+        to_ms: NOW,
+        points: None,
+    };
+    let Answer::History(bare) = ask(&fake, op).await.unwrap() else {
+        panic!()
+    };
+    assert_eq!(bare.point_slot_s, None, "no points asked, no slot");
 }
 
 #[tokio::test]

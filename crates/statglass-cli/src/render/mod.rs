@@ -23,6 +23,8 @@ pub struct Ctx {
     pub all_gaps: bool,
 }
 
+pub use events::summary as events_summary;
+
 pub fn answer(answer: &Answer, ctx: &Ctx) -> String {
     match answer {
         Answer::Status(s) => format!(

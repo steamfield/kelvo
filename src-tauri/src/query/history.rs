@@ -108,6 +108,7 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
         },
         tier: tier.as_str().to_owned(),
         bucket_s: u32::try_from(bucket_ms / 1_000).unwrap_or(u32::MAX),
+        point_slot_s: None,
         series: Vec::new(),
         gaps: Vec::new(),
     };
@@ -172,6 +173,9 @@ pub(super) fn answer(backend: &dyn Backend, ask: &Ask<'_>) -> Result<HistoryAnsw
     answer.range.from = rfc(from_ms);
     answer.range.retained_from = retained.map(rfc);
     answer.bucket_s = bucket_s;
+    answer.point_slot_s = sampled
+        .as_ref()
+        .map(|r| u32::try_from(r.bucket_ms / 1_000).unwrap_or(u32::MAX));
     Ok(answer)
 }
 

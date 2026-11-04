@@ -116,6 +116,7 @@ fn answers() -> Vec<Answer> {
             range: range(),
             tier: "m1".into(),
             bucket_s: 60,
+            point_slot_s: None,
             series: vec![SeriesHistory {
                 key: "cpu.total".into(),
                 unit: "percent".into(),

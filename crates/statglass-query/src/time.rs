@@ -1,11 +1,12 @@
 //! Times in and out of the contract. Output is RFC 3339 in the controller Mac's local
 //! offset, because agents reason about "3pm" in local time and misread epoch
-//! milliseconds. Input accepts RFC 3339, a bare local time today, or a duration ago.
-//! Bare times use this Mac's timezone even for remote hosts, whose zone is unknown.
+//! milliseconds. Input accepts RFC 3339, a local date and time without an offset, a
+//! bare local time today, or a duration ago. Local times use this Mac's timezone even
+//! for remote hosts, whose zone is unknown.
 
 use jiff::{
     Timestamp,
-    civil::Time,
+    civil::{Date, DateTime, Time},
     tz::{Disambiguation, TimeZone},
 };
 
@@ -16,7 +17,10 @@ pub enum TimeError {
     Empty,
     #[error("{0:?} is not a duration like 90s, 15m, 2h or 3d")]
     BadDuration(String),
-    #[error("{0:?} is not an RFC 3339 time, a time today like 15:00, or a duration ago")]
+    #[error(
+        "{0:?} is not a time: use 2026-11-03 15:00 (this Mac's timezone), 15:00 for today, \
+         3h for a duration ago, or RFC 3339 with an offset"
+    )]
     BadInstant(String),
     #[error("{0:?} is outside the supported time range")]
     OutOfRange(String),
@@ -70,9 +74,10 @@ pub fn parse_duration(arg: &str) -> Result<i64, TimeError> {
 }
 
 /// A `--from`/`--to` argument as a millisecond epoch: RFC 3339 with an offset or `Z`, a
-/// bare time today in the system zone (`15:00`, `15:00:30`), or a duration meaning that
-/// long before `now_ms` (`3h`). A bare time in a DST gap or overlap resolves to the
-/// earlier of its two possible instants.
+/// local date and time in the system zone (`2026-11-03 15:00`, `2026-11-03T15:00:30`, or
+/// `2026-11-03` for its midnight), a bare time today (`15:00`, `15:00:30`), or a duration
+/// meaning that long before `now_ms` (`3h`). A local time in a DST gap or overlap
+/// resolves to the earlier of its two possible instants.
 pub fn parse_instant(arg: &str, now_ms: i64) -> Result<i64, TimeError> {
     parse_instant_in(arg, now_ms, &TimeZone::system())
 }
@@ -86,19 +91,37 @@ pub(crate) fn parse_instant_in(arg: &str, now_ms: i64, tz: &TimeZone) -> Result<
     if let Ok(ago) = parse_duration(arg_t) {
         return now_ms.checked_sub(ago).ok_or_else(out_of_range);
     }
+    let local = |dt: DateTime| {
+        tz.to_ambiguous_zoned(dt)
+            .disambiguate(Disambiguation::Earlier)
+            .map(|z| z.timestamp().as_millisecond())
+            .map_err(|_| out_of_range())
+    };
     if let Some(time) = bare_time(arg_t) {
         let now = Timestamp::from_millisecond(now_ms).map_err(|_| out_of_range())?;
         let today = now.to_zoned(tz.clone()).date();
-        let zoned = tz
-            .to_ambiguous_zoned(today.to_datetime(time))
-            .disambiguate(Disambiguation::Earlier)
-            .map_err(|_| out_of_range())?;
-        return Ok(zoned.timestamp().as_millisecond());
+        return local(today.to_datetime(time));
     }
-    arg_t
-        .parse::<Timestamp>()
-        .map(|ts| ts.as_millisecond())
-        .map_err(|_| TimeError::BadInstant(arg.to_owned()))
+    if let Ok(ts) = arg_t.parse::<Timestamp>() {
+        return Ok(ts.as_millisecond());
+    }
+    local_datetime(arg_t)
+        .ok_or_else(|| TimeError::BadInstant(arg.to_owned()))
+        .and_then(local)
+}
+
+/// `YYYY-MM-DD` with `HH:MM` or `HH:MM:SS` after a space or `T`, or alone for midnight.
+/// No offset: an argument with one is RFC 3339.
+fn local_datetime(arg: &str) -> Option<DateTime> {
+    let (date, time) = match arg.split_once([' ', 'T']) {
+        Some((d, t)) => (d, Some(t.trim())),
+        None => (arg, None),
+    };
+    let date = Date::strptime("%Y-%m-%d", date).ok()?;
+    match time {
+        Some(t) => bare_time(t).map(|t| date.to_datetime(t)),
+        None => Some(date.to_datetime(Time::midnight())),
+    }
 }
 
 /// `HH:MM` or `HH:MM:SS`, nothing else.
@@ -155,7 +178,7 @@ mod tests {
             Ok(ms("2026-11-03T23:12:00Z"))
         );
         assert!(matches!(
-            parse_instant_in("2026-11-03T15:12:00", now, &tz),
+            parse_instant_in("2026-11-03T15:12:00+99:00", now, &tz),
             Err(TimeError::BadInstant(_))
         ));
         assert!(matches!(
@@ -189,6 +212,48 @@ mod tests {
             parse_instant_in("25:00", now, &tz),
             Err(TimeError::BadInstant(_))
         ));
+    }
+
+    #[test]
+    fn local_date_and_time_without_an_offset() {
+        let tz = la();
+        let now = ms("2026-11-03T23:00:00Z");
+        for arg in [
+            "2026-11-02 07:15",
+            "2026-11-02T07:15",
+            "2026-11-02 07:15:00",
+            " 2026-11-02T07:15:00 ",
+        ] {
+            assert_eq!(
+                parse_instant_in(arg, now, &tz),
+                Ok(ms("2026-11-02T15:15:00Z")),
+                "{arg}"
+            );
+        }
+        assert_eq!(
+            parse_instant_in("2026-11-02", now, &tz),
+            Ok(ms("2026-11-02T08:00:00Z")),
+            "a bare date is its local midnight"
+        );
+        // The day the clocks fell back: 01:30 happens twice, and the earlier is PDT.
+        assert_eq!(
+            parse_instant_in("2026-11-01 01:30", now, &tz),
+            Ok(ms("2026-11-01T08:30:00Z"))
+        );
+        for bad in [
+            "2026-11-02 25:00",
+            "2026-13-02",
+            "2026-11-02 07",
+            "11/02 07:15",
+        ] {
+            assert!(
+                matches!(
+                    parse_instant_in(bad, now, &tz),
+                    Err(TimeError::BadInstant(_))
+                ),
+                "{bad}"
+            );
+        }
     }
 
     #[test]
