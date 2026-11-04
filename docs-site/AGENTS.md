@@ -57,5 +57,4 @@ dashboard, not in this repository; keep them in step with the `build` target.
 
 ## Pending user actions
 
-- Publish `@steamfield/ui` 0.4.0 (the release that adds the `consent` subpath; 0.3.0 on npm doesn't have it) and bump the dependency to `~0.4.0`. Until then this branch doesn't build from a clean install.
 - In the shared Steamfield PostHog project, set `PUBLIC_POSTHOG_KEY` (and `PUBLIC_POSTHOG_HOST` if not US cloud) as environment variables for the Production environment only on the `statglass` Pages project, and enable "Cookieless server hash mode" and "Discard client IP data" in its settings.
