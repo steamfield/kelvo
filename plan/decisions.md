@@ -4051,12 +4051,13 @@ phase 3 (unmounting a hidden dashboard's content), which would have kept the JS 
 
 History read connections beyond 2 idle ones are closed as they return to the pool, with
 their SQLite page caches, instead of staying open for the life of the store. TanStack
-Query's default `gcTime` is 0: a result nothing renders is dropped at once, since a read
-is a local IPC call. The public-address and Docker cleanup queries keep their own longer
-times. The Timeline's heatmap is read again when a metric is switched back to.
+Query's default `gcTime` is 30 s, from the library's 5 minutes: long enough for Back to
+return to the same rows and scroll position (0 broke the containers detail Back
+restore), while a read is a local IPC call. The public-address and Docker cleanup
+queries keep their own longer times.
 
 Cost: a WebKit SPI dependency that a future WebKit may drop (the defaults then return,
 with the 250 MB); reopening the dashboard after 10 s is a cold load; switching back to a
-range refetches it. Revisit if a cold dashboard open becomes visibly slow, or if WebKit
+range after 30 s refetches it. Revisit if a cold dashboard open becomes visibly slow, or if WebKit
 stops honouring the feature (the bench's `STATGLASS_BENCH_WK_DEFAULTS=0` measures the
 difference).

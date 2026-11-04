@@ -53,8 +53,7 @@ export interface HeatmapData {
  * moves each local hour; within the hour it is read again every 5 minutes,
  * the writer's commit interval (D-070), so the current hour fills in as its
  * minutes land instead of staying empty until the next hour. Never per
- * tick. Switching back to a metric reads it again (the client keeps no
- * history nothing renders).
+ * tick. Switching back to a metric within 30 seconds is a cache hit.
  */
 export function useHeatmap(metric: HeatmapMetric): HeatmapData {
   const transport = useTransport();

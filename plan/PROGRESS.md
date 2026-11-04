@@ -11,7 +11,7 @@ The popover's webview is built without WebKit's accelerated drawing
 the WebKit GPU process while it is open, for 0.3 to 0.5 points of CPU. The dashboard keeps it
 (off costs about 6 points). A closed dashboard is destroyed after 10 s instead of 5 minutes (cold
 open about 110 ms). The history read pool keeps at most two idle connections. TanStack Query's
-default `gcTime` is 0. Bench tooling: `STATGLASS_BENCH_EVAL`, `STATGLASS_BENCH_WK_FEATURES`,
+default `gcTime` is 30 s (0 broke the containers Back restore). Bench tooling: `STATGLASS_BENCH_EVAL`, `STATGLASS_BENCH_WK_FEATURES`,
 `STATGLASS_BENCH_WK_DEFAULTS=0`, and `open=`, `popover`, `popover-hide` action steps.
 
 Verified: the read-pool cap test fails without the cap, the frontend suite, clippy for default,

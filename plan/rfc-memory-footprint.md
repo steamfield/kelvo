@@ -255,7 +255,7 @@ connections), and the GPU process (8 to 23 MB).
 
 Open: the history payload is JSON objects per point; a columnar binary response (Tauri's raw
 `Response`) would cut parse time and heap, and changes the webview's data types, so it needs
-its own decision. WebContent growth on range switching (phase 2) is now bounded by `gcTime: 0`
+its own decision. WebContent growth on range switching (phase 2) is now bounded by a 30 s `gcTime`
 but was not re-measured. The popover with accelerated drawing off has not been compared by
 eye against the old rendering.
 
