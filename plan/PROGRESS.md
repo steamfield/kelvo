@@ -18,6 +18,21 @@ or warnings. Compared Chromium screenshots at 1280 and 390 px. The shorter
 intro leaves more room for the mobile demo, with the existing type, spacing,
 and component styles. Exercised the desktop dashboard and both popover demos.
 
+Deployed source revision `956ac376ce635e61a138d1ab9f1a98329c79bb75`. The normal
+pre-push hook passed `make check`, `make bindings-check`, and all 13 Chromium
+performance tests after three retries on native process-allocation checks.
+The successful run included 1,404 app Vitest tests and seven active native
+performance tests, with the manual WAL comparison ignored. In the
+[source revision's CI run](https://github.com/steamfield/statglass/actions/runs/41916020882),
+Linux and all dependency jobs passed. The frontend job timed out downloading
+Ubuntu packages for Playwright after its frontend checks and build passed.
+
+On production, the homepage and all nine HTML docs returned 200 and used
+production canonicals. The demo redirect targets kept their queries and sent
+`noindex`, as did the Pages alias. The sitemap listed all ten HTML URLs,
+the Markdown install guide returned 200, the missing-page check returned
+404 with `noindex`, and the social image matched the committed file.
+
 ## Memory footprint, GPU process and window lifecycle (2026-11-04, branch `perf/memory-footprint-bench`, D-127)
 
 The popover's webview is built without WebKit's accelerated drawing
