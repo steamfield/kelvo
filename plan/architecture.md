@@ -89,6 +89,7 @@ flowchart LR
 | `statglass-engine` | Sampler loop, `Ticker` and `PowerSignals` traits, cadence scheduling, 1s ring buffer, rollup accumulators, event detectors, alert evaluation, the bus; history housekeeping (`Housekeeping`: the prune schedule, the low-disk check, `HistoryHealth`), `HistoryStore` lifecycle and generation-safe reader/reset ownership, persisted/recent query merging, and process view shaping (`ProcessView`, `select_processes`) | Know about Tauri or windows |
 | `statglass-remote` | SSH setup/session protocol, client/server state, `Mirror` durable cursors and transient recent rows, typed mirror failures | Depend on Tauri or windows |
 | `statglass-remote-helper` | Bundled stdio-to-local-socket bridge for the running Mac app | Become a second collector or database writer |
+| `statglass-query` | The public CLI query contract (D-126): `QueryRequest`/`QueryResponse` and result DTOs, framing, the blocking client, JSON Schemas, did-you-mean and time parsing helpers | Depend on tokio, store, engine or remote; open SQLite |
 | `src-tauri` | `HostRegistry`, `LocalSource`, settings and layout ownership, tray rendering, popover panel, window and channel lifecycle, commands and events (tauri-specta) | Contain metric logic that the agent would also need |
 | `statglass-agent` (v4) | `serve --stdio`, install/update self, user-level launchd/systemd unit | Depend on Tauri |
 

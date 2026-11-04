@@ -29,4 +29,25 @@ fi
 rm -rf "$DEST"
 mv "$STAGING/StatGlass.app" "$DEST"
 echo "statglass: installed $DEST."
+
+# Link the command-line tool onto PATH (D-126). The link points into the bundle, so
+# updates keep it current. Only an existing symlink is replaced, never a regular file.
+link_cli() {
+  local bin_dir="$HOME/.local/bin"
+  local link="$bin_dir/statglass"
+  local target="$DEST/Contents/MacOS/statglass-cli"
+  [ -x "$target" ] || return 0
+  mkdir -p "$bin_dir"
+  if [ -e "$link" ] && [ ! -L "$link" ]; then
+    echo "statglass: $link exists and is not a link; left it alone. To use this build: ln -sf \"$target\" \"$link\"" >&2
+    return 0
+  fi
+  ln -sfn "$target" "$link"
+  echo "statglass: linked $link to the bundled command-line tool."
+  case ":$PATH:" in
+    *":$bin_dir:"*) ;;
+    *) echo "statglass: $bin_dir is not on PATH; add it to your shell profile to run statglass." >&2 ;;
+  esac
+}
+link_cli
 open "$DEST"

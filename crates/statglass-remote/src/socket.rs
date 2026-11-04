@@ -71,7 +71,10 @@ pub struct ControlResponse {
     pub updates: Option<crate::control::RemoteUpdateStatus>,
 }
 
-pub(crate) fn bind_private(path: &Path) -> Result<UnixListener> {
+/// Binds an owner-only socket at `path`: its directory created or tightened to 0700, the
+/// socket 0600, a stale socket of ours replaced, anything else there refused. Also the app
+/// shell's CLI query socket (D-126).
+pub fn bind_private(path: &Path) -> Result<UnixListener> {
     let parent = path
         .parent()
         .ok_or_else(|| RemoteError::Protocol("socket needs parent".into()))?;
@@ -121,7 +124,8 @@ fn private_socket_dir(dir: &Path, uid: u32) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn same_uid(stream: &UnixStream) -> Result<()> {
+/// Refuses a peer running as another user. Checked on every accept.
+pub fn same_uid(stream: &UnixStream) -> Result<()> {
     let credentials = stream.peer_cred()?;
     // SAFETY: geteuid has no preconditions.
     if credentials.uid() != unsafe { libc::geteuid() } {

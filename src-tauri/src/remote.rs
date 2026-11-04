@@ -144,6 +144,33 @@ impl RemoteManager {
             source.set_controller_on_battery(on_battery);
         }
     }
+    /// A saved host's enabled flag and current status, for the CLI query socket (D-126).
+    pub(crate) fn cli_view(&self, host: HostId) -> Option<(bool, RemoteHostStatus)> {
+        let enabled = self.saved.lock_ok().get(&host)?.config.enabled;
+        let status = self.statuses.lock_ok().get(&host).cloned();
+        Some((enabled, status.unwrap_or_default()))
+    }
+    /// Every saved host's record, registered or not.
+    pub(crate) fn saved_records(&self) -> Vec<HostRecord> {
+        self.saved
+            .lock_ok()
+            .values()
+            .map(|h| h.record.clone())
+            .collect()
+    }
+    /// Where the host's mirror is complete through. Blocking: reads the mirror's store.
+    pub(crate) fn sync_watermark(
+        &self,
+        host: HostId,
+    ) -> Result<statglass_remote::SyncWatermark, CommandError> {
+        let sink = self
+            .mirrors
+            .lock_ok()
+            .get(&host)
+            .map(|m| m.sink.clone())
+            .ok_or(CommandError::UnknownHost { host })?;
+        sink.sync_watermark().map_err(failure)
+    }
     pub fn recent(&self, host: HostId, from: i64, to: i64) -> Vec<statglass_store::BucketRow> {
         self.mirrors
             .lock_ok()

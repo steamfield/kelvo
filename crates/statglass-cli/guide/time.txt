@@ -1,0 +1,12 @@
+Time
+
+--since <duration>: 90s, 15m, 2h or 3d back from now. The default everywhere is --since 1h.
+--from and --to: RFC 3339 with an offset (2026-11-03T15:00:00-08:00), a time today (15:00 or 15:00:30), or a duration ago (--from 3h --to 1h). --to defaults to now; --to alone means the hour before it. --since is not combined with them.
+
+Bare times use this Mac's timezone, remote hosts included, because StatGlass does not know a remote host's zone. A bare time in a daylight-saving gap or overlap means the earlier instant. For an earlier day use RFC 3339 or a duration ago (--from 1d --to 20h).
+
+A range that starts before a host's retained history is clamped, and the answer says where history starts. Remote mirrors keep about 30 days and can hold less; top keeps 30 days of usage.
+
+How times print: text shows 15:12 for today and Nov 2 15:12 otherwise. JSON timestamps are RFC 3339 in this Mac's offset.
+
+history: the summary covers every stored bucket in the range, so --points never changes it. Buckets are 1 minute wide up to 7 days back and 15 minutes beyond. The time of the max is the start of the bucket it fell in ("max 97.0% in the minute from 15:12"). Means over 15-minute buckets are approximate and marked (mean approximate). There is no percentile on purpose.

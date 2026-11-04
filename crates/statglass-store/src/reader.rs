@@ -24,8 +24,10 @@ use crate::types::{
 mod export;
 mod growth;
 mod heatmap;
+mod inventory;
 mod net;
 mod stats;
+mod summary;
 mod usage;
 mod usage_growth;
 pub use usage_growth::UsageHistoryGrowth;
@@ -33,8 +35,10 @@ pub use usage_growth::UsageHistoryGrowth;
 pub use export::{ExportQuery, ExportSummary};
 pub use growth::{HistoryGrowth, MIN_MEASURED_MS};
 pub use heatmap::{BATTERY_CHARGE, BATTERY_CHARGING, BatteryCell, fill_battery_hours};
+pub use inventory::{EventsRead, RetainedSpan};
 pub use net::net_by_app_recent;
 pub use stats::{MetricStats, RangeStats, range_stats};
+pub use summary::{BucketValue, SeriesSummaries, SeriesSummary, series_summary};
 
 /// How far from the requested instant a process snapshot still counts as "at" it: half
 /// the widest snapshot spacing (30 s in Performance mode, D-088), so an instant between
@@ -311,23 +315,9 @@ impl Reader {
 
     /// `query_events`: the events with `from_ms <= ts < to_ms`, oldest first. A payload
     /// this build cannot decode, a kind from a newer build among them, is skipped (D-083).
+    /// [`Reader::events_counted`] reports how many were skipped.
     pub fn events(&mut self, host: HostId, from_ms: i64, to_ms: i64) -> Result<Vec<Event>> {
-        let host_ref = self.host_ref(host)?;
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT payload FROM events WHERE host_id = ?1 AND ts >= ?2 AND ts < ?3
-             ORDER BY ts, kind",
-        )?;
-        let rows = stmt.query_map(params![host_ref, from_ms, to_ms], |r| {
-            r.get::<_, Vec<u8>>(0)
-        })?;
-        let mut out = Vec::new();
-        for payload in rows {
-            match ciborium::from_reader::<Event, _>(payload?.as_slice()) {
-                Ok(e) => out.push(e),
-                Err(e) => tracing::debug!("skipping an event this build cannot decode: {e}"),
-            }
-        }
-        Ok(out)
+        Ok(self.events_counted(host, from_ms, to_ms)?.events)
     }
 
     // --- processes ------------------------------------------------------------------------

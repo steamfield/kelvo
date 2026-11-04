@@ -1,0 +1,15 @@
+Series and quoting
+
+A series is a metric id plus labels, written the way the catalog prints it:
+  cpu.total
+  'cpu.load{core=3}'
+  'cgroup.cpu{kind=container,name=postgres}'
+  'net.rx{iface=en0}'
+
+statglass metrics lists every metric id with its label keys, unit and whether it keeps history beyond the last hour. statglass metrics --host <host> also lists the series that host has stored: those are the exact names statglass history takes. A bare labelled metric (cpu.load) selects every series of that metric, up to its max_cardinality.
+
+Quoting: braces and commas are shell syntax. zsh and bash expand an unquoted cgroup.cpu{kind=container,name=postgres} into two words, and sensor labels contain spaces. Always single-quote a series that has braces. An argument with = but no braces is what that expansion leaves behind; the UnknownMetric error then says to quote it.
+
+Units are the catalog's: percent (per-process and per-cgroup CPU is percent of one core and can exceed 100), bytes, bytes_per_sec, bits_per_sec, hz, watts, celsius, rpm, count and enum (a small code whose meaning the metric documents, such as thermal.state 0 to 3 and mem.pressure_level 0 to 2).
+
+cgroup.* series exist on Linux hosts only: services, containers (kind=docker or podman) and user sessions. Per-app usage on any host is statglass top, not a series.

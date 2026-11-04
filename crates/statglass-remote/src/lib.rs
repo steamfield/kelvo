@@ -14,7 +14,7 @@ mod mirror_error;
 mod mirror_sink;
 pub use mirror_error::MirrorError;
 mod pages;
-pub use mirror::Mirror;
+pub use mirror::{Mirror, SyncWatermark};
 mod server;
 mod socket;
 mod source;
@@ -29,7 +29,10 @@ pub use mirror_sink::MirrorSink;
 pub use pages::{page_from_wire, page_to_wire};
 pub use server::status_to_wire;
 pub use server::{ServerProvider, headline_metrics, serve_connection, serve_metrics};
-pub use socket::{ControlRequest, ControlResponse, SocketPaths, control_request, serve_control};
+pub use socket::{
+    ControlRequest, ControlResponse, SocketPaths, bind_private, control_request, same_uid,
+    serve_control,
+};
 pub use source::{ConnectionStatus, RemoteSource, StatusCallback};
 pub use statglass_proto::RemoteInterest;
 pub use stdio::stdio_bridge;

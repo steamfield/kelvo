@@ -30,8 +30,10 @@ statglass-store         -> schema
 statglass-engine        -> schema, collect, store
 statglass-remote        -> schema, proto, store, engine
 statglass-remote-helper -> remote
+statglass-query         -> schema
+statglass-cli           -> query, schema
 statglass-agent         -> schema, proto, store, engine, remote
-statglass (src-tauri)   -> schema, proto, store, engine, remote
+statglass (src-tauri)   -> schema, proto, store, engine, remote, query
 ```
 
 The policy records dev edges separately (including store's protocol fixtures). Do not

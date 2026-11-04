@@ -374,6 +374,9 @@ impl SettingsEffects for ShellEffects<'_> {
         if old.remote_access != new.remote_access {
             crate::remote::refresh_metrics(self.app, new.remote_access.enabled);
         }
+        if old.cli_access != new.cli_access {
+            crate::query::refresh(self.app, new.cli_access.enabled);
+        }
         if old.docker != new.docker {
             let _ = self.state.docker.configure(new.docker.clone());
         }

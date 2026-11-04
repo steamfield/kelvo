@@ -428,3 +428,52 @@ fn ring_history_merges_durable_rows_with_the_recent_snapshot() {
     let points: Vec<(i64, f32)> = cpu.points.iter().map(|p| (p.t, p.avg)).collect();
     assert_eq!(points, vec![(TS, 2.), (TS + 10_000, 5.)]);
 }
+
+/// The watermark is what was committed with a cursor: not the recent snapshot, kept
+/// across a truncation and a reopen, and moved on by the pages after it.
+#[test]
+fn sync_watermark_tracks_committed_pages_per_tier() {
+    let dir = tempfile::tempdir().unwrap();
+    let m = mirror(dir.path(), 2);
+    assert_eq!(m.sync_watermark().unwrap(), SyncWatermark::default());
+    let epoch = Uuid::new_v4();
+    m.cursor(Tier::S10, epoch, SyncKinds::ALL).unwrap();
+    m.ingest(page(epoch), SyncKinds::ALL).unwrap();
+    let mut tail = row();
+    tail.bucket_ts = TS + 10_000;
+    m.recent(epoch, Tier::S10, TS + 20_000, vec![layout()], vec![tail])
+        .unwrap();
+    let mut minutes = page(epoch);
+    minutes.tier = Tier::M1;
+    m.ingest(minutes, SyncKinds::ALL).unwrap();
+    let after_sync = SyncWatermark {
+        s10_ms: Some(TS + 10_000),
+        m1_ms: Some(TS + 60_000),
+        m15_ms: None,
+    };
+    assert_eq!(m.sync_watermark().unwrap(), after_sync);
+    assert_eq!(after_sync.synced_through_ms(), Some(TS + 10_000));
+    assert_eq!(after_sync.tier(Tier::M1), Some(TS + 60_000));
+
+    // Truncation keeps the rows held, so the watermark stays at their end.
+    m.truncated(Tier::M1, epoch, TS + 3_600_000).unwrap();
+    assert_eq!(m.sync_watermark().unwrap(), after_sync);
+
+    // A reconnect or restart reads it back from the database.
+    m.history.close();
+    let reopened = mirror(dir.path(), 2);
+    assert_eq!(reopened.sync_watermark().unwrap(), after_sync);
+
+    // Pages from the remote's earliest row move it on.
+    reopened.cursor(Tier::M1, epoch, SyncKinds::ALL).unwrap();
+    let mut resumed = page(epoch);
+    resumed.tier = Tier::M1;
+    resumed.rows[0].bucket_ts = TS + 3_600_000;
+    resumed.rows[0].seq = 7;
+    resumed.last_seq = 7;
+    reopened.ingest(resumed, SyncKinds::ALL).unwrap();
+    assert_eq!(
+        reopened.sync_watermark().unwrap().m1_ms,
+        Some(TS + 3_660_000)
+    );
+}

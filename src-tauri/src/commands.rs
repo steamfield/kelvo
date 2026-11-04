@@ -212,7 +212,7 @@ pub async fn battery_hours(
 
 /// Where the engine's recent rows a read starting at `from_ms` needs begin: the read
 /// widens to the bucket holding `from_ms`, up to a 15-minute one.
-fn recent_from(from_ms: i64) -> i64 {
+pub(crate) fn recent_from(from_ms: i64) -> i64 {
     from_ms.saturating_sub(statglass_schema::Tier::M15.bucket_ms().unwrap_or(0))
 }
 

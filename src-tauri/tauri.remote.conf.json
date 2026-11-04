@@ -1,5 +1,8 @@
 {
   "bundle": {
-    "externalBin": ["binaries/statglass-remote-helper"]
+    "externalBin": [
+      "binaries/statglass-remote-helper",
+      "binaries/statglass-cli"
+    ]
   }
 }
