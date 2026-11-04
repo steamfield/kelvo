@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.6.0](https://github.com/steamfield/statglass/compare/v0.5.0...v0.6.0) - 2026-11-04
+
+### Changed
+
+- StatGlass uses far less memory. The popover no longer makes the WebKit GPU process
+  hold about 250 MB while it is open: the whole app measured about 170 MB with the
+  popover open, from about 420 MB. A closed dashboard is released after 10 seconds
+  instead of 5 minutes, so closing it brings the app back to about 170 MB within
+  seconds instead of holding 450 MB for 5 minutes. History the dashboard no longer
+  shows is dropped at once, and history reads keep fewer database connections open.
+
+### Added
+
+- `statglass` commands accept a local date and time for `--from` and `--to` (`2026-11-03 15:00`, or `2026-11-03` for midnight) in this Mac's timezone.
+- `statglass events --summary` counts a range's events per kind, with the processes
+  named most often and a count per day.
+- `statglass history` reports the width of each point slot and prints a "no data"
+  row for empty slots.
+
+### Fixed
+
+- A remote host's last minutes not yet synced are labelled not synced instead of no
+  data.
+- A mistyped series label (`disk.read{dev=disk9}`) is an error with the closest
+  stored series suggested, instead of an empty answer.
+- Text output dates every time when a range reaches past today, and `top` says
+  whether it shows average CPU or peak memory.
+
 ## [0.5.0](https://github.com/steamfield/statglass/compare/v0.4.1...v0.5.0) - 2026-11-03
 
 ### Added

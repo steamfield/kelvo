@@ -1,19 +1,27 @@
-# StatGlass 0.5.0
+# StatGlass 0.6.0
 
 StatGlass is a free, open-source system monitor for Apple Silicon Macs running macOS
 26 or later.
 
-StatGlass now includes a command-line tool, `statglass`, so coding agents and scripts can
-ask what happened on this Mac and on your remote hosts. It reads what StatGlass already
-collects: current readings, history with its gaps, detector events and the top apps
-for a time window. It only reads, and only programs running under your account can
-use it.
+This release cuts StatGlass's memory use, most of all while the popover is open and
+after you close the dashboard.
 
-- Turn it on or off in **Settings → Command line**. Access is on by default.
-- **Settings → Command line** also adds the `statglass` command to `~/.local/bin`.
-- Run `statglass` with no arguments for a short guide. Run `statglass skill install`
-  to teach Claude Code how to use it.
-- StatGlass must be running for the command to answer.
+- With the popover open, StatGlass measured about 170 MB in all, down from about
+  420 MB. Most of the difference was graphics memory WebKit kept for the popover's
+  once-a-second redraw.
+- Closing the dashboard now releases it after 10 seconds instead of 5 minutes, so the
+  app is back to about 170 MB within seconds. Opening it again takes a fraction of a
+  second.
+- History a chart no longer shows is dropped right away, and history reads keep fewer
+  database connections open.
+
+The `statglass` command-line tool also gets a few additions:
+
+- `--from` and `--to` accept a local date and time, such as `2026-11-03 15:00`, or a
+  date alone for midnight.
+- `statglass events --summary` counts a range's events per kind.
+- A remote host's last minutes that have not synced yet are labelled as such, and a
+  mistyped series label suggests the closest stored series.
 
 ## Moving from Kelvo
 
