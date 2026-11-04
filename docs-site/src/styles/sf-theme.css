@@ -27,8 +27,8 @@
   --sf-consent-accent: var(--color-primary);
   --sf-consent-accent-foreground: var(--color-primary-foreground);
   --sf-consent-radius: var(--radius-panel);
-  --sf-consent-shadow: 0 10px 30px
-    color-mix(in srgb, var(--color-foreground) 12%, transparent);
+  /* A dark shadow in both modes; no app token is dark in light mode. */
+  --sf-consent-shadow: 0 10px 30px color-mix(in srgb, black 20%, transparent);
   --sf-consent-font: var(--font-sans);
   /* Above the sticky header (40), below the focused skip link (50). */
   --sf-consent-z-index: 45;

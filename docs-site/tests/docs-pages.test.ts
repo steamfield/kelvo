@@ -217,6 +217,12 @@ it("loads the key once, posthog-js, the banner and its styles when the build has
   expect(filesContaining(reached, key)).toHaveLength(1);
   expect(filesContaining(reached, sdkMarker)).toHaveLength(1);
   expect(filesContaining(reached, consentMarker)).not.toEqual([]);
+  // The site value the layout passes to initAnalytics, and the consent domain.
+  const sources = [...reached.values()];
+  expect(
+    sources.some((source) => /site:\s*["'`]statglass["'`]/.test(source))
+  ).toBe(true);
+  expect(sources.some((source) => source.includes("steamfield.io"))).toBe(true);
   expect(stylesIn(keyed).filter(isConsentStyle)).not.toEqual([]);
 }, 180_000);
 
