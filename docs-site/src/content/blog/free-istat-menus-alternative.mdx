@@ -1,0 +1,103 @@
+---
+title: A free iStat Menus alternative for Mac
+headline: Which free iStat Menus alternative fits your Mac?
+description: Stats and StatGlass are free iStat Menus alternatives. Compare their fit, try StatGlass's local history demo, and check the limits before switching.
+published: 2026-11-05
+keyword: free istat menus alternative
+feature: menu-bar
+relatedDocs: ["install", "menu-bar-and-windows", "history", "privacy"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+import { PopoverFigure } from "@/islands/PopoverFigure";
+
+Stats and StatGlass are two free iStat Menus alternatives. Stats is an established open-source menu bar monitor with a broad module set; StatGlass is a free, open-source menu bar system monitor under Apache-2.0 that keeps up to 30 days of local history. StatGlass requires an Apple Silicon Mac (M1 or newer) running macOS 26 or newer. If you only need to find a busy process right now, open the built-in Activity Monitor through Spotlight, select CPU and sort by % CPU.
+
+## Which free iStat Menus alternative should I start with?
+
+Start with [Stats on GitHub](https://github.com/exelban/stats) if your main requirement is free menu bar monitoring. It is open source under the MIT license. The repository contains the source and links to its releases.
+
+Choose StatGlass when you want to leave the monitor running and investigate an earlier slowdown afterward. Its Timeline connects recorded resource readings with app usage over a selected interval. That gives you something to inspect after a build finishes or a busy app exits. StatGlass has [its own source repository](https://github.com/steamfield/statglass), so you can inspect it or build it yourself too.
+
+StatGlass does not support Intel Macs because its power and sensor readings use interfaces available only on Apple Silicon.
+
+## What would I give up by leaving iStat Menus?
+
+[Bjango's iStat Menus](https://bjango.com/mac/istatmenus/) is paid software sold as a one-time purchase with a free trial, and it is also available through Setapp. Version 7 is the current major version. Bjango's page has current pricing.
+
+iStat Menus includes weather, with weather data sold as a separate in-app purchase after an included period. StatGlass has no weather or fan control. It also has no desktop widgets or custom alert editor; its two built-in alerts are disabled by default. If those are requirements, StatGlass will leave gaps in your setup. Keep a working iStat Menus installation if its menu bar customization and feature depth are what you rely on.
+
+## Do I need another app for a quick check?
+
+Activity Monitor is enough to identify a process that is still busy. On macOS Tahoe, you can check it without installing a replacement monitor:
+
+1. Press Command-Space, type `Activity Monitor` and press Return.
+2. Select CPU, then choose View > All Processes so the list includes background processes.
+3. Click the % CPU column heading until the highest values are at the top. Watch several updates while the problem is happening.
+
+A busy process may be doing exactly what you asked, such as exporting video. Check the corresponding app before stopping anything, and save your work before quitting it normally. The sorted list gives you a lead to investigate.
+
+Activity Monitor's window works well for this immediate question. Opening it after the activity has ended cannot reconstruct an unrecorded afternoon. The [Activity Monitor alternative guide](/blog/activity-monitor-alternative) covers that distinction in more depth, including how to investigate a recorded interval.
+
+## What does StatGlass put in the menu bar?
+
+StatGlass keeps readings visible with its dashboard closed. You can use one combined menu bar item or separate items per module, and change the arrangement in Settings. CPU can have a per-core strip; numbers and graphs provide other ways to show readings. Settings warns when the combined item grows wide enough to risk disappearing behind a MacBook's camera notch.
+
+Clicking an item opens the popover, a compact column of module cards. In the live demo below, expand a card with its expansion control, then click the card to open its dashboard page. The readings are sample data.
+
+<PopoverFigure
+  client:visible
+  caption="Live demo on sample data: the StatGlass popover. Expand a card, or click one to open its dashboard page."
+/>
+
+Cards remember whether you left them collapsed or expanded. The [menu bar and windows guide](/docs/menu-bar-and-windows) explains those views. For a closer comparison of the arrangements, see [choosing a Mac menu bar system monitor](/blog/mac-menu-bar-system-monitor).
+
+The dashboard supplies context for the small reading: CPU includes per-core load and top processes, while Memory includes pressure and swap.
+
+## Can I look back at last week's slowdown?
+
+StatGlass's Timeline shows recorded resource activity on aligned lanes and marks events such as fan ramps and sustained CPU use by a process. Selecting a shorter interval zooms in and scopes the recorded app usage. That helps separate a busy ten minutes from the quieter hours surrounding it.
+
+This demo opens on seven days of sample history. Drag across a lane around a busy period, then scroll inside the dashboard to the app usage table. Click Compare previous interval to compare app usage, or use Back to restore the wider view.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/timeline"
+  params={{ chart_window: "7d" }}
+  title="StatGlass Timeline, last 7 days"
+  caption="Live demo on sample data: a week of history. Drag across a lane to zoom in and see which apps were busy."
+/>
+
+Thirty days is the maximum history depth, with the available span depending on recorded activity and the storage limit. The default limit is 750 MB, changeable in Settings. Resource history uses 10-second buckets for 24 hours, one-minute buckets through seven days and 15-minute buckets through 30 days. Older readings therefore describe longer spans, with less detail about brief spikes.
+
+StatGlass must have been running to record the activity. Sleep and time with the app closed appear as gaps. At the storage limit, older process details and app usage are removed before resource charts, so a surviving chart does not guarantee all its attribution remains. The [history and storage guide](/docs/history) explains retention and trimming.
+
+## What does it cost to leave StatGlass running?
+
+The project's published benchmark measured the following on an M3 Max running macOS 27, plugged in, on October 7, 2026. CPU is CPU time over 120 seconds, including helper processes, expressed as a percentage of one core. Memory is the combined physical footprint.
+
+| App              | State                           | CPU   | Memory |
+| ---------------- | ------------------------------- | ----- | ------ |
+| StatGlass        | Menu bar only, default settings | 0.67% | 105 MB |
+| Stats 3.0.20     | Menu bar only, default settings | 4.1%  | 149 MB |
+| Activity Monitor | Window open, 5 s updates        | 3.9%  | 138 MB |
+
+These are single runs on a busy machine with other builds running. Stats used its own default module set, which was not matched to StatGlass's. The measurements predate remote monitoring and had Docker monitoring off. They describe those runs, without establishing a fixed cost or a general performance ranking.
+
+Activity Monitor had its window open, so compare its result with StatGlass's published 6 to 10% windowed figure, depending on the page. StatGlass samples every two seconds with only the menu bar showing and every second by default with a window open. Run `make bench` from a repository checkout to measure your own Mac in the state you intend to use.
+
+## Can I watch other machines or query history from an agent?
+
+StatGlass can show remote Macs and Linux hosts over SSH in its dashboard. Both Macs need Apple Silicon and macOS 26 or newer; Linux hosts need systemd and an x86_64 or aarch64 processor. Remote menu bar readings remain future work, so the menu bar still describes your local Mac. The [Linux server monitoring walkthrough](/blog/monitor-linux-server-from-mac) covers setup.
+
+Its read-only CLI also lets a shell-capable agent query metrics and recorded history. Local monitoring keeps data on your Mac, without a StatGlass backend receiving it. Adding remote monitoring allows authorized SSH clients to read that host's metrics and history, with a separate local mirror on the controller. The [privacy and data guide](/docs/privacy) explains that sharing.
+
+## How does installing StatGlass work?
+
+The app is free and distributed as a DMG from GitHub Releases. It is not on Homebrew or the Mac App Store yet. The [installation guide](/docs/install) includes the download and source-build instructions; the DMG requires no build tools.
+
+1. Open `StatGlass_aarch64.dmg` and drag StatGlass into Applications.
+2. Eject the DMG, then open StatGlass from Applications.
+3. If macOS blocks the first launch, open System Settings > Privacy & Security > Open Anyway, then confirm Open.
+
+That approval is expected because StatGlass is ad-hoc signed without Apple notarization. Managed Macs may restrict it. Automatic update installation is on by default. StatGlass verifies the download's updater signature and waits until the app's windows are closed before restarting. You can turn automatic installation off and check manually with Settings > General > Check now.
