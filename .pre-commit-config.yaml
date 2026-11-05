@@ -97,6 +97,9 @@ repos:
   # perf gates, Biome, typecheck, Vitest), the bindings freshness check and the
   # Playwright frontend perf gates, whose budgets are macOS numbers. Only
   # when the pushed commits touch code or manifests; docs-only pushes skip it.
+  # docs-site/ is its own Bun project with its own gate (make -C docs-site
+  # lint check test build) that none of these stages run, so site-only pushes
+  # (blog posts, landing page) skip it too.
   - repo: local
     hooks:
       - id: macos-check
@@ -105,6 +108,7 @@ repos:
         language: system
         stages: [pre-push]
         files: (\.(rs|ts|tsx|js|mjs|css|json|jsonc|toml|lock|html)$|^Makefile$|^clippy\.toml$|^perf-budget\.json$|^scripts/(pre-push-check\.sh$|verification/.*\.py$)|^\.pre-commit-config\.yaml$)
+        exclude: ^docs-site/
         pass_filenames: false
         require_serial: true
         verbose: true
