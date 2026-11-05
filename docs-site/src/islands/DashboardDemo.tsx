@@ -65,7 +65,7 @@ export function DashboardDemo({ route }: { route: string }) {
               ref={frameRef}
               src={href}
               title="StatGlass dashboard, live demo"
-              className={`block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
+              className={`ph-no-capture block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
             />
           )}
         </div>

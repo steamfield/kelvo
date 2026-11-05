@@ -56,7 +56,7 @@ export function PopoverDemo() {
             ref={frameRef}
             src={popoverDemoUrl()}
             title="StatGlass popover, live demo"
-            className={`block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
+            className={`ph-no-capture block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
           />
         )}
       </div>

@@ -366,6 +366,14 @@ it("loads the key once, posthog-js, the banner and its styles when the build has
   expect(build.status, build.stderr).toBe(0);
   const reached = scriptsReachedFrom(keyed, "index.html");
   expect(filesContaining(reached, key)).toHaveLength(1);
+  // The banner's text, which says what Accept turns on.
+  expect(
+    [...reached.values()].some((source) =>
+      source.includes(
+        "The StatGlass docs count visits and clicks with PostHog. Accept lets it set cookies so repeat visits count once, and turns on session recordings and heatmaps."
+      )
+    )
+  ).toBe(true);
   expect(filesContaining(reached, sdkMarker)).toHaveLength(1);
   expect(filesContaining(reached, consentMarker)).not.toEqual([]);
   // The site value the layout passes to initAnalytics, and the consent domain.
