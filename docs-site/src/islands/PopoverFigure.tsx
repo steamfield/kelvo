@@ -1,7 +1,8 @@
 import { MenuBarItem } from "@/islands/MenuBarItem";
 import { PopoverDemo } from "@/islands/PopoverDemo";
 
-export type PopoverFigureProps = { caption: string };
+/** PopoverDemo captions itself; `caption` adds a line under it. */
+export type PopoverFigureProps = { caption?: string };
 
 export function PopoverFigure({ caption }: PopoverFigureProps) {
   return (
@@ -14,9 +15,11 @@ export function PopoverFigure({ caption }: PopoverFigureProps) {
         <MenuBarItem />
         <PopoverDemo />
       </div>
-      <figcaption className="mt-3 text-xs text-muted-foreground">
-        {caption}
-      </figcaption>
+      {caption && (
+        <p className="mt-3 text-center text-xs font-normal text-muted-foreground">
+          {caption}
+        </p>
+      )}
     </figure>
   );
 }

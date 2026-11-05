@@ -44,7 +44,8 @@ export function ModuleReading({ module }: { module: ModuleKey }) {
             { label: "Utilization", value, fraction: total / 100 },
             {
               label: "Frequency",
-              value: `${(0.4 + total / 100).toFixed(2)} GHz`,
+              // One decimal: the row layout's value slot is 52 px.
+              value: `${(0.4 + total / 100).toFixed(1)} GHz`,
               fraction: (0.4 + total / 100) / 1.4,
             },
           ]
@@ -112,7 +113,7 @@ export function ModuleLiveCard({ module, caption }: ModuleLiveCardProps) {
       className="mx-auto w-full max-w-[360px] text-base leading-normal font-[510]"
     >
       <ModuleReading module={module} />
-      <figcaption className="mt-3 text-xs text-muted-foreground">
+      <figcaption className="mt-3 text-xs font-normal text-muted-foreground">
         Simulated reading{caption ? `. ${caption}` : ""}
       </figcaption>
     </figure>

@@ -6,6 +6,7 @@ export default getViteConfig({
     environment: "happy-dom",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
+    globalSetup: ["./tests/helpers/site-build-setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.ts"],
     env: {
       PUBLIC_POSTHOG_KEY: "",

@@ -1,20 +1,11 @@
 // @vitest-environment node
-import {
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseFrontmatter } from "astro/markdown";
 import { Window } from "happy-dom";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { expect, inject, it } from "vitest";
 import { DEMO_PARAM_KEYS, KNOWN_SCENARIOS } from "../src/lib/demo";
-import { buildSite } from "./helpers/frontend-build";
 
 const site = "https://statglass.steamfield.io";
 const blogDir = fileURLToPath(new URL("../src/content/blog/", import.meta.url));
@@ -24,13 +15,8 @@ const posts = readdirSync(blogDir, { recursive: true, encoding: "utf8" })
     id: name.slice(0, -4),
     ...parseFrontmatter(readFileSync(join(blogDir, name), "utf8")),
   }));
-const root = mkdtempSync(join(tmpdir(), "blog-pages-"));
-const output = join(root, "site");
-afterAll(() => rmSync(root, { recursive: true, force: true }));
-beforeAll(async () => {
-  const build = await buildSite(output);
-  expect(build.status, build.stderr).toBe(0);
-}, 180_000);
+// Built once per run by tests/helpers/site-build-setup.ts.
+const output = inject("siteDir");
 const window = new Window({ settings: { disableJavaScriptEvaluation: true } });
 const isFile = (path: string) => existsSync(path) && statSync(path).isFile();
 const page = (path: string) =>

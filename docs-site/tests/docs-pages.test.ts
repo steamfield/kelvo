@@ -10,19 +10,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Window } from "happy-dom";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, expect, inject, it } from "vitest";
 import { buildSite } from "./helpers/frontend-build";
 
 const site = "https://statglass.steamfield.io";
 const docsDir = fileURLToPath(new URL("../src/content/docs/", import.meta.url));
+// Built once per run by tests/helpers/site-build-setup.ts.
+const output = inject("siteDir");
+// The keyed build below gets its own directory.
 const root = mkdtempSync(join(tmpdir(), "docs-pages-"));
-const output = join(root, "site");
 afterAll(() => rmSync(root, { recursive: true, force: true }));
-
-beforeAll(async () => {
-  const build = await buildSite(output);
-  expect(build.status, build.stderr).toBe(0);
-}, 180_000);
 
 // Read straight from the source files, independently of the collection code under test.
 const pages = readdirSync(docsDir, { recursive: true, encoding: "utf8" })
