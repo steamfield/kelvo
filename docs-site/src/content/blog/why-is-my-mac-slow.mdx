@@ -29,7 +29,7 @@ Write down the time and the leading process names before changing anything. If o
 
 A process that stays near the top of % CPU during the delay is a candidate to investigate. High CPU during an export or a build can be expected. High CPU in an app that should be idle deserves a closer look.
 
-Activity Monitor's process percentages can exceed 100% because a process can use multiple CPU cores. A reading of 100% represents roughly one core's worth of work, not the whole Mac. Compare the busy rows with the overall CPU figures at the bottom before deciding that one process has exhausted the machine.
+Activity Monitor's process percentages can exceed 100% because a process can use multiple CPU cores. A reading of 100% represents roughly one core's worth of work, not the whole Mac. Compare the busy rows with the overall CPU figures at the bottom before deciding that one process has exhausted the machine. The guide to [checking CPU usage on a Mac](/blog/check-cpu-usage-mac) explains both scales.
 
 Pause a task inside the app you recognize, or save your work and quit the app normally. Watch whether CPU use falls and the delay clears. If a browser is busy, try closing the suspect tab before quitting the entire browser. Make one change at a time so you can tell which action affected the result.
 
@@ -51,7 +51,7 @@ Heat can make macOS reduce performance to keep the Mac cool. Fan noise is a clue
 
 Use Activity Monitor to identify sustained CPU or GPU work, then reduce the workload and see whether responsiveness returns as the Mac cools. Keep a laptop on a hard, flat surface with ventilation clear. Activity Monitor doesn't show temperatures or fan RPM, so it cannot confirm those readings for you.
 
-The [guide to loud Mac fans and temperature readings](/blog/why-is-my-mac-fan-so-loud) covers checking heat alongside workload. A temperature reading alone doesn't identify the responsible app, and there isn't one temperature that explains every slowdown on every Mac.
+The [guide to loud Mac fans and temperature readings](/blog/why-is-my-mac-fan-so-loud) covers checking heat alongside workload, and [how to check Mac temperature](/blog/check-mac-temperature) explains the sensor readings. A temperature reading alone doesn't identify the responsible app, and there isn't one temperature that explains every slowdown on every Mac.
 
 ## Is the startup disk nearly full?
 
