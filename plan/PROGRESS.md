@@ -4,6 +4,29 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Blog with ten SEO articles (2026-11-04)
+
+The site has a blog at `/blog`: an MDX collection (`docs-site/src/content/blog/`), list
+and article pages, BlogPosting and BreadcrumbList JSON-LD pointing at the homepage's
+SoftwareApplication `@id`, article Open Graph tags, `/blog/rss.xml`, a Blog section in
+`/llms.txt`, and a `/sitemap.xml` redirect to the generated index. Ten articles target
+problem searches (large files, Linux server monitoring, GPU usage, menu bar monitors,
+network by app, memory pressure, the agent CLI, loud fans, battery health, an Activity
+Monitor alternative). Each embeds the real app through `ArticleDemo`, which breaks out of
+the 760 px reading column to the dashboard's width and shows a live module card on phones.
+The app's mock transport gained preview-only deep links so demos open on a chosen state:
+`space_scan`, `host` (gated by `main.tsx`'s `preview`), `chart_window=24h|7d|30d`, and the
+route params `columns` (Processes) and `tab=largest` (Disk). The docs and blog build tests
+now share one build from a Vitest `globalSetup`; two parallel `astro build`s broke each
+other through `.astro/.prerender`.
+
+Verified with the docs-site lint, `astro check`, 181 Vitest tests and a production build;
+the app's scoped Vitest runs, lint and typecheck; and the Playwright specs for the touched
+routes (one `process-selection` flake under the full parallel run passed 27 of 27 alone).
+Screenshots at 1440 and 375 px, light and dark, compared with the landing page and docs.
+`make check` passed on main (1,440 app Vitest tests, Rust suites, bindings and policy checks). Open: per-article OG images, and a docs page for the CLI (article 7 is its
+first public description).
+
 ## Landing page SEO (2026-11-04)
 
 The StatGlass homepage now leads with its Mac menu bar monitor and local history.
