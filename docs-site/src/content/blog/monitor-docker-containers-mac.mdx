@@ -1,0 +1,116 @@
+---
+title: Monitor Docker containers on Mac
+headline: How to monitor Docker containers on your Mac
+description: Monitor Docker containers on Mac with docker stats for live CPU and memory, docker system df for disk usage, and StatGlass for local container history.
+published: 2026-11-05
+keyword: monitor docker containers on mac
+feature: containers
+relatedDocs: ["metrics", "history", "linux-hosts", "privacy"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To monitor Docker containers on Mac, open Terminal and run `docker stats` while your local Docker engine is running. It shows live CPU and memory per container; use `docker stats --no-stream` for one snapshot or `docker system df` for disk usage. Activity Monitor helps check the Mac's overall load, but it cannot break the Linux VM's work down by container.
+
+## How do I monitor Docker containers on Mac with docker stats?
+
+Start your existing Docker runtime, such as Docker Desktop, OrbStack or Colima, then run:
+
+```sh title="Watch running containers"
+docker stats
+```
+
+The command comes with Docker, not macOS. It needs a working Docker CLI connected to the engine you want to inspect. Keep it open during the slow part of `compose up`, then press Control-C to stop watching. If the client cannot connect, check that your runtime is running and that the CLI is pointed at the intended engine before investigating individual containers.
+
+For a compact snapshot you can copy into notes, choose only the columns you need:
+
+```sh title="Take one CPU and memory snapshot"
+docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
+```
+
+`--no-stream` exits after the first result. `--format` controls the columns; the `table` prefix keeps their headings. Docker's [stats command reference](https://docs.docker.com/reference/cli/docker/container/stats/) documents the available fields.
+
+## What do the docker stats numbers mean?
+
+Docker container CPU usage can exceed 100% because 100% represents one CPU core. A reading of 250% means roughly two and a half cores' worth of CPU time during the measured interval. It does not mean the container has exceeded the whole Mac's capacity.
+
+`MEM USAGE / LIMIT` compares memory use with the memory available to that container inside the Linux engine. The limit is not necessarily your Mac's installed RAM or a limit you explicitly set in Compose. For Linux containers, the CLI subtracts inactive file cache from reported memory use, so it can differ from a raw memory counter obtained through the Engine API.
+
+`NET I/O` and `BLOCK I/O` are accumulated byte counts. They help distinguish traffic from storage work, but they aren't current transfer speeds. `PIDS` includes threads as well as processes. A large count alone doesn't establish a fault.
+
+There is no sort-by-memory flag in `docker stats`. The formatted snapshot makes a small set easy to compare without a sorting pipeline. For a longer inventory, open StatGlass's Containers table and click its Memory heading to sort by working-set size. Sorting human-readable sizes as plain text can misorder them: a number in MiB and a number in GiB need unit-aware comparison.
+
+## Why is Docker using too much memory on my Mac?
+
+Linux containers on a Mac run inside a Linux virtual machine. Activity Monitor sees the macOS processes supporting that runtime, so a large VM or helper process doesn't identify the individual database or worker inside it. Runtime process names vary; searching for a particular helper name isn't a dependable container inventory.
+
+Open Activity Monitor with Command-Space, type `Activity Monitor`, press Return and select Memory. Memory Pressure indicates how efficiently memory is meeting the workload's needs. Check it while the slowdown is happening, then sort the Memory column with the largest readings first. Use `docker stats` alongside it to find the large container inside the engine.
+
+OrbStack memory usage and container working-set memory measure different things. The same distinction applies when checking Docker Desktop memory usage on Mac: the runtime supports the VM and its services, while Docker reports container-level accounting inside Linux. Don't add those figures together or call their difference runtime overhead.
+
+If one container leads memory use, check whether its workload explains it before changing limits. Stopping a database to test memory demand also interrupts clients using that database. A snapshot identifies a candidate; repeated growth under the same workload is more useful evidence than one large reading.
+
+## Which container was busy before I looked?
+
+`docker stats` doesn't retain history for later inspection. A quiet table after a build finishes cannot show which container was busiest halfway through it.
+
+StatGlass is a free, open-source menu bar system monitor under Apache-2.0 for Apple Silicon Macs on macOS 26 or newer. It keeps up to 30 days of local history, depending on recorded activity and the storage limit. Its opt-in Containers module reads the local Docker socket directly, without needing the Docker CLI, and records per-container CPU, working-set memory, network and block I/O.
+
+The Containers page lets you compare CPU or memory history and organize the table by Compose project. In the sample demo below, choose Memory to compare the container lines. Open View above the table and enable Group by project to group the eleven sample containers, then click a container name to open its detail page.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/containers"
+  params={{ scenario: "docker-11", chart_window: "24h" }}
+  title="StatGlass Containers page"
+  caption="Live demo on sample data: eleven containers with CPU and memory history. Group them by Compose project, or click one to open its detail page."
+/>
+
+Expand Runtime & history below the table to see the runtime's own processes on the Mac. They are a separate measurement from the containers, and StatGlass labels the runtime figures when it can't attribute them. Shared OrbStack runtime usage cannot be assigned entirely to Docker. The [container metrics guide](/docs/metrics) describes this measurement boundary.
+
+The Timeline also has a Docker lane, so you can compare container activity with the Mac's recorded metrics around the same time. Container history offers ranges from 15 minutes through 30 days, and removed containers keep their recorded history until retention expires. Monitoring must have been running during the incident; the [history and storage guide](/docs/history) explains retention and unrecorded gaps.
+
+## How do I investigate one container?
+
+Open its detail page for CPU and working-set memory charts, followed by network received and sent, block reads and writes, and lifecycle events. Container metadata includes ports, mounts and restart policy. Compare an event's time with the chart before deciding that a restart explains a spike.
+
+StatGlass marks an out-of-memory kill only when Docker provides explicit evidence through an OOM event or inspection. Exit code 137 alone is not proof of OOM. Repeated restarts means at least three observed restarts within five minutes, separate from Docker's cumulative restart count.
+
+Choose Open logs for the latest 200 lines, then enable Follow if you want new output. These logs stay in memory while viewed and are never saved as history. The [privacy and data guide](/docs/privacy) explains where local monitoring data lives.
+
+Start and Stop are the available lifecycle actions. Stop asks for confirmation and is disabled for AutoRemove containers because stopping them can delete the container and anonymous volumes. There is no container terminal or exec, build interface, Compose editor or container alert rule.
+
+## Where did Docker's disk space go?
+
+Use Docker's disk inventory before deleting files from a VM's storage:
+
+```sh title="Inspect Docker-managed disk usage"
+docker system df
+docker system df -v
+```
+
+The first command gives category totals; `-v` adds object-level detail. Both inspect usage without deleting anything. Image layers can be shared, so summing individual image sizes can count the same bytes more than once. An unused volume can still contain data you want to keep.
+
+StatGlass's Storage & cleanup view scans images, container writable layers, volumes and daemon build cache on demand, with a five-minute cache. It lets you review stopped containers and unused resources by size and project. The demo below opens that view on sample data. Select a resource marked Available for review, then click Review cleanup to inspect the proposed action; nothing starts selected.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/containers?view=storage"
+  params={{ scenario: "docker-11" }}
+  title="StatGlass Containers, Storage & cleanup"
+  caption="Live demo on sample data: images, volumes and build cache by size, with a reviewed cleanup."
+/>
+
+Cleanup requires confirming the selected actions. Volumes need a separate data-loss acknowledgement, and bind-mounted host files are never removed. Build-cache cleanup is available only for verified engine builds. Check the resource names and references before confirming, especially for database storage you might need again.
+
+Docker-managed usage is not the VM's allocated Mac footprint or a promise of immediately recovered Mac disk space. StatGlass doesn't compact the VM disk. If the Mac is still short of space after a Docker cleanup, [finding large files and folders on Mac](/blog/find-large-files-mac) covers inspecting the surrounding filesystem.
+
+## How do I connect an engine, and what are the limits?
+
+Open Containers in StatGlass, enable monitoring and choose one local engine. Discovery checks `~/.docker/run/docker.sock`, `~/.orbstack/run/docker.sock`, Colima profile sockets at `~/.colima/*/docker.sock`, `/var/run/docker.sock` and Unix sockets in Docker contexts. The selection is independent of the CLI's active context. It doesn't use `DOCKER_HOST`, SSH or TCP endpoints.
+
+OrbStack has been exercised locally; Docker Desktop and Colima runtime validation remains open. Podman on macOS isn't detected by name. Docker monitoring's whole-app overhead is also unmeasured, so the app's published benchmark with Docker monitoring off doesn't establish its cost here.
+
+Monitoring covers up to 128 containers at once; larger inventories show partial coverage. When no containers are running, collection pauses to save power and needs an explicit resume. This workflow monitors one local engine at a time and cannot connect to a remote Docker engine.
+
+For containers on a Linux server, StatGlass has a separate cgroup v2 view of services and containers, including Docker and Podman, sampled every five seconds. It depends on the host's available readings and permissions and doesn't provide this local Docker cleanup workflow. Follow the [Linux host setup guide](/docs/linux-hosts) or the walkthrough for [monitoring a Linux server from your Mac](/blog/monitor-linux-server-from-mac) to connect the server over SSH.
