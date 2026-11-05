@@ -38,6 +38,7 @@ const blog = defineCollection({
         "timeline",
         "containers",
         "processes",
+        "cpu",
       ]),
       relatedDocs: z.array(z.string()),
     })
