@@ -187,7 +187,7 @@ export function createMockTransport(
     ...store.methods,
     ...ring.methods,
     ...docker.methods,
-    ...createMockDiskSpace(scenarios, now, remote.remotes),
+    ...createMockDiskSpace(scenarios, now, remote.remotes, options.spaceScan),
     onNavigateRequested: emitters.navigate.on,
     onSettingsChanged: emitters.settings.on,
     onHistoryHealthChanged: emitters.health.on,

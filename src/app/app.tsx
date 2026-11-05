@@ -108,12 +108,14 @@ function selectClockOffsets(hosts: RemoteHostRecord[]) {
 /** Waits for the host list, then scopes a live store to the local host. */
 export function LocalHost({
   router,
+  initialHost,
 }: {
   router: ReturnType<typeof createAppRouter>;
+  initialHost?: string | null;
 }) {
   const transport = useTransport();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialHost ?? null);
   const remotes = useRemoteHosts(selectClockOffsets);
   const routerView = useMemo(
     () => <RouterProvider router={router} />,
@@ -189,9 +191,11 @@ export function LocalHost({
 export function App({
   transport,
   router: routerOptions,
+  initialHost,
 }: {
   transport: Transport;
   router: AppRouterOptions;
+  initialHost?: string | null;
 }) {
   const [router] = useState(() => createAppRouter(routerOptions));
   return (
@@ -199,7 +203,7 @@ export function App({
       <QueryProvider>
         <SettingsProvider>
           <TooltipProvider>
-            <LocalHost router={router} />
+            <LocalHost router={router} initialHost={initialHost ?? null} />
             <Toaster />
           </TooltipProvider>
         </SettingsProvider>

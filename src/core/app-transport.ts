@@ -1,4 +1,5 @@
-import type { CliLinkState } from "@core/generated/bindings";
+import type { ChartWindow, CliLinkState } from "@core/generated/bindings";
+import { relativeWindow } from "./chart-range";
 import { CHART_WINDOWS } from "./live-window";
 import type { ScenarioName } from "./mock/fixtures";
 import { SCENARIOS } from "./mock/fixtures";
@@ -12,6 +13,21 @@ const CLI_LINK_STATES: readonly CliLinkState[] = [
   "blocked",
 ];
 
+/** Timeline spans a preview can open on; they are relative windows, not presets. */
+const LONG_CHART_WINDOWS_MS: Record<string, number> = {
+  "24h": 86_400_000,
+  "7d": 604_800_000,
+  "30d": 2_592_000_000,
+};
+
+function parseChartWindow(value: string | null): ChartWindow | undefined {
+  const long = value === null ? undefined : LONG_CHART_WINDOWS_MS[value];
+  return (
+    CHART_WINDOWS.find((w) => w === value) ??
+    (long ? relativeWindow(long) : undefined)
+  );
+}
+
 /**
  * The transport for this window. Inside Tauri: the app transport, labelled by
  * the Tauri window. In a browser (dev server, Playwright, `VITE_TRANSPORT=
@@ -21,7 +37,8 @@ const CLI_LINK_STATES: readonly CliLinkState[] = [
  *   ?scenario=no-fans,paused               mock scenarios, comma separated
  *   ?ticks=0                               no auto-tick (stable screenshots)
  *   ?interval=30000                        starting sample interval, ms
- *   ?chart_window=30m                      starting chart window (5m|15m|30m|1h)
+ *   ?chart_window=30m                      starting chart window (5m|15m|30m|1h|24h|7d|30d)
+ *   ?space_scan=/                          start with a finished volume report
  *   ?update=available                      preview an available app update
  *   ?setup_delay=60000                     hold Add host's setup step, ms
  *   ?cli_link=foreign                      Settings' command-line link state
@@ -54,9 +71,8 @@ export async function createAppTransport(search: string): Promise<Transport> {
       ? (await import("./mock/embed-bridge")).createEmbedBridge(window)
       : null;
   const windowLabel = params.get("window") ?? "dashboard";
-  const chartWindow = CHART_WINDOWS.find(
-    (w) => w === params.get("chart_window")
-  );
+  const chartWindow = parseChartWindow(params.get("chart_window"));
+  const spaceScan = params.get("space_scan");
   const intervalMs = Number(params.get("interval"));
   const remoteSetupDelayMs = Number(params.get("setup_delay"));
   const transport = createMockTransport({
@@ -79,6 +95,7 @@ export async function createAppTransport(search: string): Promise<Transport> {
     ...(intervalMs ? { intervalMs } : {}),
     ...(remoteSetupDelayMs ? { remoteSetupDelayMs } : {}),
     ...(chartWindow ? { chartWindow } : {}),
+    ...(spaceScan ? { spaceScan } : {}),
     ...(cliLink ? { cliLink: cliLinkFixture(cliLink) } : {}),
   });
   bridge?.attach(transport);

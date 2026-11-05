@@ -31,6 +31,9 @@ createAppTransport(search).then(
       <React.StrictMode>
         <App
           transport={transport}
+          {...(preview
+            ? { initialHost: new URLSearchParams(search).get("host") }
+            : {})}
           router={{
             initialEntry: initialRoute(
               transport.windowLabel(),

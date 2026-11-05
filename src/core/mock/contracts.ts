@@ -42,6 +42,8 @@ export interface MockTransportOptions {
   intervalMs?: number;
   /** Starting `general.chart_window`. Default 15m. */
   chartWindow?: ChartWindow;
+  /** Start with a finished report if this mount exists on the mock host. */
+  spaceScan?: string;
   /** Every `update_settings` answers `settings_not_saved`, as on a full disk. */
   settingsNotSaved?: boolean;
   /** `export_csv` answers `cancelled`, as if the save dialog was dismissed. */

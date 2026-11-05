@@ -1,6 +1,7 @@
 import type { LiveProcess } from "@core/generated/bindings";
 import { FULL_TABLE, type ProcessView } from "@core/process-interest";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { PageHeader } from "~/components/page-header";
 import { SELECTION_BAR_PX } from "~/components/process-selection";
 import { type ProcessSort, ProcessTable } from "~/components/process-table";
@@ -45,6 +46,9 @@ const FULL_TABLE_NETWORK: ProcessView = { ...FULL_TABLE_PORTS, network: true };
 /** With GPU time (D-085): the GPU column set. */
 const FULL_TABLE_GPU: ProcessView = { ...FULL_TABLE_PORTS, gpu: true };
 
+const isColumnSet = (value: string): value is ColumnSet =>
+  Object.hasOwn(COLUMN_SETS, value);
+
 /**
  * Processes (plan 4.14): the CPU page's "Top processes" table at full
  * height, every process, with search and a column-set control. Row order
@@ -53,6 +57,7 @@ const FULL_TABLE_GPU: ProcessView = { ...FULL_TABLE_PORTS, gpu: true };
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Existing cohesive logic; split when substantially changed (architecture refactor section 10).
 export default function ProcessesRoute() {
+  const [params] = useSearchParams();
   const local = useIsLocalHost();
   const processNetwork = useProcessNetwork();
   const processGpu = useProcessGpu();
@@ -67,7 +72,11 @@ export default function ProcessesRoute() {
   const compressed = useLayout()?.byMetric.has("mem.compressed") ?? true;
   // Without root, macOS hides other users' processes; Linux does not (D-045).
   const mac = useHostNoun() === "Mac";
-  const [chosen, setChosen] = useState<ColumnSet>("cpu");
+  // Browser previews can open on a set (`?columns=gpu`); the app's routes carry no query.
+  const [chosen, setChosen] = useState<ColumnSet>(() => {
+    const value = params.get("columns");
+    return value !== null && isColumnSet(value) ? value : "cpu";
+  });
   // A set goes away with its capability; fall back to CPU.
   const set = options.some((o) => o.value === chosen) ? chosen : "cpu";
   const columns = compressed
@@ -87,7 +96,7 @@ export default function ProcessesRoute() {
   const edition = useEdition();
   const canSignal = local && edition?.process_signal === true;
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<ProcessSort>(COLUMN_SETS.cpu.sort);
+  const [sort, setSort] = useState<ProcessSort>(() => COLUMN_SETS[chosen].sort);
   // The table's sort, unless it names a column the shown set does not have.
   const tableSort = columns.includes(sort.by) ? sort : COLUMN_SETS[set].sort;
   const [bodyRef, measured] = useElementSize("height", 480);

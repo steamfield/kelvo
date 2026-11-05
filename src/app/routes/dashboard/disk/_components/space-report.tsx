@@ -7,6 +7,7 @@ import type {
 } from "@core/generated/bindings";
 import { ChevronRight } from "lucide-react";
 import { type ReactNode, useCallback, useState } from "react";
+import { useSearchParams } from "react-router";
 import { SectionCard } from "~/components/section-card";
 import { SegmentedControl } from "~/components/segmented-control";
 import { useIsLocalHost } from "~/hooks/use-is-local-host";
@@ -51,8 +52,11 @@ export function SpaceReportView({
   onVolumes: () => void;
 }) {
   const scanning = status !== null;
+  const [params] = useSearchParams();
   const [folder, setFolder] = useState<number | null>(null);
-  const [tab, setTab] = useState<Tab>("contents");
+  const [tab, setTab] = useState<Tab>(() =>
+    !scanning && params.get("tab") === "largest" ? "largest" : "contents"
+  );
   const [hovered, setHovered] = useState<string | null>(null);
   const subtree = useSpaceSubtree(reportId, folder, scanning);
   const largest = useSpaceLargest(reportId, tab === "largest" && !scanning);

@@ -336,11 +336,12 @@ function synthetic(
 export function createMockDiskSpace(
   scenarios: readonly ScenarioName[],
   now: () => number,
-  remotes: SpaceRemotes = new Map()
+  remotes: SpaceRemotes = new Map(),
+  initialMount?: string
 ): SpaceMethods & Pick<MockTransport, "endSpaceSession"> {
   const appstore = scenarios.includes("appstore");
-  let nextId = 0;
-  let running: Scan | null = null;
+  let running = seededScan(scenarios, initialMount, now());
+  let nextId = running?.id ?? 0;
   let report: Scan | null = null;
   let ended: Scan | null = null;
   const unavailable = () =>
@@ -352,6 +353,7 @@ export function createMockDiskSpace(
     else ended = running;
     running = null;
   };
+  settle();
   const find = (id: number) =>
     [running, report].find((s) => s !== null && s.id === id) ?? null;
   const gone = fail("this report is no longer available; scan again");
@@ -454,4 +456,24 @@ export function createMockDiskSpace(
       ended = null;
     },
   };
+}
+
+function seededScan(
+  scenarios: readonly ScenarioName[],
+  mount: string | undefined,
+  finishedAt: number
+): Scan | null {
+  if (!mount || scenarios.includes("appstore")) return null;
+  const spec = mockVolumes(scenarios).find((v) => v.volume.mount === mount);
+  if (!spec) return null;
+  return new Scan(
+    1,
+    {
+      ...spec,
+      skipped: spec.volume.protected.map((p) => p.label),
+      skip: new Set(spec.volume.protected.map((p) => p.key)),
+      ejectAt: null,
+    },
+    finishedAt - MOCK_SCAN_MS
+  );
 }
