@@ -313,3 +313,19 @@
     transition: none;
   }
 }
+
+/* Blog articles: larger reading text in a wider column, about 80 characters a line.
+   Headings scale with it so h3 stays above the body size. Last, so these win over
+   the equally specific base rules above. */
+.article {
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+
+.article h2:where(:not([data-demo], [data-demo] *)) {
+  font-size: 1.625rem;
+}
+
+.article h3:where(:not([data-demo], [data-demo] *)) {
+  font-size: 1.25rem;
+}

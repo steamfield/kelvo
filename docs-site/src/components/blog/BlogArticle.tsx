@@ -29,7 +29,7 @@ export function BlogArticle({
   return (
     // The container lets ArticleDemo break out to the page column's width.
     <div className="@container">
-      <article className="mx-auto max-w-[44rem] min-w-0 pt-8 sm:pt-12">
+      <article className="mx-auto max-w-[47.5rem] min-w-0 pt-8 sm:pt-12">
         <header className="space-y-4 border-b border-border pb-6">
           <nav
             aria-label="Breadcrumb"
@@ -81,7 +81,7 @@ export function BlogArticle({
             </nav>
           )}
         </header>
-        <div className={`${prose.prose} mt-8`}>{children}</div>
+        <div className={`${prose.prose} ${prose.article} mt-8`}>{children}</div>
         <section
           data-reveal=""
           className="flex flex-wrap items-center justify-between gap-6 border-t border-border py-16 sm:py-20"

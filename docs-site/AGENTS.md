@@ -112,6 +112,6 @@ takes `request`, `steps: { command: string; output: string }[]`, `answer` and op
 and under reduced motion. Commands and outputs use the site's mono face.
 
 Every demo root has `data-demo`; the shared docs prose stylesheet excludes
-these roots and their descendants. Dashboard figures expand to the site container; prose stays at 44rem.
+these roots and their descendants. Dashboard figures expand to the site container; prose is 47.5rem at 18px.
 `tests/blog-pages.test.ts` checks metadata, feeds, links, related
 docs, literal CLI hyphens and demo parameter/scenario names against the app source.
