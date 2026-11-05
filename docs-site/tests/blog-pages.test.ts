@@ -41,7 +41,7 @@ it("allows the word null in structured data but rejects nested null values", () 
 
 it("publishes complete matching metadata and structured data for every blog page", () => {
   for (const post of [
-    { id: "", frontmatter: { title: "StatGlass blog", headline: "Blog" } },
+    { id: "", frontmatter: { title: "Mac System Monitoring Guides", headline: "Blog" } },
     ...posts,
   ]) {
     const path = `/blog${post.id ? `/${post.id}` : ""}`;
