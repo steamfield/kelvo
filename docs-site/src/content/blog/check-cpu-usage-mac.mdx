@@ -1,0 +1,118 @@
+---
+title: How to check CPU usage on Mac
+headline: How to check CPU usage on a Mac and find the app
+description: Check CPU usage on your Mac with Activity Monitor or Terminal, understand readings above 100%, and see per-core load and CPU history in StatGlass.
+published: 2026-11-05
+keyword: how to check cpu usage on mac
+feature: cpu
+relatedDocs: ["metrics", "history", "menu-bar-and-windows"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To check CPU usage on a Mac, open Activity Monitor through Spotlight, select CPU, and click the % CPU heading until the busiest processes appear first. The CPU Load graph at the bottom shows overall activity; Window > CPU History shows recent activity across the cores. In Terminal, run `top -o cpu` for a live process list sorted by CPU use.
+
+## How to check CPU usage on a Mac with Activity Monitor
+
+Activity Monitor is included with macOS. These steps work on macOS 26, also called Tahoe:
+
+1. Press Command-Space, type `Activity Monitor`, and press Return.
+2. Select CPU at the top of the window.
+3. Choose View > All Processes and clear the search field so a filter doesn't hide the process you're looking for.
+4. Click the % CPU column heading. Click again if necessary to put the highest values first.
+5. Watch several updates while the Mac feels slow. Note which process stays near the top and whether it belongs to work you started.
+
+The CPU Load graph and System, User and Idle figures at the bottom describe the Mac as a whole. User is activity from your apps and their processes; System is work belonging to macOS. Idle is the capacity currently unused. Low Idle during a long export can be expected. Low Idle after the export finishes gives you a reason to inspect the process list again.
+
+CPU Time is accumulated processor time, so a large value there doesn't mean an app is busy now. Use % CPU for the current problem. A process is a running program, which may be a helper rather than the app's main window. Several browser helpers can contribute to one browser's workload.
+
+Choose Window > CPU History if you want recent graphs across the cores. It helps reveal activity hidden by a modest overall average, but it isn't a saved record you can reopen tomorrow to investigate yesterday's slowdown.
+
+## How do I check CPU usage in Mac Terminal?
+
+Open Terminal and run the built-in `top` command:
+
+```sh title="Watch processes sorted by CPU usage"
+top -o cpu
+```
+
+The `-o cpu` option sorts the process rows by CPU use, highest first. Wait for another update before reading the per-process percentages, since the first sample has no preceding sample to compare with. Press `q` to stop.
+
+In the table, PID is the process identifier and COMMAND is its name. %CPU is its processor use, while TIME is accumulated CPU time. The summary above the table includes user, system and idle CPU percentages for the whole Mac. A high process percentage and a lower overall percentage can both be correct.
+
+For a single text snapshot you can copy into notes, use:
+
+```sh title="List the busiest processes once"
+ps -A -r -o pid,pcpu,comm | head -n 11
+```
+
+This asks `ps` for all processes, sorts by CPU usage, and prints PID, %CPU and the executable name or path. `head` keeps the header and the first ten process rows. It doesn't stop any processes. Treat it as a quick snapshot: its CPU accounting need not match the interval-based readings in a running `top` session.
+
+Neither command saves a browsable CPU timeline as written. Copy useful output while the problem is happening; running a command after the busy process exits cannot recover its earlier load.
+
+## Why does a process show more than 100% CPU?
+
+Activity Monitor's per-process % CPU uses one core as 100%. A process using two cores fully can therefore show roughly 200%. On a Mac with eight CPU cores, the combined capacity on this scale is 800%.
+
+The overall System, User and Idle figures instead divide the whole processor into a total of 100%. In that eight-core example, one fully occupied core with the other seven idle would account for roughly 12.5% overall usage. These percentages describe occupied CPU time; they don't mean performance and efficiency cores do equal amounts of work in that time.
+
+An app above 100% isn't automatically stuck. Work that uses several cores can finish sooner by doing more in parallel. Investigate activity that continues after the expected work ends, or that coincides with a delay you can reproduce. A high number alone doesn't tell you whether quitting the app would help.
+
+## Why is kernel_task using so much CPU?
+
+`kernel_task` is part of macOS and cannot be quit. Apple describes one of its functions as [managing CPU temperature by limiting CPU availability to other processes](https://support.apple.com/en-us/102172). It can show high CPU when the Mac is hot, even if the case doesn't feel hot to you.
+
+Look at the workload heating the Mac instead of trying to stop the kernel. Pause a demanding task inside its app and watch how activity changes. Keep laptop ventilation clear. The guide to [finding what's making a Mac's fan loud](/blog/why-is-my-mac-fan-so-loud) covers heat and fan readings in more depth.
+
+StatGlass has no throttling view and doesn't diagnose throttling from a `kernel_task` row. Its Timeline's Fans ramped up event names processes that were busiest before the fans rose, which gives you an earlier workload to inspect.
+
+## How do I see every core, including performance and efficiency cores?
+
+StatGlass's CPU page groups performance cores above efficiency cores in a per-core heatmap. StatGlass is a free, open-source menu bar system monitor under Apache-2.0, for Apple Silicon Macs on macOS 26 or newer only. It keeps CPU history locally, including per-core readings.
+
+The top card shows Total alongside User, System and Idle, with load averages for 1, 5 and 15 minutes. Total uses a 0 to 100% whole-machine scale. Load average is a separate measure of demand over time, not another CPU percentage; keep it separate from the utilization readings when comparing values.
+
+In the demo below, drag across a busy part of the total chart to select an interval. Its Avg and Peak figures and the apps table follow that selection. Scroll inside the demo to compare the P and E rows in Per-core load. The readings are sample data, not measurements from your Mac.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/cpu"
+  title="StatGlass CPU page"
+  caption="Live demo on sample data: total CPU with User, System and load average, and a per-core heatmap with performance cores above efficiency cores."
+  fallback="cpu"
+/>
+
+The heatmap gives each core its own row. Hatched time has no samples, so it doesn't mean zero load. Only Avg, Peak and app averages follow a selection on the total chart. Total, User, System, Idle and load averages stay live, and the per-core heatmap keeps the full chart window. The [CPU and other metric descriptions](/docs/metrics) explain the module's readings.
+
+The apps table's Avg CPU uses the one-core scale, so it can exceed 100% even when Total cannot. Use those averages to compare apps during the selected period, without adding their percentages directly to the whole-machine figure.
+
+## Which app is using the CPU right now?
+
+StatGlass's Processes page starts with CPU columns sorted by % CPU. Search by name, PID or listening port to narrow the list, or click a column heading to change the sort. Row order holds while your pointer is over the table so a changing reading doesn't move a process away from your pointer.
+
+In the demo below, try searching for `kernel_task`, then hover its row's Quit action to read why it is refused. Clear the search and hover another row to see Quit and Force Quit. Both actions ask for confirmation; you can cancel the dialog while exploring.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/processes?columns=cpu"
+  title="StatGlass Processes, sorted by CPU"
+  caption="Live demo on sample data: every process sorted by % CPU. Hover a row for Quit and Force Quit; kernel_task can't be quit."
+/>
+
+On your Mac, save work and quit a familiar app normally before using Force Quit. Force Quit stops the process immediately and loses unsaved work. StatGlass refuses these actions for `kernel_task`, `launchd`, `WindowServer`, `loginwindow` and itself. The kernel tooltip reads: "kernel_task is the macOS kernel and can't be quit."
+
+Without administrator rights, some processes owned by other users are hidden from StatGlass. An absent row doesn't establish that a system process is idle. Activity Monitor remains useful when you need to inspect a process missing from this list.
+
+## How do I keep CPU usage in the menu bar?
+
+Activity Monitor can put CPU activity in its Dock icon: choose View > Dock Icon > Show CPU Usage and leave it running. That is a built-in option if the Dock is a convenient place for your reading.
+
+For CPU usage in the menu bar, StatGlass Settings offers a CPU bar or value readout in the combined item. A separate CPU item can use Value, Graph or Per-core graph; the per-core display puts P cores before E cores. The [menu bar and windows guide](/docs/menu-bar-and-windows) explains the views and their settings. The article on [choosing a Mac menu bar system monitor](/blog/mac-menu-bar-system-monitor) shows the styles together.
+
+## Can I check CPU usage after the slowdown ends?
+
+StatGlass keeps up to 30 days of local history, depending on recorded activity and the storage limit. Resource readings use 10-second buckets for 24 hours, one-minute buckets through seven days, and 15-minute buckets through 30 days. Older buckets lose the fine detail of brief bursts.
+
+The Timeline's Avg CPU heatmap shows average CPU per hour across the last 30 days of available history. Click a recorded hour to inspect it; recordings older than seven days open a wider interval. Narrow the range around the slowdown. The event for a process pinning the CPU marks a process staying at 100% of one core or more for two minutes. An optional alert for a process above 200% for five minutes is disabled by default and can be enabled in Settings.
+
+Recording must have been running at the time. Sleep and time with StatGlass closed appear as gaps. The [history and storage guide](/docs/history) explains retention, including why app detail can be removed before resource charts when the storage limit is reached. If an older CPU spike remains but its app detail is gone, the chart can't identify the process responsible.
