@@ -1,0 +1,114 @@
+---
+title: Why is my Mac slow? Find the cause
+headline: Why is my Mac slow? Check what's holding it up
+description: A slow Mac may have a busy CPU, memory pressure, heat or a nearly full disk. Check Activity Monitor now, or inspect recorded history after it passes.
+published: 2026-11-05
+keyword: why is my mac slow
+feature: timeline
+relatedDocs: ["history", "metrics", "menu-bar-and-windows"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+A slow Mac often has one of four problems: an app keeping the CPU busy, memory pressure and swapping, heat that makes macOS reduce performance, or a nearly full startup disk. Open Activity Monitor through Spotlight, select CPU and sort by % CPU, then select Memory and check Memory Pressure while the delay is happening. Check available space in System Settings > General > Storage too. If the slowdown has already passed, identifying the busy app requires measurements recorded at that time.
+
+## Why is my Mac slow all of a sudden?
+
+A process is a running program, including an app's helpers and background services. Activity Monitor shows those processes alongside resource use, so you can connect the delay with work your Mac is doing.
+
+For a two-minute first check on macOS 26, also called Tahoe:
+
+1. Press Command-Space, type `Activity Monitor` and press Return. Choose View > All Processes and clear the search field.
+2. Select CPU and click % CPU until the highest values appear first. Watch several updates for a process that stays busy.
+3. Select Memory. Check the Memory Pressure graph at the bottom, then sort the Memory column with the largest values first.
+4. Open System Settings > General > Storage and check how much space remains on the startup disk.
+
+Write down the time and the leading process names before changing anything. If only one app is slow while the rest of the Mac responds normally, investigate that app first. A stalled document or a waiting download can feel slow without producing high CPU use across the machine.
+
+## Is one app keeping the CPU busy?
+
+A process that stays near the top of % CPU during the delay is a candidate to investigate. High CPU during an export or a build can be expected. High CPU in an app that should be idle deserves a closer look.
+
+Activity Monitor's process percentages can exceed 100% because a process can use multiple CPU cores. A reading of 100% represents roughly one core's worth of work, not the whole Mac. Compare the busy rows with the overall CPU figures at the bottom before deciding that one process has exhausted the machine.
+
+Pause a task inside the app you recognize, or save your work and quit the app normally. Watch whether CPU use falls and the delay clears. If a browser is busy, try closing the suspect tab before quitting the entire browser. Make one change at a time so you can tell which action affected the result.
+
+Avoid stopping unfamiliar system processes just because they lead the list. Their work may be necessary, and quitting one can interrupt something else. Force Quit can discard unsaved changes; reserve it for an app that won't respond.
+
+For delays during games or graphics work, choose Window > GPU History in Activity Monitor to check the live GPU graph. A graphics-heavy task can keep the GPU busy even when CPU use is low.
+
+## Is memory pressure making app switching laggy?
+
+Check Memory Pressure before treating low unused RAM as a problem. In Activity Monitor's Memory view, sustained yellow or red pressure during the delay suggests that memory demand needs attention. Green pressure makes a memory bottleneck less likely.
+
+Check Swap Used alongside pressure. Swap is space on the startup disk used for data moved out of RAM, but a nonzero swap figure alone doesn't prove it caused the current pause. Growing swap during elevated pressure and slow app switching is stronger evidence.
+
+Save and quit a memory-heavy app you don't need, then watch pressure and responsiveness. The [guide to Mac memory pressure](/blog/mac-memory-pressure) explains compressed memory and swap in more detail, including why a large Memory Used figure can be normal.
+
+## Is heat reducing performance?
+
+Heat can make macOS reduce performance to keep the Mac cool. Fan noise is a clue on models with fans, but it isn't a measurement of throttling. A fanless Mac can get hot without making any noise.
+
+Use Activity Monitor to identify sustained CPU or GPU work, then reduce the workload and see whether responsiveness returns as the Mac cools. Keep a laptop on a hard, flat surface with ventilation clear. Activity Monitor doesn't show temperatures or fan RPM, so it cannot confirm those readings for you.
+
+The [guide to loud Mac fans and temperature readings](/blog/why-is-my-mac-fan-so-loud) covers checking heat alongside workload. A temperature reading alone doesn't identify the responsible app, and there isn't one temperature that explains every slowdown on every Mac.
+
+## Is the startup disk nearly full?
+
+System Settings > General > Storage shows available capacity and the categories using it. A nearly full startup disk can leave too little room for working files and swap. Check capacity before blaming disk activity: Activity Monitor's Disk tab shows reads and writes, which answer a different question.
+
+If space is scarce, inspect large files you recognize and move or remove ones you no longer need. The [walk-through for finding large files and folders](/blog/find-large-files-mac) gives Finder steps and Terminal commands. Don't delete unfamiliar system folders to reduce a Storage category. After freeing space, repeat the task that was slow and check whether it improves.
+
+## Why is my Mac slow after an update?
+
+Background work can explain a Mac running slowly after a macOS update. Spotlight may rebuild its search index, and Photos may analyze library contents. That work can compete with the apps you're trying to use even when no progress window is visible.
+
+Check Activity Monitor during the slowdown instead of assuming the update is the cause. Spotlight-related processes such as `mds` or `mds_stores` can be a clue. Give background work time to finish, then compare activity and responsiveness again. There is no fixed completion time that applies to every library or disk.
+
+If the same third-party app stays busy after background activity settles, save its process name and the task that reproduces the problem for its developer. If the whole Mac remains slow without an obvious resource bottleneck, record those observations for support rather than repeatedly waiting for indexing.
+
+## What if the slowdown is already over?
+
+A quiet process list now cannot identify an app that finished an hour ago. Activity Monitor works well for live checks, but it doesn't retain a date-selected record of resource use and the apps busy in that interval.
+
+StatGlass is a free, open-source menu bar system monitor under Apache-2.0 for Apple Silicon Macs on macOS 26 or newer. It keeps local history for up to 30 days, depending on recorded activity and the storage limit. History starts when it begins recording; installing it afterward cannot explain an earlier slowdown.
+
+Its Timeline aligns CPU, GPU, memory pressure, power, temperature and network readings. Event markers flag fans ramping up, thermal state changes, sustained CPU use by a process and power spikes. The sustained-process detector looks for at least 100% of one CPU core for two minutes. Memory pressure has a lane, but there is no memory-pressure event.
+
+The live demo below opens the last 24 hours on sample data. Drag across a spike in a lane to select and zoom into the interval, then scroll inside the dashboard to Apps in this range. Sort by Avg CPU or Peak RAM to see which recorded apps were busy. Back restores the earlier range.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/timeline"
+  params={{ chart_window: "24h" }}
+  title="StatGlass Timeline, last 24 hours"
+  caption="Live demo on sample data: a day of CPU, memory pressure, power and temperature with events marked. Drag across a lane to see which apps were busy."
+/>
+
+The table shows up to ten recorded apps, with expandable process details where available. Try Compare previous interval after selecting a range to check whether those apps were busier than in the period immediately before it. Coinciding activity is a lead to test, not proof that the busiest app caused every delay.
+
+App attribution is sampled, so a short burst can escape it. Nothing is recorded while the Mac sleeps or StatGlass isn't running; those intervals stay gaps. Older resource readings also have less detail: 10-second buckets cover the last 24 hours, one-minute buckets extend through seven days, and 15-minute buckets through 30 days. The default size limit is 750 MB. Older app detail can be removed before resource charts, as the [history and storage guide](/docs/history) explains.
+
+## How do I catch the next slowdown?
+
+Keep the suspected resource visible while repeating the task. Activity Monitor can show CPU use in its Dock icon through View > Dock Icon > Show CPU Usage. StatGlass keeps readings in the menu bar with its windows closed; the [menu bar and windows guide](/docs/menu-bar-and-windows) explains its popover and dashboard.
+
+Overview brings the live readings together, with top-five process lists refreshed every five seconds where supported. Its machine header includes chip, memory, available storage and uptime. Use the sample demo below to compare the CPU and Memory cards, then click a card to inspect that module. Scroll inside the dashboard for the lower cards. The [metrics guide](/docs/metrics) explains what the readings measure.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/overview"
+  title="StatGlass Overview"
+  caption="Live demo on sample data: each module with its top processes, refreshed every few seconds."
+/>
+
+Alerts are off by default. Settings offers two rules: a process above 200% CPU for five minutes, or thermal state Serious or worse. Each rule sends a macOS notification at most once per 30 minutes and marks the alert on Timeline. These thresholds won't catch every brief pause.
+
+For a shell-capable agent, the read-only CLI can retrieve events and rank apps over a recorded interval. In Settings > Command line, install the bundled `statglass` command and leave command-line access enabled. Make sure `~/.local/bin` is on your shell's `PATH`, and keep StatGlass running while querying it:
+
+```sh title="Check recorded events and recent app usage"
+statglass events --since 3h
+statglass top --since 1h
+```
+
+The first command locates recorded incidents across three hours; the second ranks average CPU use over the last hour. If the slowdown was earlier, change that second interval to include it before treating the ranking as an explanation.
