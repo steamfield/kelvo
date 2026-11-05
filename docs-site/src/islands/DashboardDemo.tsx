@@ -4,6 +4,7 @@ import {
   DASHBOARD_HEIGHT,
   DASHBOARD_MIN_WIDTH,
   type DemoMessage,
+  type DemoParams,
   dashboardDemoUrl,
 } from "@/lib/demo";
 import { EVENTS } from "@/lib/events";
@@ -19,7 +20,17 @@ const FITS_QUERY = `(min-width: ${DASHBOARD_MIN_WIDTH + 64}px)`;
  * before scripts run, get a link that opens it in its own tab instead of a
  * scaled-down copy nobody can read.
  */
-export function DashboardDemo({ route }: { route: string }) {
+export type DashboardDemoProps = {
+  route: string;
+  params?: DemoParams;
+  title?: string;
+};
+
+export function DashboardDemo({
+  route,
+  params,
+  title = "StatGlass dashboard, live demo",
+}: DashboardDemoProps) {
   const frame = useRef<HTMLIFrameElement>(null);
   const slot = useRef<HTMLDivElement>(null);
   const [fits, setFits] = useState(false);
@@ -52,24 +63,22 @@ export function DashboardDemo({ route }: { route: string }) {
   const frameRef = useDemoFrame(frame, mounted, onMessage);
   const ready = useFrameReady(frame, mounted);
 
-  const href = dashboardDemoUrl(route);
+  const href = dashboardDemoUrl(route, params);
   return (
     <div ref={slot} className="flex flex-col gap-3">
-      {fits && (
-        <div
-          className="w-full overflow-hidden rounded-card border border-border bg-background"
-          style={{ height: DASHBOARD_HEIGHT }}
-        >
-          {mounted && (
-            <iframe
-              ref={frameRef}
-              src={href}
-              title="StatGlass dashboard, live demo"
-              className={`ph-no-capture block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
-            />
-          )}
-        </div>
-      )}
+      <div
+        className="hidden min-[1088px]:block w-full overflow-hidden rounded-card border border-border bg-background"
+        style={{ height: DASHBOARD_HEIGHT }}
+      >
+        {mounted && (
+          <iframe
+            ref={frameRef}
+            src={href}
+            title={title}
+            className={`ph-no-capture block h-full w-full border-0 transition-opacity duration-(--motion-fast) ${ready ? "opacity-100" : "opacity-0"}`}
+          />
+        )}
+      </div>
       <p className="text-sm text-muted-foreground">
         <a
           href={href}

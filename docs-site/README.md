@@ -38,3 +38,44 @@ PostHog is wired up but stays off until `PUBLIC_POSTHOG_KEY` is set at build tim
 ## License
 
 Copyright (c) 2026 Riley Hilliard
+
+## Writing blog posts
+
+Add an MDX file under `src/content/blog/`. The file name becomes its `/blog/<id>`
+URL. Required frontmatter: `title` (1–48 characters), `description` (120–160),
+`published` (date), `keyword`, `feature`, and `relatedDocs` (docs collection ids).
+Optional `headline` supplies a longer h1 (up to 90 characters); `updated` must be
+on or after publication. See `AGENTS.md` for feature values and all demo props.
+
+```mdx
+---
+title: Exploring GPU readings
+description: Explore GPU readings in StatGlass with an interactive dashboard demo, a compact simulated card and links to the metric reference for your Mac.
+published: 2026-11-04
+keyword: check GPU usage on Mac
+feature: gpu
+relatedDocs: [metrics]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+## Read the GPU chart
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/gpu"
+  title="StatGlass GPU dashboard"
+  caption="The GPU page on simulated data."
+  fallback="gpu"
+/>
+```
+
+Import each demo directly from its module and use `client:visible`: `ArticleDemo`,
+`ModuleLiveCard`, `PopoverFigure`, `MenuBarStyles` and `AgentSession`. Dashboard
+figures expand beyond the reading column; narrow screens get a fallback when
+provided and a link to open the demo. Every module card is labeled as simulated.
+Code fence titles, callouts and tables use the same processor as docs. The frame
+provides h1, dates, reading time, related links and install action; use h2/h3 in
+post bodies. Posts are included in RSS (`/blog/rss.xml`), the sitemap and
+`/llms.txt`. The temporary `demo-kit.mdx` exercises the kit and is removed before
+release.

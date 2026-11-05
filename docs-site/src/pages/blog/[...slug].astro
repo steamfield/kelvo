@@ -1,0 +1,57 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { SITE } from "@/config";
+import { BlogArticle } from "@/components/blog/BlogArticle";
+import {
+  blogPath,
+  blogPostingJsonLd,
+  breadcrumbJsonLd,
+  relatedPosts,
+} from "@/lib/blog";
+import { docPath } from "@/lib/docs";
+export async function getStaticPaths() {
+  return (await getCollection("blog")).map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+const { entry } = Astro.props;
+const posts = await getCollection("blog");
+const docs = await getCollection("docs");
+const { Content, headings } = await render(entry);
+const relatedDocs = entry.data.relatedDocs.map((id) => {
+  const doc = docs.find((doc) => doc.id === id);
+  if (!doc) throw new Error(`Unknown relatedDocs id ${id} in ${entry.id}`);
+  return {
+    id,
+    label: doc.data.title,
+    href: docPath(id),
+    description: doc.data.description,
+  };
+});
+---
+
+<BaseLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  path={blogPath(entry.id)}
+  ogType="article"
+  article={{
+    published: entry.data.published,
+    modified: entry.data.updated ?? entry.data.published,
+  }}
+  jsonLd={[
+    blogPostingJsonLd(entry, String(Astro.site), SITE.ogImage),
+    breadcrumbJsonLd(String(Astro.site), entry.data.title),
+  ]}
+>
+  <BlogArticle
+    entry={entry}
+    headings={headings}
+    related={relatedPosts(posts, entry)}
+    docs={relatedDocs}
+  >
+    <Content />
+  </BlogArticle>
+</BaseLayout>

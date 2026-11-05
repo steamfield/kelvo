@@ -45,7 +45,11 @@ const STYLES: { name: string; detail: string; menuBar: MenuBar }[] = [
 export function MenuBarStyles() {
   const { ref, readings } = useLiveTray();
   return (
-    <dl ref={ref} className="divide-y divide-border border-y border-border">
+    <dl
+      data-demo=""
+      ref={ref}
+      className="divide-y divide-border border-y border-border text-base leading-normal font-[510]"
+    >
       {STYLES.map(({ name, detail, menuBar }) => (
         <div
           key={name}
