@@ -1,0 +1,96 @@
+---
+title: How to check GPU usage on Mac
+headline: How to check GPU usage on a Mac and find the app
+description: Check Mac GPU usage with Activity Monitor, read frequency and power in Terminal, and explore per-process GPU load and recorded history in StatGlass.
+published: 2026-11-04
+keyword: how to check gpu usage on mac
+feature: gpu
+relatedDocs: [metrics, menu-bar-and-windows, history]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To check GPU usage on a Mac, open Activity Monitor and choose Window > GPU History for a live graph. To find which app is using the GPU, select the CPU tab, then enable % GPU under View > Columns and sort by that column. These built-in views are enough to check a game or video export while it runs; use Terminal for frequency and power, or a monitor that records history to investigate something that happened earlier.
+
+## How to check GPU usage on a Mac with Activity Monitor
+
+Activity Monitor comes with macOS, so start there before installing anything. Open it through Spotlight by pressing Command-Space, typing `Activity Monitor`, and pressing Return. Keep the task that feels slow running while you check: an idle graph after an export finishes cannot tell you how busy the GPU was during the export.
+
+1. Choose Window > GPU History from Activity Monitor's menu bar. The graph shows GPU activity as it updates.
+2. Return to the main Activity Monitor window and select CPU. GPU process readings are columns in that view, even though the tab is called CPU.
+3. Choose View > Columns > % GPU if that column is hidden. Click its heading to sort, and click again if needed to put the largest readings at the top.
+
+A brief spike while opening a window tells you much less about a slowdown that lasts several minutes. Watch the graph and process list through the slow part of the task so you can compare their activity with the symptom.
+
+The % CPU column answers a different question. An app can use the GPU without leading the CPU list, so sorting by CPU alone can send you toward the wrong process. If a browser is near the top of % GPU, try pausing the active video or closing a graphics-heavy tab and watch for a change. Make one change at a time so you can tell which action affected the reading.
+
+GPU History is a small live graph. Despite its name, it is not a saved timeline you can open tomorrow to inspect yesterday's export. Activity Monitor is useful for the problem happening in front of you; recording the problem before it disappears requires another approach.
+
+## Can Terminal show GPU frequency and power?
+
+The built-in `powermetrics` command can report GPU frequency and estimated power on Apple Silicon. Open Terminal and run:
+
+```sh title="Read GPU frequency and power"
+sudo powermetrics --samplers gpu_power
+```
+
+`sudo` runs the command with administrator privileges. Enter your administrator password when prompted; Terminal does not display the characters as you type. Leave the command running during the workload, then press Control-C to stop it. If you do not have administrator access, use Activity Monitor instead.
+
+Look for the GPU frequency and GPU power readings in the repeated text output. Their labels and available details can vary with the hardware and macOS release. Keep the units attached to the numbers: frequency may be in MHz, and power may be in milliwatts. One thousand MHz is one GHz; one thousand milliwatts is one watt.
+
+This command is useful when you need a reading without installing an app, or want to copy text into notes while testing a workload. It needs an administrator password and produces a stream of text instead of a chart. Its power figures are estimates, so use them to compare phases of a task on the same Mac, not as precise measurements for comparing different Macs.
+
+## What do utilization, frequency and power mean?
+
+Utilization describes how much of the sampled interval the GPU was active. Frequency describes its clock speed. Power is the rate at which it uses energy. A percentage, a GHz reading and a watt reading therefore answer different questions, even when they rise together during an export.
+
+High utilization means the GPU has work to do. It does not, by itself, prove that the Mac is malfunctioning or overheating. Sustained activity during a game or export may be expected. There is no single utilization percentage that establishes the cause of a slowdown.
+
+Frequency alone cannot tell you how busy the GPU is. A high clock reading with little active time is different from sustained activity at that clock. Power helps you see the energy cost of the workload, but GPU power is only one part of the Mac's total consumption. If the Mac feels slow while GPU activity is low, check CPU activity and [memory pressure](/blog/mac-memory-pressure) too before blaming graphics.
+
+## What does StatGlass show on its GPU page?
+
+StatGlass is a free, open-source Apple Silicon GPU monitor for Macs running macOS 26 or newer. Its GPU page puts utilization above separate Frequency and Power cards, so you can compare the readings without switching between Activity Monitor and Terminal. The [guide to StatGlass metrics](/docs/metrics) describes what the GPU module and the other modules measure.
+
+The utilization chart lets you select the part of a task you care about. In the live demo below, drag across a busy span of the utilization chart. The average and peak follow that selection, and the apps table is scoped to the same interval. The readings are sample data, not measurements from your Mac.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/gpu"
+  title="StatGlass GPU page"
+  caption="Live demo on sample data: GPU utilization, frequency and power. Drag across the utilization chart to scope the stats."
+  fallback="gpu"
+/>
+
+Selecting the busy portion avoids diluting it with the idle minutes around it. An average over the whole window can look modest even when the GPU stayed busy throughout the slow part.
+
+## Which app is using my Mac's GPU?
+
+The Processes page shows GPU usage per process alongside CPU and memory readings. Use the GPU page's apps table when you want usage grouped by app. Choose the GPU column set in Processes to sort by GPU share. You can search by process name, PID (the process's numeric identifier), or listening port. CPU, Memory, Energy, Disk and Network column sets are also available when the host supports those readings.
+
+The demo below opens with GPU columns selected and the largest GPU shares first. Try searching for a process name from the table, then clear the search to restore the list. The % GPU column reports a share derived from GPU time, rather than a cumulative count of seconds.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/processes?columns=gpu"
+  title="StatGlass Processes, GPU columns"
+  caption="Live demo on sample data: every process with its GPU time, sorted by GPU."
+/>
+
+StatGlass reads per-process GPU time from the GPU's registry clients. Attribution covers your user's processes only, and shares are approximate during long GPU compute jobs because time is counted when a batch of GPU work finishes. The GPU page labels the remaining utilization as System and other. GPU columns are hidden when per-process GPU readings are unavailable.
+
+A process near the top is a candidate to investigate. Pause its workload through the app, then compare the GPU reading and the slowdown. A busy process doing the export you requested is expected; a process that stays busy after the task ends deserves another look. Save work before closing an app to test it.
+
+## How do I keep GPU usage in the menu bar?
+
+In StatGlass Settings, the Menu bar panel lets you give GPU a separate Value or Graph item. You can also enable the GPU readout in the combined item. A value is useful for checking the current load while working in another app; a graph makes changes easier to spot without keeping a dashboard window open.
+
+The [menu bar and windows guide](/docs/menu-bar-and-windows) explains the popover and dashboard. Clicking a module card in the popover opens that module's dashboard page. Keep the menu bar reading visible during the task, then open GPU when you need to inspect a particular interval.
+
+## Can I look back at GPU history on my Mac?
+
+StatGlass keeps local history for up to 30 days, within a default 750 MB limit you can change. Resource readings use 10-second buckets for the last 24 hours, one-minute buckets through seven days, and 15-minute buckets through 30 days. Recorded activity and the size limit determine how far back the data reaches; 30 days is the maximum.
+
+The Timeline puts GPU and the other modules on one chart. Select an interval around the slowdown to zoom in, inspect recorded events, and compare app GPU usage with the preceding interval. You can carry that time range into the module charts, and Back restores the previous range. The [history and storage guide](/docs/history) explains retention and what is removed when the size limit is reached.
+
+Older buckets cannot reveal every brief burst inside them. Use a short, recent interval when you need to examine a spike, and a longer range when you want to compare repeated workloads. StatGlass must have been running to record the event: sleep and time with the app closed appear as gaps, so an empty interval cannot establish that the GPU was idle.

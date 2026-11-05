@@ -1,0 +1,88 @@
+---
+title: A Mac menu bar system monitor that fits
+headline: How to choose a Mac menu bar system monitor
+description: A Mac menu bar system monitor keeps CPU and memory visible. Try the built-in Dock graph, compare StatGlass styles, and check its measured overhead.
+published: 2026-11-04
+keyword: mac menu bar system monitor
+feature: menu-bar
+relatedDocs: ["menu-bar-and-windows", "install", "history", "metrics"]
+---
+
+import { MenuBarStyles } from "@/islands/MenuBarStyles";
+import { PopoverFigure } from "@/islands/PopoverFigure";
+
+A Mac menu bar system monitor adds live readings that macOS does not put in the menu bar itself. For a built-in CPU display, open Activity Monitor and choose View > Dock Icon > Show CPU Usage; the graph appears in the Dock. If you need CPU or memory visible at the top of the screen, StatGlass is a free, open-source option with a compact combined item and local history.
+
+The practical constraints are space and overhead. A monitor needs to fit beside your other menu bar items, including on a MacBook with a camera notch, and its background cost should be measured with its windows closed. StatGlass supports Apple Silicon Macs running macOS 26 or newer only. It is ad-hoc signed without Apple notarization, so first-launch approval is expected; the [installation requirements and first-launch notes](/docs/install) explain that approval.
+
+## Can macOS show CPU usage without another app?
+
+Activity Monitor can turn its Dock icon into a live CPU display. That is enough if you want to notice when the processor gets busy and are happy to glance at the Dock. You can set it up without installing anything:
+
+1. Open Activity Monitor from the Utilities folder in Applications.
+2. With Activity Monitor active, choose View > Dock Icon > Show CPU Usage.
+3. Leave Activity Monitor running and look at its icon in the Dock as you work.
+
+The display stays in the Dock, so it does not satisfy a requirement for CPU usage in the menu bar. Opening Activity Monitor's CPU tab gives you the process view when you need to investigate. Its Memory tab is also useful for checking memory pressure, which helps you judge whether memory demand is causing trouble.
+
+Use that built-in view first if you are investigating a problem happening now. You do not need a permanent menu bar item just to check one busy process. A menu bar monitor becomes useful when you want a reading in sight during normal work, without bringing a monitoring window forward each time. Temperature and memory beside the clock also need something beyond Activity Monitor's CPU Dock display.
+
+## What should a Mac menu bar system monitor show?
+
+Start with the reading you will act on. If you want to catch sustained CPU activity, a graph makes changes visible without reading a number each time. If you are watching a particular temperature or power draw, a value is easier to read precisely. Putting every available measurement at the top of the screen can make the one you care about harder to find.
+
+Space matters most on a MacBook with a notch. Check the monitor with your usual work app active, because its menus also occupy the top edge. A combined item keeps related readings together, but adding values makes that whole item wider. Separate items let you arrange individual modules.
+
+Check whether the monitor offers per-process CPU readings and memory pressure. A CPU number tells you that the Mac is busy; a process view helps you see what is busy. For memory, a single percentage needs context about pressure and swap. StatGlass's [metrics guide](/docs/metrics) explains what its modules measure, including the memory breakdown and per-process readings. Use it to check what a displayed figure means before treating a high value as a fault.
+
+## Which menu bar style takes the least space?
+
+StatGlass recommends Combined at first launch: one item with the smallest footprint of its presets. It starts with bars for CPU, GPU and memory, plus a temperature readout. You choose a style when the app first opens and can change the arrangement in Settings afterward.
+
+Compare the width of Combined with Values only and Graph per module as their readings change in the live demo below, which runs on sample data. The fourth row shows the per-core strip available in Settings, rather than a fourth first-launch style. These previews show the arrangements; configure your own choices in the app's Settings.
+
+<MenuBarStyles client:visible />
+
+Live demo on sample data: StatGlass's menu bar styles.
+
+Values only uses numbers with stacked labels. Graph per module uses separate items that you can reorder by holding Command and dragging them in the macOS menu bar. The [menu bar and window guide](/docs/menu-bar-and-windows) explains how those items connect to the popover and dashboard.
+
+Settings lets you mix the arrangements. CPU has value, graph and per-core modes for its separate item. GPU, memory and network each offer value or graph modes. Battery, disk and power have value modes. You can also turn a separate item off, so choosing a graph for one module does not require a graph for every module.
+
+The combined item's optional readouts cover CPU, GPU, memory, temperature, power, network, disk percentage used and battery. They can sit alongside its bars. The memory readout uses memory pressure, so it should not be read as the percentage of RAM occupied by apps. The combined disk readout is the boot volume's percentage used; the separate Disk item's value is read and write throughput.
+
+To show memory in the menu bar, open Settings and find Menu bar, then enable Memory under Values after the bars. For a separate item, set Memory under Separate items to Value or Graph. For a narrow arrangement, keep only the values you need visible and use the popover for the rest. Settings warns when the combined item becomes wide enough to risk disappearing behind a MacBook's camera notch. Remove a readout or change the arrangement if the combined item does not fit.
+
+## What happens when you click a menu bar item?
+
+StatGlass opens a popover with module cards, so you can inspect a reading without keeping the dashboard open. Cards collapse individually or all together, and the app keeps their saved presentation. Clicking a card opens that module's dashboard page, where full charts and top processes give the headline reading more context.
+
+In this live demo on sample data, expand a card with its expansion control, then click the card to open its dashboard page. The cards start collapsed. The embedded popover keeps its frame height, so expanded content scrolls inside it; the installed app resizes its popover to fit.
+
+<PopoverFigure client:visible />
+
+The CPU page includes per-core load and top processes; the Memory page includes pressure and swap alongside its memory breakdown.
+
+## How much CPU does a lightweight monitor use?
+
+With only the menu bar showing, StatGlass samples every two seconds and uses under 1% of one CPU core. With a window open, the default sampling interval is one second, adjustable from 0.5 to 60 seconds, and CPU use is 6 to 10% of one core depending on the page. Leaving a dashboard open changes the workload you are measuring.
+
+The published measurements below used an M3 Max on macOS 27, plugged in, on 2026-10-07. CPU is the app's and its helper processes' CPU time over 120 seconds, expressed as a percentage of one core. Memory is their physical footprint.
+
+| App              | State                           | CPU (%) | Memory |
+| ---------------- | ------------------------------- | ------- | ------ |
+| StatGlass        | Menu bar only, default settings | 0.67%   | 105 MB |
+| Stats 3.0.20     | Menu bar only, default settings | 4.1%    | 149 MB |
+| Activity Monitor | Window open, 5 s updates        | 3.9%    | 138 MB |
+
+Each figure is a single run on a busy machine, with other builds running. The measurements predate remote monitoring and had Docker monitoring off. Stats used its own default modules, which were different from StatGlass's set. Activity Monitor had its window open, so compare its result with StatGlass's 6 to 10% windowed figure. The table does not establish a fixed cost for your Mac.
+
+For your own measurement, run `make bench` from a StatGlass repository checkout. Compare the state you intend to use daily: windows closed for a background monitor, or a visible dashboard if you plan to watch charts.
+
+## Can you check what happened after a spike is over?
+
+StatGlass keeps local history with up to 30 days available, depending on recorded activity and the storage limit. The Timeline puts module readings on one chart and marks events such as fans ramping or a process pinning the CPU. Selecting an interval lets you inspect recorded app usage and compare it with the preceding interval, even after the live menu bar reading has settled. [Using it as an Activity Monitor alternative](/blog/activity-monitor-alternative) walks through that workflow.
+
+History becomes less detailed as it ages: resource readings use 10-second buckets for the last 24 hours, one-minute buckets through seven days and 15-minute buckets through 30 days. The default size limit is 750 MB and can be changed in Settings. Thirty days is the maximum, not a promise that every installation retains that much.
+
+The [history and storage guide](/docs/history) explains retention and what gets removed at the limit. Recording must be running when the activity happens. Time when the Mac sleeps or StatGlass is closed appears as a gap, so an empty stretch cannot tell you which app was busy then.

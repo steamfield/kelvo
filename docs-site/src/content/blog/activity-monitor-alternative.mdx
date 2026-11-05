@@ -1,0 +1,103 @@
+---
+title: Activity Monitor alternative for Mac history
+headline: An Activity Monitor alternative for Mac that keeps history
+description: Activity Monitor shows what's busy now. StatGlass keeps local Mac performance history so you can inspect a slowdown later and compare app usage.
+published: 2026-11-04
+keyword: activity monitor alternative mac
+feature: timeline
+relatedDocs: ["history", "metrics", "menu-bar-and-windows", "privacy"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+StatGlass is a free Activity Monitor alternative for Mac when you need to look back at a slowdown, with up to 30 days of local history. If your Mac is slow right now, open Activity Monitor through Spotlight, click CPU and sort by % CPU to see which processes are busy. If the slowdown has already passed, a monitor needs to have been recording at the time to show what happened.
+
+Activity Monitor is built into macOS and often gives you enough information to act without installing anything. Its recent CPU graphs help while you watch a problem happen, but they aren't a saved record you can browse by yesterday's date. StatGlass adds that record, plus app usage for a selected interval. It runs on Apple Silicon Macs with macOS 26 or newer and is open source under Apache-2.0.
+
+## What can Activity Monitor tell me right now?
+
+Start with Activity Monitor if the Mac is still struggling. You can follow these steps on macOS Tahoe:
+
+1. Press Command-Space, type `Activity Monitor` and press Return.
+2. Click CPU, then click the % CPU column heading so the busiest processes appear first. Click again if the order is reversed.
+3. Watch for a process that stays busy during the slowdown. Use the search field if you already suspect an app.
+4. Click Memory and check the Memory Pressure graph. Green indicates efficient memory use; yellow or red is a reason to check memory-heavy apps and quit ones you no longer need.
+
+A process near the top isn't automatically misbehaving. An export or a build may be doing exactly the work you asked for. Compare the timing with the task you're trying to complete, and check whether the activity settles when that task finishes. A single reading during an app launch tells you less than sustained activity during the delay.
+
+Choose Window > CPU History for a recent graph of processor activity. Activity Monitor can also put CPU activity in its Dock icon: choose View > Dock Icon, then select a Show CPU option. That gives you a built-in way to keep an eye on load while working, even if you don't want another monitoring app.
+
+The Energy pane has some past information too. On Mac laptops, its 12 hr Power column reports average energy impact over the last 12 hours, or since startup. That can help identify an energy-hungry app, but it doesn't let you isolate the ten minutes around a particular slowdown and compare CPU and memory in that interval.
+
+## When do I need an Activity Monitor alternative for Mac?
+
+You need recorded history when the question is "what slowed down my Mac an hour ago?" Opening Activity Monitor afterward can't reconstruct the CPU graph for that hour.
+
+A current process list can't answer that on its own: the busy app may have finished its work or exited before you noticed the delay.
+
+StatGlass keeps recording with its windows closed and shows readings in the menu bar. You can open a compact popover or the full dashboard when you need detail; the [menu bar and window guide](/docs/menu-bar-and-windows) explains those views. It can also show another Mac or a Linux host's live metrics and history over SSH, as described in [monitoring a Linux server from your Mac](/blog/monitor-linux-server-from-mac). Remote hosts require setup and access to that host, so this doesn't recover data from an unmonitored machine either.
+
+## How do I find the apps busy during a slowdown?
+
+Open the Timeline and locate the time you remember. StatGlass puts the modules on a shared time axis, with views for the last hour, 24 hours, 7 days or 30 days. Event markers identify fans ramping up, thermal state changes, a process pinning the CPU and power spikes. Matching those times helps narrow the investigation without switching between unrelated snapshots.
+
+The live demo below opens on 24 hours of sample data. Drag across a shorter interval in a chart to zoom in, then inspect the recorded app usage below it. Try sorting by Avg CPU or Peak RAM, and turn on Compare previous interval to compare with the same length of time immediately before your selection. Avg CPU is the average over recorded time in the interval; Peak RAM is the highest recorded memory use within it.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/timeline"
+  params={{ chart_window: "24h" }}
+  title="StatGlass Timeline, last 24 hours"
+  caption="Live demo on sample data: every module on one timeline with events marked. Select an interval to see which apps used the most."
+/>
+
+Recorded app usage shows the top ten app groups, with expandable process details. You can sort by CPU, GPU, RAM, estimated CPU power or network usage. The power estimate is specifically CPU power, so it shouldn't be read as a measurement of an app's entire energy use.
+
+Coinciding activity still needs interpretation. An app doing more work at that moment is a lead to investigate, not proof that it caused every delay you felt.
+
+The heatmap shows CPU load or temperature by hour across available history. It's useful when you remember the day but not the precise time. You can also export a range to CSV for your own analysis. The [history and storage guide](/docs/history) describes recorded usage and how much of it is retained.
+
+## How far back does Mac performance history go?
+
+StatGlass keeps resource history at lower resolution as it ages. A bucket groups readings into a time span; older data can show a longer pattern without preserving every moment's detail.
+
+| Age of resource history | Stored resolution |
+| ----------------------- | ----------------- |
+| Last 24 hours           | 10-second buckets |
+| Through 7 days          | 1-minute buckets  |
+| Through 30 days         | 15-minute buckets |
+
+The default storage limit is 750 MB, and you can change it in Settings. Recorded activity and that limit determine how far back the history reaches. Thirty days is the maximum available, not guaranteed retention. Older 15-minute buckets also can't reveal the exact shape of a brief spike the way recent data can.
+
+App attribution and process details have their own storage constraints. App totals include every process, but individual process detail is retained only for processes that used at least 0.1% of one CPU core, any GPU, or 100 MB of RAM. At the size limit, the oldest process details and recorded app usage are removed before resource charts are trimmed. A surviving resource chart therefore doesn't guarantee that all its app detail still exists.
+
+Sleep and time when StatGlass wasn't running appear as gaps. The charts leave those intervals empty instead of interpolating a line between readings. For Mac CPU usage history, that distinction prevents an unrecorded overnight stretch from looking like a measured period of low load.
+
+## What if the process is still running?
+
+Use the Processes page for the current process list after narrowing the time in Timeline. It has CPU, Memory, Energy, Disk, Network and GPU column sets, so you can choose the resource you're investigating. Search accepts an app name, PID or listening port. A PID is the number macOS assigns to a process; a port search can help locate a local service.
+
+This demo starts with the default CPU columns. Type an app name into the search field, clear it, then switch to Disk or Network to see how the columns change. These are current sample readings, separate from the recorded interval in the Timeline demo.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/processes"
+  title="StatGlass Processes page"
+  caption="Live demo on sample data: every process with CPU, memory, disk, network and GPU columns."
+/>
+
+macOS hides processes owned by other users from StatGlass. Per-process network rates cover your own processes, and GPU shares are approximate during a long GPU compute job. An absent process or unassigned traffic doesn't mean nothing happened. The [metrics guide](/docs/metrics) explains what each module measures and the network attribution limit.
+
+## What does recording cost, and where does the data go?
+
+With only the menu bar showing, StatGlass samples every 2 seconds and uses under 1% of one CPU core. An open window changes that: sampling is every second by default, with CPU use of 6 to 10% of one core depending on the page.
+
+The published benchmark measured 0.67% CPU and 105 MB of memory for StatGlass in menu bar mode. That was a single run on a busy M3 Max, plugged in, on macOS 27 on October 7, 2026. It measured CPU time over 120 seconds, included helper processes, used default settings and predates remote monitoring, with Docker monitoring off. It isn't a promise for your Mac or for leaving the dashboard open.
+
+Local monitoring reads macOS as your user, without a privileged helper. The app sends no metrics, history or machine identifier to a StatGlass backend. Its connections are SSH to hosts you add and an update check to GitHub, which you can turn off. Enabling remote monitoring lets authorized SSH clients read that host's metrics and history and keeps a separate local mirror on the controller. The [privacy and data guide](/docs/privacy) explains storage locations and sharing; the website's analytics are separate from the app.
+
+## When is Activity Monitor still the better tool?
+
+Activity Monitor is the better starting point for a problem happening now if you want no installation. It also offers process sampling and system diagnostic reports for deeper investigation. A sample can help a developer inspect what a stuck process is doing, beyond how much CPU it consumes.
+
+To capture a sample, select the stuck process in Activity Monitor, click the More button and choose Sample Process. It records a three-second sample. If you're reporting a reproducible hang, capture it while the process is still stuck. Record what you were doing and the time it happened alongside the report, so the person investigating can match the evidence to the failure.

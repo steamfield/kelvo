@@ -77,5 +77,4 @@ provided and a link to open the demo. Every module card is labeled as simulated.
 Code fence titles, callouts and tables use the same processor as docs. The frame
 provides h1, dates, reading time, related links and install action; use h2/h3 in
 post bodies. Posts are included in RSS (`/blog/rss.xml`), the sitemap and
-`/llms.txt`. The temporary `demo-kit.mdx` exercises the kit and is removed before
-release.
+`/llms.txt`.

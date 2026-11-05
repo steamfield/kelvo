@@ -1,0 +1,99 @@
+---
+title: See which apps are using the network on Mac
+headline: How to see which apps are using the network on your Mac
+description: See which Mac apps are downloading or uploading with Activity Monitor and nettop, then use StatGlass to check live rates and recorded network history.
+published: 2026-11-04
+keyword: see which apps are using network on mac
+feature: network
+relatedDocs: [metrics, history, privacy]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To see which apps are using the network on your Mac, open Activity Monitor, click Network, and sort by Rcvd Bytes for downloads or Sent Bytes for uploads. Those columns show cumulative bytes per process since it launched, so watch which values increase while the connection is slow. For live traffic per process in Terminal, use `nettop -P -d`; for recorded app usage over a past interval, StatGlass keeps network history while it runs.
+
+## See which apps are using the network in Activity Monitor
+
+Activity Monitor is built into macOS and is the quickest place to start when a transfer is happening now. You do not need to install anything or use Terminal.
+
+1. Open Spotlight with Command-Space, type `Activity Monitor`, and open it.
+2. Click Network in the Activity Monitor window.
+3. Choose View > All Processes and clear any text in the search field so a filter does not hide the process you need.
+4. Click the Rcvd Bytes column heading to sort by received data. Click again if needed to put the largest values at the top.
+5. Check Sent Bytes too, especially if a backup or upload might be slowing the connection.
+6. Watch the leading rows across several updates. Look for counters that keep rising, then check the corresponding app for an active transfer.
+
+A process is a running program, which can be an app or one of its helpers. A browser may have several processes, so a row's name will not always match the name in your Dock. Avoid quitting an unfamiliar process just because its counter is large. Pause a download or sync inside the app you recognize, then check whether the traffic falls.
+
+Rcvd Bytes and Sent Bytes measure accumulated data, not current speed. An app left open all day can sit above a newly started download even after it has stopped transferring. The changing counter is the useful clue when you are looking for what is using your bandwidth right now.
+
+Data received/sec and Data sent/sec at the bottom of Activity Monitor show the Mac's overall throughput in bytes per second. Check those while you pause a suspected transfer. If the total drops with it, you have evidence that the app was contributing to the load.
+
+## How do I watch live traffic with nettop?
+
+Open Terminal and run this built-in command:
+
+```sh title="Watch network traffic per process"
+nettop -P -d
+```
+
+The `-P` option shows a summary for each process and hides individual connection details. The `-d` option shows changes between updates. Look at `bytes_in` for received data and `bytes_out` for sent data. The default update interval is one second, so after the initial reading these changes show roughly how much each process moved in the last second.
+
+This command includes loopback traffic, which stays inside your Mac. A busy row alone does not prove internet use. Add `-t external` to the command to exclude loopback traffic.
+
+Press `q` to quit. You can also press `h` for the interactive help if you want to change the display.
+
+Uploads deserve the same check as downloads: a backup sending data can compete with other work even when you are not downloading a file.
+
+`nettop` is useful for a live check, but its moving table takes more attention than a chart. The command above also does not save a record you can revisit later. You can arrange your own logging, but opening Terminal after the slowdown has ended cannot recover traffic that you did not record.
+
+## Which app used the network an hour ago?
+
+Recorded history is needed to connect an earlier spike with an app. Activity Monitor's cumulative process counters do not isolate a chosen hour, and a live `nettop` session only shows the traffic it observes. If an app has already finished a transfer or exited, checking current activity may miss it entirely.
+
+StatGlass is a free, open-source menu bar system monitor for Apple Silicon Macs on macOS 26 or newer. Its Network page puts download and upload throughput above a Network by app table. With Network history enabled, that table shows bytes moved during the chart window or the interval you select. This lets you compare a brief burst with a longer transfer without treating the fastest moment as the largest data user.
+
+Try dragging across part of the throughput chart in the live demo below. Network by app changes to cover that selection; compare its Down and Up byte totals, then sort by Total or Now. Now is a recent rate from the latest complete measurement bucket, so an app can have a large Total and a quiet Now column. Scroll inside the dashboard to reach Interfaces.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/network"
+  title="StatGlass Network page"
+  caption="Live demo on sample data: throughput, network by app, and interfaces."
+  fallback="network"
+/>
+
+For a slowdown an hour ago, open the time-range button at the top right (15m in this demo) and choose Last 1 day, then drag across the recorded burst. For an exact interval, open the same menu, choose Date range, enter From and To times, and click Apply.
+
+Keep Network history enabled if you want to investigate future slowdowns after they pass. Turning it off leaves live per-process rates in an Apps, now view, with no app totals or brush on the live chart. StatGlass cannot reconstruct an interval it did not record. Time spent asleep or with StatGlass closed appears as a gap.
+
+The Timeline also lets you select an interval and inspect recorded app usage sorted by network use. Resource history uses 10-second buckets for the last 24 hours, one-minute buckets through seven days, and 15-minute buckets through 30 days. Thirty days is the maximum: recorded activity and the storage size limit determine how much fits. The [history and storage guide](/docs/history) explains retention and what gets removed first when storage fills.
+
+## How do I find the process transferring data now?
+
+The Network page groups recorded traffic by app; the Processes page is useful when you need the individual running process. Choose its Network columns to compare download and upload rates. This is a current-activity view, so use the Network page's selected interval when investigating a transfer that has already ended.
+
+The next demo opens Processes with Network columns already selected. Click Down or Up to change the sort, or type a process name into the search field. Try `Safari` to narrow the sample table, then clear the search to compare it with the other processes.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/processes?columns=network"
+  title="StatGlass Processes, network columns"
+  caption="Live demo on sample data: download and upload per process."
+/>
+
+StatGlass gets per-process rates through macOS's NetworkStatistics framework, which exposes your user's processes only. System daemon traffic counts in the interface totals but is not itemized per app. The Network by app table includes a System and other remainder and a separate Protocol overhead (est.) row; neither names the individual service responsible. The [network measurement limits](/docs/metrics#network-per-process) explain that coverage boundary.
+
+## What changes with Ethernet or a VPN?
+
+Check the Interfaces table when more than one network connection is active. StatGlass shows rates per reported interface, so you can compare their Down and Up columns instead of assuming all activity belongs to Wi-Fi. Its header normally names the primary interface and shows local and public IP addresses when available. Click either address to copy it.
+
+A VPN can leave that header without a primary interface even while traffic is flowing. In the app's VPN sample scenario, Wi-Fi (`en0`) and a dock's Ethernet (`en7`) are both reported, but the default route is on a tunnel that is not reported. The primary interface is therefore unset and the header says No active interface, while the totals still cover both reported interfaces. Check the interface rows before interpreting that header as a disconnected Mac.
+
+These counters measure network traffic, which can include transfers to another device on your local network. They are not a direct reading of your internet provider's data allowance. If local file copies are active, pause those separately when testing whether an internet download is responsible for the slowdown.
+
+## Can I keep upload and download speed in the menu bar?
+
+StatGlass can show network activity as a value or graph in the menu bar, or include network readings in one combined item. That gives you a visible signal while other windows are closed; [choosing a menu bar system monitor](/blog/mac-menu-bar-system-monitor) compares the styles. Open the Network dashboard when you need to connect the activity with an app or inspect an earlier interval.
+
+Local monitoring runs as your user without a privileged helper and keeps its history on your Mac. StatGlass sends no metrics, history or machine identifier to a backend. Update checks contact GitHub; if you enable remote monitoring, authorized SSH clients can read the remote host's metrics and history. The [privacy and data guide](/docs/privacy) describes those connections and where the local files live.

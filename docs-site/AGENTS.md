@@ -113,6 +113,5 @@ and under reduced motion. Commands and outputs use the site's mono face.
 
 Every demo root has `data-demo`; the shared docs prose stylesheet excludes
 these roots and their descendants. Dashboard figures expand to the site container; prose stays at 44rem.
-`demo-kit.mdx` exercises the whole kit and Markdown pipeline. Delete this test post
-before release. `tests/blog-pages.test.ts` checks metadata, feeds, links, related
+`tests/blog-pages.test.ts` checks metadata, feeds, links, related
 docs, literal CLI hyphens and demo parameter/scenario names against the app source.

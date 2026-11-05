@@ -1,0 +1,118 @@
+---
+title: How to find large files on Mac
+headline: How to find large files and folders on your Mac
+description: Find large files on your Mac with Finder, Storage settings and Terminal, then compare folder sizes in StatGlass's interactive disk space report.
+published: 2026-11-04
+keyword: how to find large files on mac
+feature: disk
+relatedDocs: ["metrics", "privacy", "remote-macs"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To find large files on your Mac, open Finder, press Command-F, select This Mac and add a File Size criterion greater than 1 GB. System Settings > General > Storage also shows large documents and recommendations for recovering space. For large folders, use Finder's Calculate all sizes option or the Terminal command below to compare their totals.
+
+A disk can fill with thousands of modest files as easily as one huge video. A file search catches the video; folder totals expose the accumulated files. Start with the built-in view that answers your question, then use a disk space analyzer if you need to follow the biggest folders through several levels.
+
+## How to find large files on Mac with Finder
+
+Finder's search works well when you want individual files above a size threshold. A gigabyte is a useful starting point for a nearly full drive, though you can lower it if the results don't explain much of the missing space.
+
+1. Open a Finder window and press Command-F.
+2. Select This Mac in the search scope to search beyond the current folder.
+3. Use the search criterion menu, usually labelled Kind, and choose Other. Find File Size in the attributes and select it.
+4. Set File Size to is greater than, enter `1` and choose GB. Use the plus button if you need another criterion, such as Kind, to narrow the results to movies.
+5. Switch to list view with Command-2 and sort by the Size column, largest first. If Size is missing, Control-click a column heading and select Size. Click Size again to reverse the order.
+
+Inspect a result's location before removing it. Two files with the same name can belong to different projects, and a large disk image might be an active virtual machine. A large-file result gives you a candidate to investigate, without telling you whether it is disposable.
+
+Finder search depends on what macOS has indexed. An empty result doesn't prove that no large files exist, and it won't tell you that a folder contains ten thousand small files. Folder totals are the better next step when the search results don't add up.
+
+## What does the Storage view show?
+
+Open System Settings > General > Storage and wait for the categories to fill in. This is the quickest built-in overview of the disk: you can see whether applications or documents account for much of its use, and review the recommendations macOS offers.
+
+Open the information button beside Documents to inspect its large-file and downloads views. You can sort by size and use Show in Finder to check an item's location. The File Browser view also lets you inspect folder usage, so Storage can be enough for a straightforward cleanup.
+
+System Data is less helpful when you need a path. It groups files that don't fit the other categories, including caches and app support data, and doesn't offer the same file-management view. A large System Data total alone doesn't identify a folder you can safely empty. Use Finder or a folder scan to locate the actual files before deciding what to do with them.
+
+## How do I see folder sizes in Finder?
+
+Open your home folder in Finder and press Command-2 for list view. Choose View > Show View Options, or press Command-J, then enable Calculate all sizes. Finder fills in the Size column for folders as it counts their contents. If the column is hidden, Control-click a column heading and select Size. Click Size to sort, then click again if the largest folders are at the bottom.
+
+This lets you compare sibling folders without opening Get Info for each one. Open a large folder and repeat the comparison inside it. For example, a large Movies folder is a more useful lead than a long list of unrelated files elsewhere on the disk.
+
+The wait can grow on folders with many nested items. Finder has to count those contents, and you still have to follow the folder hierarchy yourself. Wait for Finder to finish calculating before comparing folder totals.
+
+## How do I find large folders with Terminal?
+
+Open Terminal and run this command to compare the visible files and folders directly inside your home folder:
+
+```sh title="Compare sizes in your home folder"
+cd ~
+du -sh * | sort -h
+```
+
+`du` measures disk usage, `-s` gives one total per argument and `-h` uses readable units. `sort -h` orders those units correctly, with the largest entries at the bottom. The command reads sizes and prints a list; it doesn't remove anything.
+
+The `*` leaves out names beginning with a dot. To include those hidden entries in a one-level report, use:
+
+```sh title="Include hidden entries in the folder totals"
+du -xhd 1 ~ | sort -h
+```
+
+Here, `-d 1` limits the displayed depth, and `-x` keeps the walk on one filesystem. The home-folder total appears alongside its children, so don't add all the lines together. To investigate one large folder further, replace `~` with its path, putting paths containing spaces in quotes.
+
+Both commands can take time on a large tree. Limiting the output depth doesn't avoid counting the files below it, and the sort waits for input before showing its ordered results. If Terminal reports Permission denied or Operation not permitted, the totals are incomplete. Don't add `sudo` just to make those messages disappear: identify the excluded location first.
+
+## How can I compare folders in a treemap?
+
+StatGlass's Space report puts folder totals in a treemap, where larger rectangles mean more allocated disk space. StatGlass is a free, open-source menu bar monitor for Apple Silicon Macs on macOS 26 or newer. Its Disk page separates ongoing disk Activity from the on-demand Space scan; the [metrics guide describes the Disk readings](/docs/metrics).
+
+In the dashboard, open Disk and choose Space. Protected locations are skipped unless you include them before a local scan. That includes Desktop, Documents and Downloads, along with app containers. Expand Protected locations and tick the folders you want included; macOS may ask for access. Then press Scan beside the volume you want to inspect.
+
+Results fill in as folders finish. The scan is read-only and kept in memory, and a running scan cancels when the dashboard hides. Reports aren't saved between launches.
+
+The demo below opens a completed boot-volume report on sample data. Click a folder in the treemap to drill into it, then use the folder path above the map to go back up. The Contents table below it gives the named entries and their sizes.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/disk?view=space&vol=/"
+  params={{ space_scan: "/" }}
+  title="StatGlass Disk page, Space report for the boot volume"
+  caption="Live demo on sample data: the boot volume as a treemap. Click a folder to drill in."
+/>
+
+Small entries merge into Smaller items, including entries below 0.5% of their parent folder. Their bytes still count. Drilling into a folder changes the comparison to that folder's contents, so a small part of the volume can become a visible part of the next map.
+
+The project's initial walker benchmark on one development Mac, running macOS 27 with a warm cache, read about 1.7 million files in 3.3 seconds, compared with 18.6 seconds for `du -x -k -d 1`. The full walk with the report's retention rules enabled took 3.84 seconds. Per-folder totals matched `du -skx` within 0.1%. These are the project's own measurements on one machine, not a scan-time promise for your drive.
+
+## Which individual files are biggest?
+
+The Largest files tab lists the top 50 files across the scanned volume, with each file's parent folder and allocated size. It saves following every branch of the treemap when a few large files are responsible. A large folder can still matter even if none of its individual files reaches this list.
+
+This second demo opens Largest files on the same sample volume. Scroll inside the demo to reach the table below the map. Compare the Folder and Size columns, then try switching to Contents to inspect the folder breakdown. These are sample paths, not files read from your Mac.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/disk?view=space&vol=/&tab=largest"
+  params={{ space_scan: "/" }}
+  title="StatGlass Space report, Largest files tab"
+  caption="Live demo on sample data: the 50 largest files on the volume."
+/>
+
+## Why don't the scanned files equal used space?
+
+The finished report's Skipped folders disclosure lists protected locations and folders it couldn't read. Their contents can explain some of the difference between scanned files and used space.
+
+The walker counts allocated bytes, which describe space occupied on disk rather than a file's advertised length. It doesn't follow symbolic links or cross onto another device, and hard-linked files count once. Cloud placeholders aren't treated as fully downloaded files: the macOS scan sets a policy to prevent downloading iCloud and File Provider contents or directory listings during the walk.
+
+Other volumes accounts for sibling volumes in the same APFS container. Other covers used space that the files don't explain, including snapshots and unreadable locations. StatGlass doesn't show a purgeable-space figure. Allocated sizes also aren't a prediction of what deletion will recover, because snapshots or APFS clones can keep blocks in use.
+
+Local scans stay on your Mac; the [privacy guide explains local data and remote sharing](/docs/privacy). A connected remote Mac or Linux host scans its own volumes; [monitoring a Linux server from your Mac](/blog/monitor-linux-server-from-mac) covers adding one. Show in Finder is available only for this Mac; remote paths can be copied. The [remote Mac setup guide explains the SSH connection](/docs/remote-macs).
+
+## What can I delete safely to free up disk space?
+
+Start with files you recognize and no longer need, such as an old installer or a duplicate video export. Check that another copy exists if the file matters. For an app's working data, use that app's storage controls or removal instructions, especially for virtual machines and photo libraries.
+
+StatGlass's Space report has Show in Finder and Copy path actions, with no delete button. You decide in Finder what to move or remove. After cleanup, empty the Trash only when you're ready to discard its contents, then scan again to refresh the report.

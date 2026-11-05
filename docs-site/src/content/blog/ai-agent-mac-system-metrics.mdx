@@ -1,0 +1,161 @@
+---
+title: Give your AI agent Mac system metrics
+headline: Give your AI agent Mac system metrics and history
+description: Give a shell-capable AI agent Mac system metrics with the StatGlass CLI, or use built-in commands for current CPU, memory and disk readings.
+published: 2026-11-04
+keyword: ai agent mac system metrics
+feature: cli
+relatedDocs: ["install", "history", "privacy", "remote-macs"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+import { AgentSession } from "@/islands/AgentSession";
+
+To give an AI agent Mac system metrics, have it run built-in commands such as `top` for current activity, or use the read-only `statglass` CLI for recorded history. For a slowdown happening now, open Activity Monitor, select CPU and sort the % CPU column with the busiest processes first. For "what happened at 3pm?", StatGlass can return recorded events, per-app usage and metric history, provided it was running and recording then.
+
+## What can macOS tell an agent without installing anything?
+
+An agent that can run shell commands can inspect your Mac with its existing tools. This is enough to identify a process that is still busy or check how much space is available on the disk containing your home folder:
+
+```sh title="Current activity with built-in macOS tools"
+top -l 2 -o cpu -n 10
+df -h "$HOME"
+vm_stat
+```
+
+`top` takes two samples and sorts processes by CPU usage. Read the second sample: the first has no previous sample for calculating per-process CPU percentages. `df` reports disk capacity and available space. `vm_stat` reports virtual-memory statistics; some counters accumulate over time, so a large total alone doesn't locate a recent problem.
+
+Activity Monitor gives you a more readable view while the problem is happening. Its Memory view includes Memory Pressure, which helps you assess memory demand alongside the process list.
+
+These commands don't retrieve a timestamped record of an earlier slowdown unless someone already arranged to capture it. Leaving `top` running can collect future samples, but starting it at 4pm won't recover the process activity at 3pm. A process list from `ps` can identify what's running now; it cannot reconstruct an exited build. Parsing that text also leaves the agent to decide what was measured and when.
+
+## How do I give an AI agent Mac system metrics and history?
+
+StatGlass is a free, open-source menu bar monitor under Apache-2.0 for Apple Silicon Macs on macOS 26 or newer. Its CLI asks the running app for data. Local history can reach up to 30 days, depending on recorded activity and the storage limit; installing it after a slowdown cannot recover missing measurements.
+
+The [installation and first-launch instructions](/docs/install) cover getting the app running. To make its bundled command available in Terminal:
+
+1. Open StatGlass Settings and find Command line.
+2. Leave "Allow command-line access" enabled. It is on by default.
+3. Use Install beside "statglass command" to create `~/.local/bin/statglass`. If Settings reports a link to another copy, use the action it offers to repair or replace it.
+4. Run `statglass hosts` in Terminal. If the shell can't find it, add `~/.local/bin` to your shell's `PATH`.
+
+The link points to `Contents/MacOS/statglass-cli` inside the app bundle. Keep the app running while querying it. If a command fails after the shell finds it, `statglass doctor` reports the resolved paths, app status and command-line access setting.
+
+The live Settings demo below includes the Command line panel. Scroll down inside the dashboard to find it and try its access switch. These controls act on sample data, not your installed app.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/settings"
+  title="StatGlass Settings"
+  caption="Live demo on sample data: Settings, including the Command line panel."
+/>
+
+## Which commands should the agent run first?
+
+Start with `statglass hosts` to identify the machine and its retained history. Queries default to this Mac. Add `--host 'Build Mac'` to a history, events or usage query when that is the display name returned by `hosts`; the agent should discover names before choosing one.
+
+For an earlier slowdown, the bundled guide teaches this order:
+
+```sh title="Investigate before checking the current moment"
+statglass hosts
+statglass events --since 6h --summary
+statglass top --since 3h --by cpu --limit 5
+statglass history 'cpu.total' --since 3h --points 12
+statglass now
+```
+
+Events locate recorded incidents, including sustained heavy processes and fan ramps (the same markers the Timeline shows when [tracking down a loud fan](/blog/why-is-my-mac-fan-so-loud)). `--summary` counts events by kind, with the processes named most often and counts per day. Drop that flag for individual events in time order. `top` ranks apps over the requested interval; its CPU figure is an average percentage of one core and can exceed 100%. `--by memory` ranks peak memory instead.
+
+History then checks the trend behind that attribution. `now` answers whether the machine is still busy and includes the reading frame's age. Use `now` to check whether the earlier load has subsided.
+
+The illustrated session below assumes the request arrives at 4pm. Watch how the agent compares the event times with the CPU maximum, then read its answer alongside the gap line. The values are invented sample data, and the transcript is abbreviated.
+
+<AgentSession
+  client:visible
+  request="My Mac was really slow around 3pm, what happened?"
+  steps={[
+    {
+      command: "statglass events --since 6h --summary",
+      output:
+        "3 events on Work Mac, 10:00 to 16:00\nsustained_process 2, 15:02 to 15:19\n  processes: clang 2\n  per day: Nov 4 2\nfans_ramped 1, 15:08 to 15:08\n  processes: clang 1\n  per day: Nov 4 1",
+    },
+    {
+      command: "statglass top --since 3h --by cpu --limit 5",
+      output:
+        "top 5 apps by average CPU on Work Mac, 13:00 to 16:00\nXcode  210.0%  71% of host\n  clang  195.0%\nSafari  32.0%  11% of host",
+    },
+    {
+      command: "statglass history 'cpu.total' --since 3h --points 12",
+      output:
+        "cpu.total on Work Mac, 13:00 to 16:00 (1 min buckets, 93% measured)\nmin 2.1%  mean 18.4%  max 97.0% in the minute from 15:12  last 6.3% at 15:59\n  15:00  avg 84.0%  min 62.0%  max 97.0%\n  15:15  avg 72.0%  min 21.0%  max 94.0%\ngap 14:00 to 14:12: sleep",
+    },
+  ]}
+  answer="The recorded activity points to an Xcode build: clang appears in sustained-process events at 15:02 and 15:19, with a fan ramp at 15:08. Total CPU reached 97% in the minute starting at 15:12. Xcode led average CPU usage over the three-hour window, though that ranking alone cannot isolate 3pm. The sleep gap at 14:00 to 14:12 is unknown time. A narrower usage query around 3pm would help confirm the attribution."
+  caption="Illustration: an agent investigating a slowdown with the statglass CLI. Output abbreviated."
+/>
+
+## How do I query a particular afternoon or a filling disk?
+
+Use fixed dates when "3pm" means a previous day. Version 0.6.1 added local date-time inputs for `--from` and `--to`, along with `events --summary`:
+
+```sh title="Focus the investigation on yesterday afternoon"
+statglass events --from '2026-11-03 14:45' --to '2026-11-03 15:30'
+statglass top --by cpu --from '2026-11-03 14:45' --to '2026-11-03 15:30'
+```
+
+Times without an offset use this Mac's timezone, including queries for remote hosts. Use an RFC 3339 timestamp with an explicit offset when that distinction matters. `--since` accepts durations such as `3h` or `7d` and cannot be combined with `--from` or `--to`.
+
+The `history` command takes series names that identify a metric and any labels. `cpu.total` is unlabelled; `disk.used` needs a volume label to choose a particular volume. Discover the host's stored names with `metrics`, then quote arguments containing braces so the shell passes them intact:
+
+```sh title="Check recorded disk use on this Mac"
+statglass metrics --host local --module disk
+statglass history 'disk.used{vol=/}' --since 7d --points 14 --all-gaps
+```
+
+The history summary includes minimum, mean, maximum and last value, plus the measured share of the range. `--points` changes the displayed detail without changing that summary. A maximum's time identifies its bucket, not the exact instant of a spike. The [history retention and storage guide](/docs/history) explains why older data becomes coarser and why less than 30 days may remain.
+
+Gaps mean unknown data, never zero usage. Read each gap and any "more gaps" line before concluding that the disk stopped growing or the CPU was idle. `--all-gaps` lists every gap in text; JSON always includes them all.
+
+Remote hosts can retain mirrored history and events while offline. Per-app `top` requires a connected remote host, so use those mirrored records when it is unreachable. Even a connected host's latest history may be marked "not synced yet"; `now` supplies current readings. The [remote Mac setup guide](/docs/remote-macs) explains how to add a machine before querying it.
+
+## How do I get JSON system metrics on a Mac?
+
+Add `--json` for one result object instead of text. Without it, the CLI prints plain text for agents and pipes, and aligned text in a terminal. Scripts can inspect the published schema instead of guessing at fields:
+
+```sh title="Machine-readable readings and their schema"
+statglass now --all --json
+statglass schema now
+statglass history 'cpu.total' --since 3h --json
+statglass schema history
+```
+
+Exit codes tell a script what to do next:
+
+| Exit | Meaning and next action                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| 0    | Success. Read freshness and gaps before using the answer.               |
+| 1    | Bug. Rerun once; report a repeat with `statglass doctor --json`.        |
+| 2    | Fix the input, such as an unknown host or series.                       |
+| 4    | Busy. Retry in a few seconds.                                           |
+| 5    | Data unavailable. Follow the suggested alternative instead of retrying. |
+| 6    | Ask the user, for example to open StatGlass or enable CLI access.       |
+| 130  | Interrupted.                                                            |
+
+With `--json`, failures leave stdout empty. Text errors go to stderr and end with a `Next:` line. With `--json`, the last stderr line is an error envelope; match its `tag`, not the wording of its message. `statglass schema error` describes that envelope.
+
+## How do I install the agent skill for system monitoring?
+
+The CLI works with any agent that can run shell commands. Its bundled Agent Skills `SKILL.md` teaches when to query StatGlass and how to interpret missing data. The installer targets `~/.claude/skills/statglass/` by default:
+
+```sh title="Install the bundled skill for your user"
+statglass skill install --user
+```
+
+Use `statglass skill install --project` for `./.claude/skills/statglass/` in the current repository. Both write `SKILL.md` and `reference/statglass.md`. These are the installer's destinations; other agents may need the files placed where they discover skills. An agent can also run `statglass` without arguments to read the guide, with no skill installation.
+
+## What can the agent access or change?
+
+Metric queries go through an owner-only local socket to the running app. The CLI never opens the history storage itself. Processes running as your user can read the available history, including your paired machines, while command-line access is enabled. The monitoring interface is read-only: it cannot kill processes or change settings. The separate skill installation command writes the skill files described above.
+
+StatGlass keeps local monitoring data on your Mac and sends no metrics to a StatGlass backend. Remote monitoring uses SSH to hosts you add, and update checks contact GitHub. The [privacy and data guide](/docs/privacy) describes those connections. An agent's handling of terminal output is separate: if your agent sends context to a hosted model, the readings it receives may be included in that context.

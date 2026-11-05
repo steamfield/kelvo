@@ -1,0 +1,95 @@
+---
+title: "Memory pressure on Mac: what to check"
+headline: "Memory pressure on Mac: is your RAM too full?"
+description: Check your Mac's memory pressure before worrying about full RAM. Read Activity Monitor's memory figures, find heavy apps and look back at slowdowns.
+published: 2026-11-04
+keyword: memory pressure mac
+feature: memory
+relatedDocs: ["metrics", "history", "menu-bar-and-windows"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+Memory pressure on a Mac tells you whether macOS is keeping up with demand for RAM. Open Activity Monitor, click Memory, and read the Memory Pressure graph: green generally means memory is serving your work well, while sustained yellow or red deserves attention. A high Memory Used figure alone doesn't establish a problem. If the Mac is slow, check pressure and which apps are using memory before quitting anything.
+
+## How do I check memory pressure on my Mac?
+
+Activity Monitor is the right first stop because it shows system memory and individual processes in the same window. You don't need to install anything to answer whether memory is tight right now.
+
+1. Open Spotlight with Command-Space, type `Activity Monitor`, and open it.
+2. Click Memory. Look at the Memory Pressure graph at the bottom of the window while doing the work that feels slow.
+3. Click the Memory column heading in the process table until the largest values appear at the top. If a process seems to be missing, choose View > All Processes.
+
+Green pressure with a responsive Mac is usually a reason to keep working. Yellow means memory is becoming constrained; red indicates more serious pressure. A brief change during a large task tells you less than pressure that stays elevated throughout ordinary work.
+
+Activity Monitor's graph updates as the app runs. It is useful for watching a problem happen, but it isn't a saved history you can reopen later to inspect yesterday's slowdown.
+
+## What do the memory figures mean?
+
+Physical Memory is the RAM installed in your Mac. The other figures describe how macOS is using that capacity, or how much disk space it is using to support memory. They aren't all separate amounts you should add together.
+
+| Activity Monitor label | What it means                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Memory Used            | RAM used by apps, wired memory and compressed memory combined.                                                   |
+| App Memory             | Memory being used by apps.                                                                                       |
+| Wired Memory           | Memory the system must keep in RAM to operate. It isn't available for other apps to reclaim.                     |
+| Compressed             | RAM occupied by data macOS has compressed to make room for other work.                                           |
+| Cached Files           | Files kept in otherwise unused RAM so they can be accessed again faster. macOS can reuse this space when needed. |
+| Swap Used              | Space on the startup disk used to hold data moved out of RAM.                                                    |
+| Memory Pressure        | An overall indication of how well memory is meeting demand, accounting for more than the amount of free RAM.     |
+
+Cached Files explains why little completely free RAM can be normal. Keeping recently used files in memory saves reading them from disk again. There is no benefit to making that space empty just to lower a usage display.
+
+Activity Monitor counts Cached Files separately from Memory Used. If Memory Used itself is close to Physical Memory, that isn't all file cache: apps, wired memory and compressed data account for it. Pressure helps you judge whether macOS is managing that workload comfortably.
+
+Compressed memory on a Mac is still in RAM. macOS packs less active data into a smaller space, then decompresses it when needed. Compression is a normal part of memory management; its presence alone doesn't mean an app has a fault.
+
+Swap uses disk space rather than RAM, and reading swapped data back has a cost. Swap Used is an amount, not a speed or a count of current pauses. A nonzero value doesn't establish that swapping is causing the delay you're experiencing now.
+
+## When should I worry about yellow or red pressure?
+
+Sustained yellow or red pressure during the work you need to do is a reason to reduce memory demand. Growing swap alongside elevated pressure and slow app switching is stronger evidence of a memory bottleneck than a large usage figure on its own. There isn't one safe or unsafe number of gigabytes of swap that applies to every Mac and workload.
+
+Save your work, then quit an app you don't currently need using its normal Quit command. If a browser is near the top of the Memory table, close unused tabs or windows. Watch whether pressure falls and the Mac becomes responsive again. Changing one thing at a time makes the result easier to interpret.
+
+A process that keeps growing while doing the same work deserves investigation, but one large reading doesn't prove a memory leak. A video editor working on a large project has a different reason to hold memory than an idle app whose footprint keeps rising. Reopen the suspected app after saving and see whether the same task reproduces the growth.
+
+Restarting clears the current state and can provide temporary relief. If you can still use the Mac, note the largest processes and pressure first. Otherwise, you may lose the evidence that would help explain why the problem returns. If pressure stays green during the slowdown, check other resources, such as CPU or disk activity, before treating RAM as the cause. If the fans are loud too, [finding what makes a Mac hot](/blog/why-is-my-mac-fan-so-loud) walks through the CPU and GPU side.
+
+## How can I see memory pressure over time?
+
+StatGlass keeps memory readings locally, so you can compare a busy period with what came before it. It is a free, open-source menu bar monitor for Apple Silicon Macs on macOS 26 or newer. Activity Monitor is enough for a live check; recorded readings help when the troublesome app has already settled down.
+
+The Memory page combines a composition bar with a Pressure chart and a Swap chart. The composition separates app, wired and compressed memory, with cached files and free space alongside them. Used is a readout at the top. The composition bar shows current readings; the charts and peak totals follow the selected interval. StatGlass charts a kernel-derived pressure percentage over time and shows the separate current kernel state as `normal`, `warn` or `critical`. Warn and critical include icons. The [metrics guide describes the readings in each module](/docs/metrics).
+
+The live demo below opens that Memory page on sample data. Try the time control at the top to change the chart window, then drag across the Pressure chart to select an interval and inspect its peak used memory and peak swap. Scroll inside the dashboard to reach the Swap chart.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/memory"
+  title="StatGlass Memory page"
+  caption="Live demo on sample data: memory composition, pressure over time, swap and used."
+  fallback="memory"
+/>
+
+## How do I find which app is using RAM?
+
+Activity Monitor's sorted Memory column is the quickest built-in way to find a large process. A browser or another app can have several helper processes, so the first row may account for only part of an app's demand. Look for related names before assuming one row is the entire application.
+
+In StatGlass, open Processes and choose the Memory column set. It sorts by memory with the largest processes first and includes a compressed-memory column. Search by name, PID (process identifier) or listening port if you already know what you're investigating. These are current process readings, useful while the slowdown is happening.
+
+Some processes owned by other users are hidden in StatGlass on macOS. Its process list therefore won't necessarily account for every byte of system memory. Wired memory and shared resources also make adding process rows a poor way to reconstruct the system total.
+
+Quit an app normally when possible so it can save work. StatGlass also has Quit and Force Quit actions for local processes, each behind a confirmation dialog. Force Quit can discard unsaved changes. Avoid terminating unfamiliar system processes just because their names appear near the top of a table.
+
+## Can I look back at a slowdown an hour ago?
+
+StatGlass can show the earlier interval if it was running and recorded that time. Its Timeline covers the last hour, 24 hours, 7 days or 30 days. Select the interval around the slowdown to inspect recorded app usage by RAM and compare it with the preceding interval. You can carry that range into the module charts to examine memory pressure and swap around the same time.
+
+Resource history uses 10-second buckets for the last 24 hours, one-minute buckets through 7 days and 15-minute buckets through 30 days. Older views have less time detail, so a short event can be harder to distinguish there than in a recent window.
+
+Thirty days is the maximum retention, not a guarantee. The default history size limit is 750 MB, and recorded activity affects how much fits. When space runs short, older process details and recorded app usage go before resource charts. The [history and storage guide explains retention and gaps](/docs/history). Monitoring started after a slowdown can't reconstruct it.
+
+## Can I keep memory visible in the menu bar?
+
+StatGlass can show memory as a number or graph in the menu bar, either as its own module item or within the combined item. You can change the presentation in Settings. The [menu bar and windows guide explains the available styles](/docs/menu-bar-and-windows).

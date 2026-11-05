@@ -1,0 +1,98 @@
+---
+title: How to check Mac battery health
+headline: How to check Mac battery health and cycle count
+description: Check Mac battery health in Battery settings and cycle count in System Information, then use energy readings to investigate a fast-draining battery.
+published: 2026-11-04
+keyword: check mac battery health
+feature: battery
+relatedDocs: [metrics, menu-bar-and-windows, history]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To check Mac battery health, open the Apple menu, choose System Settings, then Battery, and click the info button beside Battery Health to see Maximum Capacity and the battery's condition. For cycle count, hold Option while opening the Apple menu, choose System Information, then select Power under Hardware. Those two places tell you about battery wear; Activity Monitor's Energy tab helps investigate apps using energy when a charge runs down quickly.
+
+A worn battery holds less energy, but a busy Mac can also run through a healthy battery quickly.
+
+## Check Mac battery health in System Settings
+
+Battery settings gives you the quickest check on macOS 26, also called Tahoe.
+
+1. Open the Apple menu and choose System Settings.
+2. Select Battery in the sidebar. Scroll down the sidebar if it isn't visible.
+3. Find Battery Health and read the condition beside it.
+4. Click the info button beside Battery Health to see Maximum Capacity and more detail about the condition.
+
+Maximum Capacity is your battery's capacity relative to when it was new. The charge percentage in the menu bar answers a different question: how full the battery is right now. A battery can be fully charged while holding less energy than it did when new.
+
+The condition labels are plain: Normal means the battery is functioning normally. Service Recommended can mean its ability to hold charge has diminished or that it isn't functioning normally. If you see that message, contact Apple or an Apple Authorized Service Provider about having the battery checked. A low cycle count doesn't cancel out a service recommendation.
+
+Battery settings also shows battery levels over the last 24 hours and usage over the last 10 days. It doesn't attribute that usage to individual apps, so a Normal result can still leave a short-runtime problem unresolved.
+
+## Where is the MacBook battery cycle count?
+
+System Information puts cycle count in the Mac's hardware report. The shortcut works without opening System Settings again.
+
+1. Hold the Option key and click the Apple menu.
+2. Choose System Information.
+3. Select Power under Hardware in the sidebar.
+4. Find Cycle Count in the Battery Information section.
+
+A cycle counts cumulative battery use equivalent to a full charge. Partial discharges add up, so plugging your MacBook in several times doesn't mean you've used several cycles. You don't need to empty the battery deliberately to make the count meaningful.
+
+Apple lists a maximum cycle count of 1,000 for Apple Silicon MacBook Air and MacBook Pro models. That is a rated cycle limit, not a timer that switches the battery off. A battery can still work after reaching it, though runtime may be reduced. Older MacBooks have model-specific limits, so don't apply that figure to every Mac laptop.
+
+Cycle count also isn't a health percentage. It records use, while Maximum Capacity describes how much charge the battery can hold relative to new. Reading both gives you more context than treating either one as a replacement deadline. If you're checking a used MacBook, record its condition and capacity alongside the cycle count rather than judging the battery from the count alone.
+
+## What is draining my MacBook battery?
+
+Activity Monitor's Energy tab shows which apps are using energy now. Open Activity Monitor with Spotlight, select Energy, then click the Energy Impact column heading so the largest values appear first. Energy Impact is a relative score, so read it as a way to compare apps rather than as watts or a percentage of your battery.
+
+The 12 hr Power column provides recent context: it shows an app's average energy impact over the last 12 hours, or since the Mac started. An app can have a low current score after doing substantial work earlier. That makes this column useful when the battery dropped during something you've already finished.
+
+Investigate an app whose activity doesn't fit what you're doing. Save your work, quit it normally if you don't need it, and watch whether energy use settles. A busy video call or export is expected to use energy; the useful question is whether the work accounts for the drain. Compare similar workloads before blaming a change in battery capacity.
+
+StatGlass's Power & Sensors page adds power charts with per-app lines showing estimated CPU power, plus an Energy by app table for the selected interval. It is a free, open-source menu bar monitor for Apple Silicon Macs on macOS 26 or newer. In the live demo below, scroll inside the dashboard to Energy by app and expand an app row to inspect its processes.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/power"
+  title="StatGlass Power and Sensors page"
+  caption="Live demo on sample data: which apps are drawing the most power."
+/>
+
+The app figures estimate CPU energy as macOS reports it. They exclude GPU and display energy, along with other users' processes such as system daemons, so their total is smaller than system draw. They help attribute CPU work to apps, but cannot assign every watt leaving the battery. The [guide to StatGlass's measurements](/docs/metrics) describes the readings available in each module.
+
+## Can I see health and current drain together?
+
+StatGlass's Battery page groups charge and health with power flowing into or out of the battery. The Health card includes cycle count, so you can check wear without switching to System Information. The Charge card shows remaining time when running on battery and time to full while charging, when a time estimate is available.
+
+The live demo opens on Battery with the charge chart covering the last 24 hours. Compare the Charge and Health rings, then look for the gap where the simulated Mac slept: StatGlass leaves it empty rather than drawing a line across it. These readings belong to the demo's simulated Mac, not the device you're reading on.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/battery"
+  params={{ chart_window: "24h" }}
+  title="StatGlass Battery page"
+  caption="Live demo on sample data: charge, health, power in or out, and the last 24 hours."
+/>
+
+The Power card describes the direction as Drawn from the battery or Charging the battery. Its watt figure is the magnitude of that flow. The separate System figure is system draw, so don't read the charging figure as the Mac's total consumption. While plugged in, power going into the battery and power used to run the Mac answer different questions.
+
+A remaining-time estimate changes with the work the Mac is doing. Treat it as a guide to the present workload, not a promised runtime for the rest of the day. When the Mac is on its adapter without charging, the Battery page has no countdown to full.
+
+## Can I look back at an earlier battery drop?
+
+The Battery page's charge chart can show the last 24 hours to help place a drop during the day. For app attribution over a recorded interval, StatGlass's Timeline (covered in more depth in [an Activity Monitor alternative that keeps history](/blog/activity-monitor-alternative)) lets you select a range and compare app usage with the preceding interval, including estimated CPU power.
+
+StatGlass keeps history locally, with up to 30 days available depending on recorded activity and your storage limit. Thirty days is the maximum, not guaranteed retention. When the Mac sleeps or StatGlass isn't running, there are gaps in the record; the app can't reconstruct what happened during those periods. The [history and storage guide](/docs/history) explains retention and what is removed first when storage fills.
+
+## Can I keep battery readings in the menu bar?
+
+StatGlass can show the battery's charge percentage as a separate value item or as a readout in its combined menu bar item. In Settings, find Menu bar: enable Battery under Values after the bars for the combined readout, or choose its value mode under Separate items. The preview shows the layout before you return to your work.
+
+Time remaining is available in the popover and Battery page; the menu bar's battery number is charge percentage. Click the menu bar item to open the popover, then expand Power & battery if its card is compact to see remaining time, health and cycles. With power monitoring disabled, those details appear in the Battery card instead. The [menu bar and windows guide](/docs/menu-bar-and-windows) explains the popover and dashboard.
+
+## Why is Battery missing on a desktop Mac?
+
+Mac mini, Mac Studio and iMac don't have a laptop battery to report. StatGlass hides the Battery page on Macs without one. Power & Sensors still shows system draw, and its System card reads From power adapter. There is no battery health percentage or cycle count to recover on those machines.

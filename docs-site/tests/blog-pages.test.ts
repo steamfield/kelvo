@@ -41,7 +41,10 @@ it("allows the word null in structured data but rejects nested null values", () 
 
 it("publishes complete matching metadata and structured data for every blog page", () => {
   for (const post of [
-    { id: "", frontmatter: { title: "Mac System Monitoring Guides", headline: "Blog" } },
+    {
+      id: "",
+      frontmatter: { title: "Mac System Monitoring Guides", headline: "Blog" },
+    },
     ...posts,
   ]) {
     const path = `/blog${post.id ? `/${post.id}` : ""}`;
@@ -230,21 +233,21 @@ it("uses only supported outer demo parameters and app scenarios", () => {
   }
 });
 
-it("renders the placeholder's MDX code frames, callout, table and literal CLI hyphens", () => {
-  if (!posts.some((post) => post.id === "demo-kit")) return;
-  const doc = page("/blog/demo-kit");
-  expect(doc.querySelector("[data-code-title]")?.textContent).toBe(
-    "Read recent history"
+it("renders MDX code frames, tables, agent sessions and literal CLI hyphens", () => {
+  // The CLI article uses each piece of the Markdown pipeline an article can.
+  const doc = page("/blog/ai-agent-mac-system-metrics");
+  const titles = Array.from(doc.querySelectorAll("[data-code-title]"), (el) =>
+    el.textContent?.trim()
   );
-  expect(doc.querySelector('[data-callout="note"]')).toBeTruthy();
+  expect(titles).toContain("Investigate before checking the current moment");
   expect(doc.querySelector("[data-table-scroll] table")).toBeTruthy();
-  const prose = Array.from(doc.querySelectorAll("p")).find((p) =>
-    p.textContent?.startsWith("The prose flag")
+  const flags = Array.from(
+    doc.querySelectorAll("p code"),
+    (el) => el.textContent
   );
-  expect(prose?.textContent).toContain("--since 1h");
-  expect(prose?.querySelector("code")?.textContent).toBe("--since 1h");
-  expect(prose?.textContent).not.toContain("–since");
+  expect(flags).toContain("--since");
+  expect(doc.body.textContent).not.toMatch(/[\u2013\u2014]since/);
   expect(doc.querySelector("[data-sf-agent-demo]")?.textContent).toContain(
-    "statglass top --by cpu --limit 5"
+    "statglass top --since 3h --by cpu --limit 5"
   );
 });

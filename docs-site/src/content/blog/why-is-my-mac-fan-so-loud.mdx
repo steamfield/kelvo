@@ -1,0 +1,90 @@
+---
+title: Why is my Mac fan so loud?
+description: A loud Mac fan often means sustained CPU or GPU work. Find the busy app in Activity Monitor, then check temperatures and earlier spikes with StatGlass.
+published: 2026-11-04
+keyword: why is my mac fan so loud
+feature: power
+relatedDocs: [history, metrics, menu-bar-and-windows]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+Your Mac's fan is often loud because sustained CPU or GPU work is generating heat, and the fans are moving more air to cool it. To find the busy app, open Activity Monitor, select CPU and sort by % CPU with the highest value first. If the work has already stopped, you'll need a recording from that time to identify it; a quiet process list now can't explain an earlier spike.
+
+## How do I find the busy app in Activity Monitor?
+
+Activity Monitor is included with macOS and is the quickest place to start while the noise is happening. These steps use its CPU and Energy views on macOS Tahoe:
+
+1. Open Spotlight with Command-Space, type `Activity Monitor` and open it.
+2. Select CPU. In the View menu, choose All Processes so background processes are included. Clear any text in the search field that could hide results.
+3. Click the % CPU column heading until the highest values are at the top. Watch several updates to see which process stays busy, rather than acting on one brief jump.
+4. Select Energy, then sort Energy Impact with the highest values first. This gives you another view of which apps are consuming energy now.
+
+The CPU list names processes, which can include helper programs as well as apps you recognize. A browser may have several helpers, so the busiest row might not name the tab responsible. Return to the browser and close a suspect tab, then watch whether its CPU use falls. Change one thing at a time so the result tells you something.
+
+Energy Impact is a relative score, not watts or a temperature. On Mac laptops, the 12 hr Power column shows average energy impact over the last 12 hours, or since startup. That can identify an app that has been costly over time, though it won't pinpoint the minute the fans accelerated.
+
+Quit a familiar app normally after saving your work if it remains busy for no apparent reason. Force Quit can lose unsaved changes, so reserve it for an app that won't respond. Leave unfamiliar system processes alone while you investigate what they belong to.
+
+Activity Monitor works well when the load is still present. Its recent CPU graphs can show that activity rose, but they don't give you a retained, time-selected list of the apps responsible for an earlier burst. It also doesn't display CPU temperatures or fan speeds. Those are separate questions from which process is busy.
+
+## Why is my Mac fan so loud when I'm doing little?
+
+Background work can keep the Mac busy even when you're only reading a page. Spotlight may be indexing after an update or a large file change. A browser tab can keep working after you switch away from it. Builds and video exports are more obvious causes, but the work may continue in a helper process after the app's main window looks idle.
+
+Fan noise during heavy work is usually the cooling system doing its job. A warm room or blocked ventilation can also make the fans work harder. Put a laptop on a hard, flat surface with its vents clear before comparing readings. Moving a Mac running hot off bedding can improve airflow without changing any software.
+
+Decide whether the work is expected before stopping it. An export you started can finish; a browser tab consuming CPU indefinitely may need closing.
+
+On an Apple Silicon Mac, if fans remain fast with little CPU or GPU activity and clear ventilation, save your work and restart. If the noise continues afterward, contact Apple Support or a repair provider and describe when it happens.
+
+## How can I check Mac temperature and fan speed?
+
+StatGlass's Power & Sensors page brings temperature readings and fan RPM together with system power draw. StatGlass is a free, open-source menu bar monitor for Apple Silicon Macs on macOS 26 or newer. It reads macOS as your user, without a privileged helper.
+
+The CPU and GPU cards show temperatures, and the Fans card shows rotational speed in RPM, or revolutions per minute. The System card shows power draw in watts. Below them, Power draw plots system consumption with per-app lines. Try clicking an app name in the legend to keep its line highlighted, then scroll inside the demo to the thermal zone history and Energy by app table. This is the real interface running on sample data, not readings from your Mac.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/power"
+  title="StatGlass Power and Sensors page"
+  caption="Live demo on sample data: power draw by app, temperatures and fans."
+/>
+
+The app lines are macOS estimates of CPU energy for your own processes. They don't attribute GPU or display energy, or other users' processes such as system daemons, so they don't account for the whole system draw. The chart also shows separate CPU and GPU power figures. A busy GPU can therefore help explain a high system reading even when the app lines are modest; [checking GPU usage per app](/blog/check-gpu-usage-mac) shows how to find it. App power lines are available for chart ranges up to one hour.
+
+Temperature is most useful alongside the workload. Compare the reading during the noisy task with the reading after it finishes. A single temperature doesn't identify the app causing it, and CPU and GPU temperatures measure different parts of the chip. The thermal zone chart gives more sensor detail, but Apple doesn't document which zone corresponds to which core. StatGlass keeps those sensor identities rather than guessing.
+
+The [guide to StatGlass metrics](/docs/metrics) describes the readings each module provides.
+
+On your Mac, the same readings sit in the menu bar popover; the [menu bar and windows guide](/docs/menu-bar-and-windows) explains how to get from there to a module's dashboard page.
+
+## What was making my Mac hot before I looked?
+
+StatGlass's Timeline lets you inspect recorded activity after the noise stops. It puts module readings on aligned lanes over an hour, 24 hours, seven days or 30 days. Event markers identify fans ramping, thermal state changes, sustained CPU use by a process and power spikes. Their timing helps you find the interval to investigate; an event near a busy app is evidence to inspect, not proof that the app caused every change.
+
+The demo below opens on 24 hours of sample history, including a fan ramp and sustained-process activity. Drag across the lanes around an event to select an interval, then inspect Apps in this range below the charts. Sort by CPU to find the busiest apps during that interval. Back restores the earlier range so you can widen the selection if you missed the start of the work.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/timeline"
+  params={{ chart_window: "24h" }}
+  title="StatGlass Timeline, last 24 hours"
+  caption="Live demo on sample data: 24 hours of history with fan and process events marked. Select an interval to see which apps were busiest."
+/>
+
+Apps in this range shows the top ten app groups, with expandable process details. You can sort by GPU usage or estimated CPU power when CPU alone doesn't explain the heat. Compare previous interval lets you check whether the selected period was busier than the period immediately before it. Start with a range that includes the workload leading up to the fan noise, since the fans can keep cooling the Mac after the work subsides.
+
+History only exists for time StatGlass recorded. Sleep and periods when the app wasn't running appear as gaps. History depth depends on recorded activity and the storage limit: 30 days is the maximum, not a promise. The [history and storage guide](/docs/history) explains what is kept and what gets trimmed first when space runs out.
+
+## What if my MacBook Air has no fans?
+
+Apple Silicon MacBook Air models use passive cooling, so there is no internal fan speed to monitor. In StatGlass, a fanless Mac's Fans card reads Passive cooling and None.
+
+For a fanless Mac, investigate heat through CPU and GPU activity and temperature readings. Thermal state is macOS's assessment of thermal pressure; a Serious state is a reason to reduce the workload and let the Mac cool. Fan silence on a MacBook Air tells you nothing about whether a task is keeping the chip busy.
+
+## Can I get an alert when it happens again?
+
+StatGlass has two built-in alerts in Settings: a process above 200% CPU for the full five minutes, and thermal state Serious or worse. Both start off. Enabling one sends a test notification so macOS can ask for notification permission. A triggered alert is also marked on the Timeline, with each rule sending at most one notification every 30 minutes.
+
+These thresholds won't notify you about every short burst of fan noise. Use the process alert for work that stays busy, or the thermal alert when you want notice that macOS is slowing the Mac to cool it.

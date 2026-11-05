@@ -1,0 +1,100 @@
+---
+title: Monitor a Linux server from your Mac
+headline: How to monitor a Linux server from your Mac
+description: Monitor a Linux server from your Mac with SSH and top, or add it to StatGlass for live CPU, memory, disk and network charts with local history.
+published: 2026-11-04
+keyword: monitor linux server from mac
+feature: remote
+relatedDocs: [remote-macs, linux-hosts, history, privacy]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To monitor a Linux server from your Mac, open Terminal, run `ssh user@address`, then run `top` on the server to see live CPU and memory usage. For ongoing charts and history, add the server to StatGlass over key-based SSH; setup installs its Linux agent for you. You can then select that host in the same app you use to watch your Mac, with no StatGlass server in between.
+
+Use the Terminal approach for a quick check. StatGlass is useful when you want to look back at an overnight spike, the way its [Timeline does for your own Mac](/blog/activity-monitor-alternative), or keep several machines available in one dashboard. It is free and open source under Apache-2.0, and the Mac running it needs Apple Silicon and macOS 26 or newer. Remote readings appear in the dashboard; the menu bar readings still belong to your local Mac.
+
+## How do I monitor a Linux server from my Mac with SSH?
+
+macOS already includes the SSH client you need. Open Terminal on your Mac and connect using your server account and its hostname or IP address. Replace `user@address` below with your own destination:
+
+```sh title="Connect from your Mac"
+ssh user@address
+```
+
+If this is your first connection, verify the host fingerprint against a trusted record for that server before accepting it. Sign in with the authentication your server allows. An interactive Terminal session can ask for a password; StatGlass requires SSH key access that works without password or passphrase prompts.
+
+Run the monitoring commands after you have connected, so they inspect the Linux machine. Running `top` in a local Terminal tab would show your Mac instead.
+
+```sh title="Check CPU and memory on the Linux server"
+top
+```
+
+`top` shows a changing process list and a summary of CPU and memory use. Press `q` to leave it. If the server already has `htop`, run `htop` for an interactive alternative. It runs on the server, so installing it on your Mac alone will not make it available in the remote session.
+
+For a disk capacity check, run `df -h` on the server. This shows filesystem space, which answers a different question from disk read and write activity.
+
+SSH with `top` is enough when you want to identify a busy process while a problem is happening. Each session shows the machine you connected to, and you can open more tabs for other hosts. The missing part is recorded history: leaving `htop` open does not give you a stored timeline to inspect tomorrow.
+
+## When should I use a monitoring stack?
+
+A self-hosted Prometheus and Grafana setup fits a shared monitoring service where several people need browser dashboards. Prometheus collects and stores time series, and Grafana can display them. You own the collection configuration and storage, along with access to the web interface. Netdata is another option with a web dashboard and its own access configuration.
+
+Keeping a dashboard on a private network or behind an SSH tunnel can avoid making it public, but you still maintain the monitoring services. That work can be justified for a team. For a home server you check from one Mac, an SSH-connected desktop viewer has fewer services to look after.
+
+StatGlass uses your SSH connection for live metrics and history. The Linux host runs an agent, and your Mac runs the interface. It does not require a separate StatGlass web server or an additional monitoring port exposed on the host. The tradeoff is that this is a Mac app workflow: it does not give everyone a shared browser dashboard.
+
+## How do I add a Linux host to StatGlass?
+
+The Linux server needs systemd and either an x86_64 or aarch64 processor. StatGlass bundles a static `statglass-agent` for both architectures. A NAS-style appliance needs to meet those requirements too; SSH access by itself is not enough. The [Linux host setup guide](/docs/linux-hosts) covers the installation behavior and agent maintenance.
+
+Get key-based SSH working before adding the host. If your key has a passphrase, add it to your SSH agent first so the app can connect without prompting. The in-app SSH setup guide explains key creation and authorization. A successful password-based login in Terminal does not establish that the app can sign in unattended.
+
+1. Open Hosts in StatGlass and choose Add host. Enter an alias from `~/.ssh/config` or a destination such as `user@address`. Enter only the destination, without the `ssh` command or its options.
+2. Choose Check connection. For an unknown host, choose Verify LAN host or Verify Tailscale host, depending on the address you entered. Compare the fingerprint with the server's trusted host key before choosing Trust this host.
+3. Review the detected Linux system, installation path, service account and history budget. A normal SSH account gets a systemd user service. A root SSH account gets a system service.
+4. If setup reports that lingering is off, run the displayed command on the server. Lingering keeps the user service running after logout. Choose Install and connect for a fresh installation, Connect for a compatible agent, or Update and connect for an agent that needs updating.
+
+The Linux overview below opens with the remote host selected. Try opening Memory to see used and cached memory, or Network to inspect traffic, then use the host switcher to change machines. The Containers view shows cgroup services and containers where available. The readings are sample data in a live version of the app, not measurements from your server.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/overview"
+  params={{ scenario: "linux-host", host: "remote-linux" }}
+  title="StatGlass dashboard showing a Linux host"
+  caption="Live demo on sample data: a Linux server's overview, selected from the host switcher."
+/>
+
+Sensor, power and container detail depends on the host's hardware and the account's read permissions, so do not expect every machine to expose the same readings. You can also inspect stored history, per-app usage and disk space reports for the selected Linux host.
+
+## Can I monitor another Mac too?
+
+Both Macs must have Apple Silicon and run macOS 26 or newer. On the Mac you want to monitor, open System Settings, then General, then Sharing, and enable Remote Login. Allow the account signed in to that Mac's desktop. Set up SSH key access from your main Mac to that account.
+
+Add it through Hosts using an SSH alias or `user@address`, check the connection and verify an unknown fingerprint as you would for Linux. The Tailscale alias field is optional. If you supply both LAN and Tailscale destinations, they must reach the same Mac and account.
+
+Setup reuses or copies the packaged StatGlass app to the other Mac and enables remote monitoring and launch at login there. Complete any required macOS approvals on that machine. A bundled helper carries the SSH connection's input and output to a local socket on the remote Mac. The [remote Mac setup and troubleshooting guide](/docs/remote-macs) explains recovery when access or setup fails.
+
+The Hosts page below includes a second Mac. Choose its View metrics button to open its dashboard, or open Settings to inspect its connection and history limit.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/hosts"
+  params={{ scenario: "multi-host" }}
+  title="StatGlass Hosts page with another Mac"
+  caption="Live demo on sample data: the Hosts page with a second Mac added."
+/>
+
+## What happens to history while my Mac is away?
+
+The remote host records its own history while its monitoring service is running. Your Mac keeps a separate local mirror for each host and catches up from the host's retained history after reconnecting. Closing your laptop therefore does not have to mean losing the server's overnight readings. If the remote service was stopped, or older records were pruned before you returned, those missing readings cannot be recovered.
+
+Hosts you are not viewing send five-second summaries. Selecting one supplies its live metrics and history to the dashboard. Each remote mirror defaults to 100 MB on your Mac; its host Settings accepts a limit from 10 to 10,000 MB. That mirror budget is separate from your Mac's own history storage.
+
+StatGlass keeps up to 30 days of history, with the available span depending on recorded activity and the size limit. The [history and storage guide](/docs/history) explains retention and how gaps appear when nothing was recorded.
+
+## What stays local, and how do agents update?
+
+Metrics and history travel directly over SSH between the machines you connect. There is no StatGlass backend receiving them. The [privacy and data guide](/docs/privacy) describes local storage and the sharing that authorized SSH access enables. Settings, alerts and process control remain local to each machine. You cannot use this dashboard to kill the server's processes.
+
+Older Linux agents need one Update agent action to gain automatic updates. After that, each Linux host checks and installs signed compatible releases independently through systemd. Its host settings show update preferences and results. If you reinstall or replace the server, use Re-pair to add the new identity while keeping the old mirrored history as an offline host.
