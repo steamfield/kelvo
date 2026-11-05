@@ -4,6 +4,16 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Five more blog articles (2026-11-05)
+
+Topics picked from Google autocomplete demand around the product and checked against the
+existing ten for overlap: checking CPU usage (with kernel_task), checking Mac temperature,
+why a Mac is slow, a free iStat Menus alternative, and monitoring Docker containers. Each
+was written by its own Codex delegate from a brief with a source-cited fact sheet, then
+edited for accuracy and cross-linked. The blog `feature` enum gained `cpu`. Articles state
+the real limits: sensor maps cover M1 to M4 only, container monitoring is validated on
+OrbStack only, and competitor claims are limited to what Bjango and the Stats repository say.
+
 ## Blog with ten SEO articles (2026-11-04)
 
 The site has a blog at `/blog`: an MDX collection (`docs-site/src/content/blog/`), list
