@@ -1,0 +1,110 @@
+---
+title: How to check Mac temperature
+headline: How to check Mac temperature and read the sensors
+description: Check Mac temperature with a sensor app, or use Terminal for thermal pressure. See CPU and GPU readings, fan speeds and temperature history in StatGlass.
+published: 2026-11-05
+keyword: how to check mac temperature
+feature: power
+relatedDocs: ["metrics", "menu-bar-and-windows", "history"]
+---
+
+import { ArticleDemo } from "@/islands/ArticleDemo";
+
+To check Mac temperature in degrees on Apple Silicon, use a sensor-reading app: macOS has no built-in temperature readout in Activity Monitor or System Settings. Activity Monitor shows CPU load, which can help explain heat, and Terminal's `powermetrics` reports thermal pressure rather than individual sensor temperatures. StatGlass shows CPU and GPU temperatures alongside fan speeds on mapped M1 to M4 chips, with readings you can keep in the menu bar.
+
+StatGlass is a free, open-source system monitor under Apache-2.0 for Apple Silicon Macs on macOS 26 or newer. It keeps up to 30 days of local history, depending on recorded activity and the storage limit. For a quick check without installing anything, start with Activity Monitor to see whether the Mac is still working hard.
+
+## How to check Mac temperature with the built-in tools
+
+Activity Monitor can't give you a Mac CPU temperature, but it can identify work that helps explain why the machine feels hot. Open it while the game, build or other task is running:
+
+1. Press Command-Space, type `Activity Monitor` and press Return.
+2. Select CPU, then choose View > All Processes so background processes are included.
+3. Click the % CPU heading until the largest values appear first. Watch several updates to see which processes stay busy.
+
+A process doing work you requested may belong near the top. If an app stays busy after its task finishes, save your work and quit it normally, then watch whether CPU use drops. Avoid stopping unfamiliar system processes just because their numbers are high.
+
+A quiet list after a build finishes cannot tell you how hot the chip was during the build. If the noise is the problem you want to solve, [finding the app behind a loud Mac fan](/blog/why-is-my-mac-fan-so-loud) covers that investigation in more detail.
+
+## Can I check Mac temperature in Terminal?
+
+The built-in `powermetrics` command can show thermal pressure on Apple Silicon. Open Terminal and run:
+
+```sh title="Check thermal pressure"
+sudo powermetrics --samplers thermal
+```
+
+Enter your administrator password when prompted. Terminal doesn't display the characters as you type. Let the command run during the task you're checking, then press Control-C to stop it. It requires administrator access; you don't need that access for Activity Monitor's CPU view.
+
+The thermal sampler reports the system's current thermal pressure. It does not give you a list of CPU cores with temperatures in degrees. A pressure level describes the system's thermal condition, so don't read a level or code as a Celsius measurement. The exact output can vary with the Mac and macOS version.
+
+Older instructions sometimes use a `powermetrics` SMC sampler to obtain temperatures. Don't assume those instructions apply to Apple Silicon. Run `powermetrics --help` to see the samplers your Mac supports. For individual sensor readings on these Macs, you need software that reads Apple's undocumented sensor interfaces.
+
+## Why do temperature apps show different numbers?
+
+Apple Silicon has many temperature sensors, and a label such as CPU temperature needs a definition. One app might display a group maximum while another displays an average or a different sensor. Those values can disagree even when both apps are reading valid measurements. Check the sensor label and aggregation before comparing the numbers, and make sure both tools use the same unit.
+
+StatGlass reads temperatures through two paths: the SMC (System Management Controller) and macOS's HID thermal services. Its CPU reading is the maximum of the mapped SMC CPU group; GPU is the maximum of the mapped GPU group. These are group summaries, so neither represents the average temperature of the whole Mac.
+
+The HID readings appear separately as numbered zones. Apple doesn't document which zone sits over which core, so StatGlass labels the rows Zone 01, Zone 02 and so on, with the raw sensor name available on hover. A zone number isn't a CPU core number. The [guide to StatGlass metrics](/docs/metrics) describes the Power & Sensors module alongside the other measurements.
+
+The hottest HID reading also includes services such as storage and battery sensors when macOS reports them. It can therefore differ from the CPU maximum.
+
+## How do I read temperatures and fan speeds in StatGlass?
+
+Open Power & Sensors in the dashboard. The CPU and GPU ring cards show their group temperatures, while Fans shows the fastest reported fan in RPM, or revolutions per minute. Individual fan speeds appear beneath the Fans heading, and its ring compares the fastest speed with the reported maximum fan speed. System shows power draw in watts.
+
+In the live demo below, compare the CPU and GPU cards, then scroll inside the dashboard to SoC thermal zones. Hover a zone label to see its sensor name and follow its row across the time window. The interface runs on sample data, not readings from your Mac.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/power"
+  title="StatGlass Power & Sensors page"
+  caption="Live demo on sample data: CPU and GPU temperature, fan speeds, and every thermal zone over time."
+/>
+
+The matrix shows how each reported zone changes over time, with current readings at the right. Extra named sensors beneath it include Battery, SSD (NAND) and Wi-Fi module when available. Compare a row during the workload with the same row after it ends, rather than comparing two different zones as though they measure the same location.
+
+On a fanless Mac, the Fans card says Passive cooling and None. StatGlass only reads fan speed; it doesn't control fans. Its sensor access is read-only and runs as your user, without a privileged helper or an administrator password.
+
+Temperatures are normally sampled every five seconds with a window open and every ten seconds with only the menu bar showing. Repeated numbers between samples don't mean the display is stuck. These readings describe internal sensors, not the temperature of the laptop surface touching your lap.
+
+## What temperature is normal for my Mac?
+
+A trend during a known workload tells you more than one isolated reading. Compare the same sensor before the task starts, while it runs and after it finishes. A temperature that rises with a sustained build has different context from one that stays elevated after the Mac's activity has settled.
+
+macOS manages heat itself and can slow the Mac down to cool it. Thermal state gives you the operating system's assessment; the sensor temperatures help you see how conditions changed around that assessment.
+
+For a laptop that feels uncomfortable on your lap, move it to a hard, flat surface with ventilation clear. A monitoring app's internal temperature doesn't establish whether the case is comfortable to touch. If heat problems persist during light use, contact Apple or a repair provider rather than diagnosing hardware from one sensor value.
+
+## How do I keep temperature in the menu bar?
+
+In StatGlass Settings, find Menu bar and enable Hottest temperature under Values after the bars. It is enabled in the default combined item. The readout shows a rounded number with a degree sign in your selected unit, so you can watch it while working in another app.
+
+Choose Settings > Units > Temperature to switch between °C and °F. New installs default to Fahrenheit; the sample demos use Celsius. The compact menu bar value doesn't include a C or F letter, so check this setting before comparing it with a number from another tool.
+
+The menu bar uses the hottest HID sensor reading described above, rather than the CPU ring's SMC group maximum. Open Power & Sensors when you need to distinguish the readings. The [menu bar and windows guide](/docs/menu-bar-and-windows) explains the popover and dashboard, and [choosing a Mac menu bar system monitor](/blog/mac-menu-bar-system-monitor) shows the available arrangements.
+
+## What happened while I wasn't watching?
+
+StatGlass's Timeline aligns temperature with CPU activity and power over recorded time. Its Temperature lane plots the hottest HID reading, with the fastest fan speed available in the tooltip. Fans ramped up events mark a rise of at least 1,000 RPM within 60 seconds and can name up to two CPU-heavy processes from the preceding minute.
+
+The demo below opens the last 24 hours of sample history. Hover the Fans ramped up marker to see the named processes, then hover the Temperature lane near that time to compare temperature and fan speed. Drag across a shorter span to examine the surrounding activity.
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/timeline"
+  params={{ chart_window: "24h" }}
+  title="StatGlass Timeline, last 24 hours"
+  caption="Live demo on sample data: 24 hours of CPU, power and temperature. Hover the fans-ramped marker to see what was running."
+/>
+
+Process names near a fan ramp are leads to investigate, not proof that one app caused every change. Timeline also records thermal state changes. If you want a notification, Settings > Alerts has Thermal state Serious or worse, off by default. Triggered thermal alerts are limited to one every 30 minutes. Enabling the switch sends a test notification so macOS can ask for notification permission. There is no temperature-threshold alert for a degree value you choose.
+
+History must have been recorded at the time; sleep and time with StatGlass closed leave gaps. Resource history uses ten-second buckets for the last 24 hours, one-minute buckets through seven days and fifteen-minute buckets through 30 days. The default size limit is 750 MB, which you can change. Activity and that limit affect how much remains; the [history and storage guide](/docs/history) explains retention. Older buckets give less detail about a short spike.
+
+## Which Apple Silicon Macs have mapped sensors?
+
+StatGlass currently has sensor maps for the M1, M2, M3 and M4 families. The M3 map was checked on an M3 Max; the M1, M2 and M4 maps haven't been verified on that hardware yet. Intel Macs aren't supported.
+
+M5 and newer chips don't have a sensor map yet. On an unmapped chip, Power & Sensors shows a notice in place of its readings, with a Share sensor dump button.
