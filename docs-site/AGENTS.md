@@ -65,3 +65,54 @@ dashboard, not in this repository; keep them in step with the `build` target.
 ## Pending user actions
 
 - In the shared Steamfield PostHog project, set `PUBLIC_POSTHOG_KEY` (and `PUBLIC_POSTHOG_HOST` if not US cloud) as environment variables for the Production environment only on the `statglass` Pages project, and enable "Cookieless server hash mode" and "Discard client IP data" in its settings.
+
+## Writing blog posts
+
+Posts live in `src/content/blog/**/*.mdx`; the file path becomes `/blog/<id>`.
+The collection requires `title` (1–48 characters), `description` (120–160),
+`published` (date), `keyword` (primary query), `feature`, and `relatedDocs` (docs
+collection ids). Optional `headline` (up to 90 characters) supplies the h1;
+optional `updated` must be on or after `published`. Features are `disk`, `remote`,
+`gpu`, `menu-bar`, `network`, `memory`, `cli`, `power`, `battery`, `timeline`,
+`containers`, and `processes`. Use h2/h3 in the body; the article frame owns h1.
+
+`mdx()` uses the configured Sätteri processor, including `createHastPlugins()`
+(code titles, callouts, heading anchors and tables). Its `smartPunctuation: false`
+feature is inherited by MDX. Don't override it with `smartypants: true`.
+
+Import islands from their own modules so each hydrates independently:
+
+```mdx
+import { ArticleDemo } from "@/islands/ArticleDemo";
+import { ModuleLiveCard } from "@/islands/ModuleLiveCard";
+import { PopoverFigure } from "@/islands/PopoverFigure";
+import { MenuBarStyles } from "@/islands/MenuBarStyles";
+import { AgentSession } from "@/islands/AgentSession";
+
+<ArticleDemo
+  client:visible
+  route="/dashboard/disk?view=space&vol=/&tab=largest"
+  params={{ space_scan: "/" }}
+  title="StatGlass Disk page, Space report"
+  caption="The Space report for the boot volume, on simulated data."
+/>
+```
+
+Use `client:visible` on every demo. `ArticleDemo` requires `route`, `title` and
+`caption`; optional `params` accepts outer `scenario`, `space_scan`, `host` and
+`chart_window` strings. Route query parameters stay inside `route`. Optional
+`fallback` is `cpu`, `gpu`, `memory` or `network`; it shows a simulated card below
+the dashboard fit width (1088 px). The dashboard reserves its 760 px frame before
+hydration on wider screens. All iframe demos retain `ph-no-capture`.
+
+`ModuleLiveCard` takes `module` (the same four module names) and optional `caption`.
+`PopoverFigure` takes `caption`. `MenuBarStyles` takes no props. `AgentSession`
+takes `request`, `steps: { command: string; output: string }[]`, `answer` and optional
+`caption`. It uses `AgentDemo` with the finished transcript rendered on the server
+and under reduced motion. Commands and outputs use the site's mono face.
+
+Every demo root has `data-demo`; the shared docs prose stylesheet excludes
+these roots and their descendants. Dashboard figures expand to the site container; prose stays at 44rem.
+`demo-kit.mdx` exercises the whole kit and Markdown pipeline. Delete this test post
+before release. `tests/blog-pages.test.ts` checks metadata, feeds, links, related
+docs, literal CLI hyphens and demo parameter/scenario names against the app source.

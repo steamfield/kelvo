@@ -7,6 +7,7 @@
 @import "@steamfield/ui/markdown/styles.css";
 @import "@steamfield/ui/copy/styles.css";
 @import "@steamfield/ui/consent/styles.css";
+@import "@steamfield/ui/agent-demo/styles.css";
 
 :root {
   --sf-fg: var(--color-foreground);
@@ -80,4 +81,34 @@
 [data-part="copy"] {
   flex-shrink: 0;
   align-items: center;
+}
+
+/* Agent transcripts use the site's wells and mono face, with selectable output. */
+[data-sf-agent-demo] {
+  --sf-bg: var(--color-card);
+  --sf-surface: var(--color-well);
+  --sf-demo-subtle-bg: var(--color-secondary);
+  --sf-demo-border-subtle: var(--color-border);
+  /* Keep the finished SSR frame's height while playback reveals its contents.
+     Longer sessions remain available in the library's keyboard-focusable scroller. */
+  --sf-demo-height: 24rem;
+  height: var(--sf-demo-height);
+  --sf-demo-shadow: none;
+  --sf-font-size: 0.8125rem;
+  --sf-ok: var(--color-foreground);
+  --sf-warn: var(--color-muted-foreground);
+  font-weight: 400;
+}
+
+[data-sf-agent-demo] [data-part="tool-label"],
+[data-sf-agent-demo] [data-part="tool-status"] {
+  font-weight: 590;
+}
+
+[data-sf-agent-demo] [data-part="header"] {
+  flex: none;
+}
+
+[data-sf-agent-demo] [data-part="transcript"] {
+  flex: 1;
 }

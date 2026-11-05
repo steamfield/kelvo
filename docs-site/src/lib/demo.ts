@@ -23,9 +23,34 @@ export function popoverDemoUrl(): string {
   return "/demo/index.html?window=popover&scenario=popover-compact";
 }
 
-/** The dashboard demo, opened at `route` (an app route such as /dashboard/cpu). */
-export function dashboardDemoUrl(route?: string | null): string {
-  const url = "/demo/index.html?window=dashboard";
+export const DEMO_PARAM_KEYS = [
+  "scenario",
+  "space_scan",
+  "host",
+  "chart_window",
+] as const;
+export type DemoParams = Partial<
+  Record<(typeof DEMO_PARAM_KEYS)[number], string>
+>;
+export const KNOWN_SCENARIOS = [
+  "default",
+  "linux-host",
+  "multi-host",
+  "docker-11",
+  "vpn",
+  "no-battery",
+] as const;
+
+/** Outer parameters belong to the demo document; route parameters stay encoded inside route. */
+export function dashboardDemoUrl(
+  route?: string | null,
+  params: DemoParams = {}
+): string {
+  let url = "/demo/index.html?window=dashboard";
+  for (const key of DEMO_PARAM_KEYS) {
+    if (params[key] !== undefined)
+      url += `&${key}=${encodeURIComponent(params[key])}`;
+  }
   return route?.startsWith("/dashboard/")
     ? `${url}&route=${encodeURIComponent(route)}`
     : url;

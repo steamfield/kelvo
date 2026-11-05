@@ -153,7 +153,7 @@ it("describes the website and free Apple Silicon application only on the homepag
   }
 });
 
-it("lists only the homepage and HTML docs in the sitemap", () => {
+it("lists the homepage, docs and blog pages in the sitemap", () => {
   const locs = (file: string) =>
     Array.from(
       readFileSync(join(output, file), "utf8").matchAll(/<loc>([^<]+)<\/loc>/g),
@@ -166,7 +166,17 @@ it("lists only the homepage and HTML docs in the sitemap", () => {
     return locs(new URL(url).pathname);
   });
   expect(urls.sort()).toEqual(
-    [`${site}/`, ...pages.map(({ path }) => `${site}${path}`)].sort()
+    [
+      `${site}/`,
+      ...pages.map(({ path }) => `${site}${path}`),
+      `${site}/blog`,
+      ...readdirSync(new URL("../src/content/blog/", import.meta.url), {
+        recursive: true,
+        encoding: "utf8",
+      })
+        .filter((name) => name.endsWith(".mdx"))
+        .map((name) => `${site}/blog/${name.slice(0, -4)}`),
+    ].sort()
   );
 });
 

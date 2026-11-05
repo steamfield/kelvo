@@ -25,3 +25,22 @@ export function createCpuSampler(seed = 7) {
 export function sampleHistory(next: () => number, length: number): number[] {
   return Array.from({ length }, () => next());
 }
+
+/** A seeded walk in each module's native unit: percent, GiB or MB/s. */
+export type ModuleKey = "cpu" | "gpu" | "memory" | "network";
+
+function rangedSampler(base: number, peak: number, max: number, seed: number) {
+  const cpu = createCpuSampler(seed);
+  return () => Math.round(Math.min(max, base + (cpu() / 100) * peak) * 10) / 10;
+}
+
+export const createGpuSampler = () => rangedSampler(8, 85, 100, 13);
+export const createMemorySampler = () => rangedSampler(12, 10, 30, 19);
+export const createNetworkSampler = () => rangedSampler(0.2, 45, 80, 23);
+
+export const moduleSamplers = {
+  cpu: createCpuSampler,
+  gpu: createGpuSampler,
+  memory: createMemorySampler,
+  network: createNetworkSampler,
+};

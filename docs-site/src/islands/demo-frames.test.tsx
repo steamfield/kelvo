@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
+import { ArticleDemo } from "./ArticleDemo";
 import { DashboardDemo } from "./DashboardDemo";
 import { PopoverDemo } from "./PopoverDemo";
 
@@ -20,6 +22,7 @@ function wideScreen() {
 }
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -53,4 +56,28 @@ it("keeps the dashboard demo out of session replays", () => {
   expect(screen.getByTitle("StatGlass dashboard, live demo")).toHaveClass(
     "ph-no-capture"
   );
+});
+
+it("keeps the article dashboard out of session replays", () => {
+  wideScreen();
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(
+        private callback: (entries: { isIntersecting: boolean }[]) => void
+      ) {}
+      observe() {
+        this.callback([{ isIntersecting: true }]);
+      }
+      disconnect() {}
+    }
+  );
+  render(
+    <ArticleDemo
+      route="/dashboard/gpu"
+      title="Article GPU"
+      caption="GPU example"
+    />
+  );
+  expect(screen.getByTitle("Article GPU")).toHaveClass("ph-no-capture");
 });

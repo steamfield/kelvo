@@ -8,5 +8,8 @@ export const SITE = {
     "The StatGlass landing page: the headline beside the menu bar popover showing CPU, memory, GPU, power and network.",
   repo: "https://github.com/steamfield/statglass",
   /** Site sections in the header; GitHub and Install sit beside them. */
-  nav: [{ label: "Docs", href: "/docs" }],
+  nav: [
+    { label: "Docs", href: "/docs" },
+    { label: "Blog", href: "/blog" },
+  ],
 } as const;

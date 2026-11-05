@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import { satteri } from "@astrojs/markdown-satteri";
 import react from "@astrojs/react";
+import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { createHastPlugins, createShikiConfig } from "@steamfield/ui/markdown";
@@ -27,7 +28,7 @@ export default defineConfig({
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
-  integrations: [react(), sitemap()],
+  integrations: [react(), sitemap(), mdx()],
   // Docs markdown: fence titles and groups, callouts, heading links
   // (@steamfield/ui/markdown). Smart punctuation stays off so --flags stay intact.
   markdown: {
