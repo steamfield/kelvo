@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getByRole, within } from "@testing-library/dom";
 import { Window } from "happy-dom";
 import { afterAll, expect, inject, it } from "vitest";
 import { buildSite } from "./helpers/frontend-build";
@@ -406,3 +407,25 @@ it("links the shared privacy page from the footer and the docs privacy page", ()
     docs?.querySelector('main a[href="https://steamfield.io/privacy"]')
   ).toBeTruthy();
 });
+
+it.each(["/", ...pages.map(({ path }) => path), "/blog"])(
+  "credits Steamfield with an accessible logo link in the footer of %s",
+  (path) => {
+    const footer = getByRole(page(path).body, "contentinfo");
+    const link = within(footer).getByRole("link", {
+      name: "Steamfield",
+    });
+    expect(link.getAttribute("href")).toBe("https://steamfield.io");
+    expect(link.querySelector("svg")).not.toBeNull();
+    expect(link.previousSibling?.textContent?.trim()).toBe("Made by");
+    expect(footer.textContent).toContain("StatGlass is free and open source.");
+    expect(
+      within(footer).getByRole("link", { name: "Privacy" }).getAttribute("href")
+    ).toBe("https://steamfield.io/privacy");
+    expect(
+      within(footer)
+        .getByRole("link", { name: "Source on GitHub" })
+        .getAttribute("href")
+    ).toBe("https://github.com/steamfield/statglass");
+  }
+);
