@@ -12,6 +12,13 @@ import {
 import { type CSSProperties, useState } from "react";
 import { CardGrid } from "~/components/card-grid";
 import { CollectingOverlay } from "~/components/collecting-overlay";
+import {
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
 import { InterfaceTable } from "~/components/interface-table";
 import { MachineHeader } from "~/components/machine-header";
 import {
@@ -30,6 +37,7 @@ import {
 } from "~/components/tray-style-option";
 import { Button } from "~/components/ui/button";
 import { Switch } from "~/components/ui/switch";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import { UnsupportedNotice } from "~/components/unsupported-notice";
 import { VolumeTable } from "~/components/volume-table";
 import { HostUpdateNoticeView } from "~/routes/dashboard/_components/host-update-notice";
@@ -47,6 +55,58 @@ import {
 } from "../_lib/chart-samples";
 
 const noop = () => {};
+
+const dataHelper = columnHelper<{
+  id: string;
+  name: string;
+  value: number | null;
+}>();
+const DATA_COLUMNS = dataHelper.columns([
+  dataHelper.accessor("name", {
+    header: "Process",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  dataHelper.accessor((row) => gap(row.value), {
+    id: "value",
+    header: "% CPU",
+    meta: { align: "right" },
+    cell: (cell) => cell.getValue() ?? "—",
+  }),
+]);
+const DATA_ROWS = [
+  { id: "xcode", name: "Xcode", value: 86.8 },
+  { id: "safari", name: "Safari", value: 25.2 },
+  { id: "node", name: "node", value: null },
+];
+const dataId = (row: (typeof DATA_ROWS)[number]) => row.id;
+
+function DataTableSample() {
+  const { table, rows } = useDataTable({
+    data: DATA_ROWS,
+    columns: DATA_COLUMNS,
+    getRowId: dataId,
+    initialSorting: [{ id: "value", desc: true }],
+  });
+  return (
+    <Table aria-label="Shared table example">
+      <TableHeader>
+        <DataTableHead table={table} />
+      </TableHeader>
+      <DataTable
+        table={table}
+        rows={rows}
+        after={
+          <TableRow>
+            <TableCell colSpan={2} className="text-muted-foreground">
+              Other processes stay below sorted rows.
+            </TableCell>
+          </TableRow>
+        }
+      />
+    </Table>
+  );
+}
 
 // Sidebar values.
 const SIDEBAR: SidebarProps = {
@@ -409,6 +469,9 @@ export function AppComponentsSection() {
 
   return (
     <div className="flex flex-col gap-8">
+      <GalleryItem name="DataTable" usedIn="Shared sortable tables">
+        <DataTableSample />
+      </GalleryItem>
       <GalleryItem
         name="Container comparison, chooser & history notice"
         usedIn="Containers"

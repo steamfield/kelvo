@@ -1,7 +1,10 @@
 import type { LiveProcess } from "@core/generated/bindings";
-import { render, screen, within } from "@testing-library/react";
+import { createMockTransport } from "@core/mock-transport";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { renderWithProviders } from "@tests/test-utils";
+import { Profiler, useState } from "react";
+import { useProcessRows } from "~/hooks/use-process-interest";
 import {
   type ProcessSort,
   ProcessTable,
@@ -124,5 +127,110 @@ describe("ProcessTable", () => {
     const copy = [...ROWS];
     sortProcesses(ROWS, { by: "threads", dir: "asc" });
     expect(ROWS).toEqual(copy);
+  });
+
+  it("breaks ties and gap pairs by numeric PID across reordered frames", () => {
+    const rows = [
+      proc({ pid: 10, name: "ten", cpu_pct: 2 }),
+      proc({ pid: 2, name: "two", cpu_pct: 2 }),
+      proc({ pid: 30, name: "thirty", cpu_pct: null }),
+      proc({ pid: 20, name: "twenty", cpu_pct: null }),
+    ];
+    const props = {
+      columns: ["name", "cpu"] as const,
+      onSort: () => {},
+      height: 300,
+      ariaLabel: "Top processes",
+    };
+    const { rerender } = render(
+      <ProcessTable {...props} rows={rows} sort={{ by: "cpu", dir: "desc" }} />
+    );
+    expect(names()).toEqual(["two", "ten", "twenty", "thirty"]);
+    rerender(
+      <ProcessTable
+        {...props}
+        rows={[...rows].reverse()}
+        sort={{ by: "cpu", dir: "asc" }}
+      />
+    );
+    expect(names()).toEqual(["two", "ten", "twenty", "thirty"]);
+  });
+
+  it("preserves case-sensitive User order and prop-driven column order", () => {
+    const rows = [
+      proc({ pid: 9, name: "a", user: "alice" }),
+      proc({ pid: 2, name: "b", user: "Zed" }),
+    ];
+    const props = {
+      rows,
+      sort: { by: "user", dir: "asc" } satisfies ProcessSort,
+      onSort: () => {},
+      height: 200,
+      ariaLabel: "Users",
+    };
+    const { rerender } = render(
+      <ProcessTable {...props} columns={["name", "user", "pid"]} />
+    );
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("cell")[1]?.textContent)
+    ).toEqual(["Zed", "alice"]);
+    expect(sortProcesses(rows, props.sort).map((row) => row.user)).toEqual([
+      "Zed",
+      "alice",
+    ]);
+    rerender(<ProcessTable {...props} columns={["pid", "user", "name"]} />);
+    expect(
+      screen.getAllByRole("columnheader").map((head) => head.textContent)
+    ).toEqual(["PID", "User ↑", "Process"]);
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("cell")[0]?.textContent)
+    ).toEqual(["2", "9"]);
+  });
+
+  it("commits once per process frame with controlled sorting", async () => {
+    const transport = createMockTransport({ autoTick: false });
+    let commits = 0;
+    function StreamingTable() {
+      const rows = useProcessRows() ?? ROWS;
+      const [sort, setSort] = useState<ProcessSort>({ by: "cpu", dir: "desc" });
+      return (
+        <Profiler id="process-table" onRender={() => commits++}>
+          <ProcessTable
+            rows={rows}
+            columns={["name", "cpu"]}
+            sort={sort}
+            onSort={setSort}
+            height={400}
+            ariaLabel="Streaming processes"
+          />
+        </Profiler>
+      );
+    }
+    const result = renderWithProviders(<StreamingTable />, { transport });
+    await waitFor(() => expect(transport.subscriberCount()).toBe(1));
+    act(() => transport.push({ kind: "processes", ts_ms: 1000, rows: ROWS }));
+    await screen.findByRole("cell", { name: "86.8" });
+    for (let tick = 1; tick <= 3; tick++) {
+      const before = commits;
+      act(() =>
+        transport.push({
+          kind: "processes",
+          ts_ms: 1000 + tick * 1000,
+          rows: ROWS.map((p) => ({ ...p, cpu_pct: tick + p.pid })),
+        })
+      );
+      expect(
+        screen.getByRole("cell", { name: `${2214 + tick}.0` })
+      ).toBeVisible();
+      expect(commits - before).toBe(1);
+    }
+    result.unmount();
+    transport.dispose();
   });
 });

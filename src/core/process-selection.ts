@@ -1,4 +1,5 @@
 import type { LiveProcess } from "./generated/bindings";
+import { holdOrder } from "./held-order";
 
 /** Identity and last observed eligibility, never a name-based kill pattern. */
 export type ProcessTarget = Pick<
@@ -22,16 +23,7 @@ export function holdProcessRows(
   rows: readonly SelectableProcessRow[],
   prior: readonly string[]
 ): SelectableProcessRow[] {
-  const byKey = new Map(rows.map((r) => [r.key, r]));
-  const previous = new Set(prior);
-  const keys = [
-    ...prior.filter((key) => byKey.has(key)),
-    ...rows.filter((r) => !previous.has(r.key)).map((r) => r.key),
-  ];
-  const ordered = keys.flatMap((key) => {
-    const row = byKey.get(key);
-    return row ? [row] : [];
-  });
+  const ordered = holdOrder(rows, prior, (row) => row.key);
   const children = new Map<string, SelectableProcessRow[]>();
   for (const row of ordered) {
     if (row.parentKey) {

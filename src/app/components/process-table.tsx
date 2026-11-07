@@ -8,9 +8,21 @@ import {
   type RateUnits,
 } from "@core/format";
 import type { LiveProcess } from "@core/generated/bindings";
+import { holdOrder } from "@core/held-order";
 import { targetKey } from "@core/process-selection";
-import { observeElementRect, useVirtualizer } from "@tanstack/react-virtual";
+import {
+  type SortingState,
+  sortFn_textCaseSensitive,
+} from "@tanstack/react-table";
+import type { Virtualizer } from "@tanstack/react-virtual";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
 import {
   ProcessSelectionHead,
   ProcessSelectionRow,
@@ -19,7 +31,8 @@ import {
   SharedProcessActions,
   useProcessSelection,
 } from "~/components/process-selection";
-import { type ColumnDef, SortHeader } from "~/components/sort-header";
+import type { ColumnDef } from "~/components/sort-header";
+import { Table, TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import { InitialChip } from "~/widgets/initial-chip";
 import { MeterTrack } from "~/widgets/meter-track";
@@ -109,18 +122,7 @@ export function frozenOrder(
   sorted: readonly LiveProcess[],
   keys: readonly string[]
 ): LiveProcess[] {
-  const byKey = new Map(sorted.map((p) => [processKey(p), p]));
-  const out: LiveProcess[] = [];
-  const placed = new Set<string>();
-  for (const k of keys) {
-    const p = byKey.get(k);
-    if (p) {
-      out.push(p);
-      placed.add(k);
-    }
-  }
-  for (const p of sorted) if (!placed.has(processKey(p))) out.push(p);
-  return out;
+  return holdOrder(sorted, keys, processKey);
 }
 
 /** Stable identity: a pid is reused, (pid, start time) is not. */
@@ -343,43 +345,91 @@ const COLUMNS: Record<ProcessColumn, ColumnDef<LiveProcess, CellCtx>> = {
 };
 
 /**
- * Sortable, virtualized process table (the CPU page's "Top processes"; full
- * height on the Processes page). Rows are keyed by (pid, start time). The parent owns
- * the sort; clicking the sorted column flips direction, another column sorts
- * descending (ascending for text).
+ * Sortable, virtualized process table. The external sort stays in the process
+ * vocabulary; the shared table owns sorting and hover order.
  */
 export function ProcessTable(props: ProcessTableProps) {
+  const { rows, columns, sort, onSort } = props;
+  const [paused, setPaused] = useState(false);
+  const { by, dir } = sort;
+  const sorting = useMemo<SortingState>(
+    () => [{ id: by, desc: dir === "desc" }],
+    [by, dir]
+  );
+  const definitions = useMemo(
+    () =>
+      helper.columns(
+        columns.map((id) => {
+          const column = COLUMNS[id];
+          return helper.accessor((row) => gap(column.sortValue(row)), {
+            id,
+            header: column.label,
+            sortFn:
+              id === "user"
+                ? sortFn_textCaseSensitive
+                : column.align === "left"
+                  ? "text"
+                  : "auto",
+            meta: {
+              align: column.align,
+              className: "h-auto whitespace-nowrap border-border border-b",
+            },
+          });
+        })
+      ),
+    [columns]
+  );
+  const data = useDataTable({
+    data: rows,
+    columns: definitions,
+    getRowId: processKey,
+    tiebreak: byPid,
+    sorting,
+    onSortingChange: (updater) => {
+      const next = (
+        typeof updater === "function" ? updater(sorting) : updater
+      )[0];
+      const column = columns.find((id) => id === next?.id);
+      if (next && column)
+        onSort({ by: column, dir: next.desc ? "desc" : "asc" });
+    },
+    hold: { paused, resetKey: `${by}:${dir}` },
+  });
   const descriptors = useMemo(
     () =>
-      props.selectable
-        ? sortProcesses(props.rows, props.sort).map((p) => ({
-            key: processKey(p),
-            label: `${p.name} (${p.pid})`,
-            targets: [p],
-          }))
-        : [],
-    [props.rows, props.sort, props.selectable]
+      data.rows.map(({ id, original: p }) => ({
+        key: id,
+        label: `${p.name} (${p.pid})`,
+        targets: [p],
+      })),
+    [data.rows]
   );
-  if (!props.selectable) return <ProcessTableBody {...props} />;
+  const body = (
+    <ProcessTableBody
+      {...props}
+      data={data}
+      setPaused={setPaused}
+      height={props.height + (props.selectable ? SELECTION_BAR_PX : 0)}
+    />
+  );
+  if (!props.selectable) return body;
   return (
     <ProcessSelectionSurface
       rows={descriptors}
-      allTargets={props.rows}
-      orderKey={`${props.sort.by}:${props.sort.dir}`}
+      allTargets={rows}
+      orderKey={`${by}:${dir}`}
       height={props.height + ROW_H + 4 + SELECTION_BAR_PX}
     >
-      {/* Takes the toolbar's space while nothing is selected; the scroll area shrinks when it shows. */}
-      <ProcessTableBody {...props} height={props.height + SELECTION_BAR_PX} />
+      {body}
     </ProcessSelectionSurface>
   );
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Existing cohesive logic; split when substantially changed (architecture refactor section 10).
+const helper = columnHelper<LiveProcess>();
+const byPid = (a: LiveProcess, b: LiveProcess) => a.pid - b.pid;
+
 function ProcessTableBody({
-  rows,
   columns,
-  sort,
-  onSort,
   cpuBarMaxPct = 100,
   height,
   memUnits = "GB",
@@ -388,66 +438,41 @@ function ProcessTableBody({
   growOnly = false,
   empty,
   ariaLabel,
-}: ProcessTableProps) {
+  data,
+  setPaused,
+}: ProcessTableProps & {
+  data: ReturnType<typeof useDataTable<LiveProcess>>;
+  setPaused: (paused: boolean) => void;
+}) {
   const selection = useProcessSelection();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [frozenKeys, setFrozenKeys] = useState<string[] | null>(null);
-  const sortedLive = useMemo(() => sortProcesses(rows, sort), [rows, sort]);
-  const frozen = useMemo(
-    () => (frozenKeys ? frozenOrder(sortedLive, frozenKeys) : sortedLive),
-    [sortedLive, frozenKeys]
-  );
-  const byKey = new Map(frozen.map((p) => [processKey(p), p]));
-  const sorted = selection
+  const virtualizer = useRef<Virtualizer<HTMLDivElement, Element>>(null);
+  useEffect(() => () => setPaused(false), [setPaused]);
+  const byKey = new Map(data.rows.map((row) => [row.id, row]));
+  const rows = selection
     ? selection.rows.flatMap((r) => {
-        const p = byKey.get(r.key);
-        return p ? [p] : [];
+        const row = byKey.get(r.key);
+        return row ? [row] : [];
       })
-    : frozen;
+    : data.rows;
   const hasActions = Boolean(selection);
-  const colSpan = columns.length + (hasActions ? 1 : 0) + (selection ? 1 : 0);
+  const colSpan = columns.length + (hasActions ? 2 : 0);
   const showEmpty = rows.length === 0 && empty !== undefined;
   const bodyPx = Math.min((showEmpty ? 1 : rows.length) * ROW_H, height);
   const [tallestPx, setTallestPx] = useState(bodyPx);
   if (growOnly && bodyPx > tallestPx) setTallestPx(bodyPx);
-
-  const virtualizer = useVirtualizer({
-    count: sorted.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_H,
-    getItemKey: (i) => processKey(sorted[i] as LiveProcess),
-    overscan: 6,
-    initialRect: { width: 0, height },
-    // A window that has not been laid out yet (a hidden popover, a test DOM)
-    // measures 0 px tall; render the viewport's worth of rows instead of none.
-    observeElementRect: (instance, cb) =>
-      observeElementRect(instance, (rect) =>
-        cb(rect.height > 0 ? rect : { width: rect.width, height })
-      ),
-  });
   const revealRef = selection?.reveal;
   useEffect(() => {
     if (!revealRef) return;
     revealRef.current = (key) => {
-      const index = sorted.findIndex((p) => processKey(p) === key);
-      if (index >= 0) virtualizer.scrollToIndex(index);
+      const index = rows.findIndex((row) => row.id === key);
+      if (index >= 0) virtualizer.current?.scrollToIndex(index);
     };
     return () => {
       revealRef.current = null;
     };
-  }, [revealRef, sorted, virtualizer]);
-  const items = virtualizer.getVirtualItems();
-  const padTop = items[0]?.start ?? 0;
-  const padBottom =
-    virtualizer.getTotalSize() - (items[items.length - 1]?.end ?? 0);
-
+  }, [revealRef, rows]);
   const ctx: CellCtx = { cpuBarMaxPct, memUnits, rateUnits };
-  const sortBy = (next: ProcessSort) => {
-    // A sort the user asked for applies at once, then holds while hovering.
-    if (frozenKeys) setFrozenKeys(sortProcesses(rows, next).map(processKey));
-    onSort(next);
-  };
-
   return (
     <div
       ref={scrollRef}
@@ -459,101 +484,87 @@ function ProcessTableBody({
           ? { height: Math.max(tallestPx, bodyPx) + ROW_H + 4 }
           : { maxHeight: height + ROW_H + 4 }
       }
-      onPointerEnter={
-        freezeOrderOnHover
-          ? () => setFrozenKeys(sortedLive.map(processKey))
-          : undefined
-      }
-      onPointerLeave={
-        freezeOrderOnHover ? () => setFrozenKeys(null) : undefined
-      }
+      onPointerEnter={freezeOrderOnHover ? () => setPaused(true) : undefined}
+      onPointerLeave={freezeOrderOnHover ? () => setPaused(false) : undefined}
     >
-      <table
+      <Table
         aria-label={ariaLabel}
         className="w-full border-collapse text-[12px]"
       >
         <thead className="sticky top-0 z-10 bg-card">
-          <tr>
-            <ProcessSelectionHead />
-            {columns.map((col) => {
-              const { label, align } = COLUMNS[col];
-              return (
-                <SortHeader
-                  key={col}
-                  by={col}
-                  label={label}
-                  align={align}
-                  sort={sort}
-                  onSort={sortBy}
-                  firstDir={align === "left" ? "asc" : "desc"}
-                  className="h-auto whitespace-nowrap border-border border-b"
-                />
-              );
-            })}
-            {hasActions && (
-              <th
-                scope="col"
-                className="w-36 border-border border-b p-0 font-normal"
-              >
-                <span className="sr-only">Actions</span>
-              </th>
-            )}
-          </tr>
+          <DataTableHead
+            table={data.table}
+            leading={<ProcessSelectionHead />}
+            trailing={
+              hasActions && (
+                <th
+                  scope="col"
+                  className="w-36 border-border border-b p-0 font-normal"
+                >
+                  <span className="sr-only">Actions</span>
+                </th>
+              )
+            }
+          />
         </thead>
-        <tbody>
-          {padTop > 0 && (
-            <tr aria-hidden style={{ height: padTop }}>
-              <td colSpan={colSpan} />
-            </tr>
+        <DataTable
+          table={data.table}
+          rows={rows}
+          className={
+            rows.length > 0
+              ? "[&_tr:last-child]:border-b [&_tr[aria-hidden]]:border-0"
+              : undefined
+          }
+          virtual={{
+            scrollRef,
+            estimateSize: ROW_H,
+            overscan: 6,
+            initialHeight: height,
+            enabled: true,
+            ref: virtualizer,
+          }}
+          empty={
+            showEmpty && (
+              <TableRow className="h-[29px] border-0 transition-none hover:bg-transparent">
+                <TableCell
+                  colSpan={colSpan}
+                  className="px-3 py-0 text-muted-foreground"
+                >
+                  {empty}
+                </TableCell>
+              </TableRow>
+            )
+          }
+          renderRow={({ original: p, id }) => (
+            <ProcessSelectionRow
+              rowKey={id}
+              label={`${p.name} (${p.pid})`}
+              targets={[p]}
+              data-key={id}
+              className="group h-[29px] border-border-subtle border-b hover:bg-selected"
+            >
+              {columns.map((col) => (
+                <td
+                  key={col}
+                  className={cn(
+                    "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle",
+                    COLUMNS[col].align === "right" && "text-right"
+                  )}
+                >
+                  {COLUMNS[col].cell(p, ctx)}
+                </td>
+              ))}
+              {hasActions && (
+                <td className="w-36 min-w-36 whitespace-nowrap py-0 pr-2 pl-1 text-right">
+                  <span className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 group-data-[state=open]:opacity-100">
+                    <SharedProcessActions targets={[p]} />
+                  </span>
+                </td>
+              )}
+            </ProcessSelectionRow>
           )}
-          {items.map((v) => {
-            const p = sorted[v.index] as LiveProcess;
-            return (
-              <ProcessSelectionRow
-                rowKey={processKey(p)}
-                label={`${p.name} (${p.pid})`}
-                targets={[p]}
-                key={v.key}
-                data-key={v.key}
-                className={cn(
-                  "group h-[29px] border-border-subtle border-b hover:bg-selected"
-                )}
-              >
-                {columns.map((col) => (
-                  <td
-                    key={col}
-                    className={cn(
-                      "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle",
-                      COLUMNS[col].align === "right" && "text-right"
-                    )}
-                  >
-                    {COLUMNS[col].cell(p, ctx)}
-                  </td>
-                ))}
-                {hasActions && (
-                  <td className="w-36 min-w-36 whitespace-nowrap py-0 pr-2 pl-1 text-right">
-                    <span className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 group-data-[state=open]:opacity-100">
-                      <SharedProcessActions targets={[p]} />
-                    </span>
-                  </td>
-                )}
-              </ProcessSelectionRow>
-            );
-          })}
-          {showEmpty && (
-            <tr className="h-[29px]">
-              <td colSpan={colSpan} className="px-3 py-0 text-muted-foreground">
-                {empty}
-              </td>
-            </tr>
-          )}
-          {padBottom > 0 && (
-            <tr aria-hidden style={{ height: padBottom }}>
-              <td colSpan={colSpan} />
-            </tr>
-          )}
-        </tbody>
-      </table>
+        />
+      </Table>
     </div>
   );
 }

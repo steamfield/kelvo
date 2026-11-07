@@ -1,9 +1,21 @@
 import type { LiveProcess } from "@core/generated/bindings";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { createMockTransport } from "@core/mock-transport";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { renderWithProviders } from "@tests/test-utils";
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
+import { useProcessRows } from "~/hooks/use-process-interest";
 import {
   diskTotal,
   frozenOrder,
+  type ProcessSort,
   ProcessTable,
   processKey,
 } from "./process-table";
@@ -65,6 +77,62 @@ describe("frozenOrder", () => {
 });
 
 describe("ProcessTable order freeze", () => {
+  it("releases hover order when Selected only unmounts the live body", async () => {
+    const transport = createMockTransport({ autoTick: false });
+    function SelectableTable() {
+      const rows = useProcessRows() ?? [];
+      const [sort, setSort] = useState<ProcessSort>({ by: "cpu", dir: "desc" });
+      return (
+        <ProcessTable
+          rows={rows}
+          columns={["name", "cpu"]}
+          sort={sort}
+          onSort={setSort}
+          height={300}
+          selectable
+          freezeOrderOnHover
+          ariaLabel="Processes"
+        />
+      );
+    }
+    const result = renderWithProviders(<SelectableTable />, { transport });
+    await waitFor(() => expect(transport.subscriberCount()).toBe(1));
+    act(() =>
+      transport.push({
+        kind: "processes",
+        ts_ms: 1000,
+        rows: [proc(1, "a", 50), proc(2, "b", 10)],
+      })
+    );
+    fireEvent.pointerEnter(screen.getByTestId("process-table-scroll"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select a (1)" }));
+    // Keyboard activation does not move the pointer off the live table.
+    fireEvent.click(screen.getByRole("button", { name: "Selected only" }));
+    fireEvent.pointerLeave(
+      screen.getByRole("table", { name: "Selected processes" })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Selected only" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    act(() =>
+      transport.push({
+        kind: "processes",
+        ts_ms: 2000,
+        rows: [proc(1, "a", 5), proc(2, "b", 90)],
+      })
+    );
+    const table = screen.getByRole("table", { name: "Processes" });
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) =>
+          within(row).getAllByRole("cell")[1]?.textContent?.slice(1)
+        )
+    ).toEqual(["b", "a"]);
+    result.unmount();
+    transport.dispose();
+  });
+
   it("holds row order while the pointer is over the table", () => {
     const { container, rerender } = render(
       table([proc(1, "a", 50), proc(2, "b", 10)])
