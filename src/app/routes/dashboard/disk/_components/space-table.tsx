@@ -7,7 +7,14 @@ import type {
 import { spaceKey } from "@core/space-treemap";
 import { Copy, File, Folder, FolderSearch } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { memo } from "react";
+import { memo, useMemo } from "react";
+import {
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,14 +23,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "~/components/ui/context-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import { useHostNoun } from "~/hooks/use-host-record";
 import { cn } from "~/lib/utils";
 import { MeterTrack } from "~/widgets/meter-track";
@@ -82,57 +82,59 @@ export const SpaceTable = memo(function SpaceTable({
 }) {
   // Other names the host's filesystem: APFS on a Mac.
   const mac = useHostNoun() === "Mac";
+  const sortable = useMemo(() => rows.filter((r) => r.id !== null), [rows]);
+  const synthetic = useMemo(() => rows.filter((r) => r.id === null), [rows]);
+  const data = useDataTable({
+    data: sortable,
+    columns: nodeColumns,
+    getRowId: spaceKey,
+  });
+  const renderNode = (r: SpaceNode) => (
+    <NodeRow
+      key={spaceKey(r)}
+      node={r}
+      total={total}
+      active={
+        hovered === spaceKey(r) ||
+        (hovered?.startsWith(`${spaceKey(r)}/`) ?? false)
+      }
+      onHover={onHover}
+      onOpen={onOpen}
+      actions={actions}
+      mac={mac}
+    />
+  );
   return (
-    <Table aria-label="Folder contents">
-      <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead>Name</TableHead>
-          <TableHead className="w-24 text-right">Size</TableHead>
-          <TableHead className="w-40">Share</TableHead>
-          <TableHead className="w-28 text-right">Items</TableHead>
-          <TableHead className="w-16">
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
+    <Table
+      aria-label="Folder contents"
+      onKeyDown={(e) => {
+        // Row menus render in a portal: their keys are theirs.
+        if (!e.currentTarget.tBodies[0]?.contains(e.target as Node)) return;
+        if ((e.key === "ArrowUp" && e.metaKey) || e.key === "Escape") {
+          e.preventDefault();
+          onUp();
+          return;
+        }
+        if (moveFocus(e)) return;
+        const key = (document.activeElement as HTMLElement | null)?.dataset.row;
+        const node = rows.find((r) => spaceKey(r) === key) ?? null;
+        const open = e.key === "Enter" || (e.key === "ArrowDown" && e.metaKey);
+        if (open && canOpen(node)) {
+          e.preventDefault();
+          onOpen(node);
+        }
+      }}
+      onPointerLeave={() => onHover(null)}
+    >
+      <TableHeader onPointerEnter={() => onHover(null)}>
+        <DataTableHead table={data.table} />
       </TableHeader>
-      <TableBody
-        onKeyDown={(e) => {
-          // Row menus render in a portal: their keys are theirs.
-          if (!e.currentTarget.contains(e.target as Node)) return;
-          if ((e.key === "ArrowUp" && e.metaKey) || e.key === "Escape") {
-            e.preventDefault();
-            onUp();
-            return;
-          }
-          if (moveFocus(e)) return;
-          const key = (document.activeElement as HTMLElement | null)?.dataset
-            .row;
-          const node = rows.find((r) => spaceKey(r) === key) ?? null;
-          const open =
-            e.key === "Enter" || (e.key === "ArrowDown" && e.metaKey);
-          if (open && canOpen(node)) {
-            e.preventDefault();
-            onOpen(node);
-          }
-        }}
-        onPointerLeave={() => onHover(null)}
-      >
-        {rows.map((r) => (
-          <NodeRow
-            key={spaceKey(r)}
-            node={r}
-            total={total}
-            active={
-              hovered === spaceKey(r) ||
-              (hovered?.startsWith(`${spaceKey(r)}/`) ?? false)
-            }
-            onHover={onHover}
-            onOpen={onOpen}
-            actions={actions}
-            mac={mac}
-          />
-        ))}
-      </TableBody>
+      <DataTable
+        table={data.table}
+        rows={data.rows}
+        renderRow={({ original }) => renderNode(original)}
+        after={synthetic.map(renderNode)}
+      />
     </Table>
   );
 });
@@ -352,20 +354,20 @@ export const LargestFilesTable = memo(function LargestFilesTable({
   files: readonly SpaceFile[];
   actions: SpaceItemActions;
 }) {
+  const data = useDataTable({
+    data: files,
+    columns: fileColumns,
+    getRowId: fileId,
+  });
   return (
-    <Table aria-label="Largest files">
+    <Table aria-label="Largest files" onKeyDown={moveFocus}>
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead>Name</TableHead>
-          <TableHead>Folder</TableHead>
-          <TableHead className="w-24 text-right">Size</TableHead>
-          <TableHead className="w-16">
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
+        <DataTableHead table={data.table} />
       </TableHeader>
-      <TableBody onKeyDown={moveFocus}>
-        {files.map((f) => {
+      <DataTable
+        table={data.table}
+        rows={data.rows}
+        renderRow={({ original: f }) => {
           const target: SpaceTarget = { kind: "largest_file", index: f.index };
           return (
             <ItemMenu
@@ -406,8 +408,61 @@ export const LargestFilesTable = memo(function LargestFilesTable({
               </TableRow>
             </ItemMenu>
           );
-        })}
-      </TableBody>
+        }}
+      />
     </Table>
   );
 });
+
+const nodeHelper = columnHelper<SpaceNode>();
+const nodeColumns = nodeHelper.columns([
+  nodeHelper.accessor("name", {
+    header: "Name",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  nodeHelper.accessor((n) => gap(n.bytes), {
+    id: "size",
+    header: "Size",
+    meta: { align: "right", className: "w-24" },
+  }),
+  nodeHelper.display({
+    id: "share",
+    header: "Share",
+    meta: { align: "left", className: "w-40" },
+  }),
+  nodeHelper.accessor((n) => gap(n.items), {
+    id: "items",
+    header: "Items",
+    meta: { align: "right", className: "w-28" },
+  }),
+  nodeHelper.display({
+    id: "actions",
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { align: "left", className: "w-16" },
+  }),
+]);
+const fileHelper = columnHelper<SpaceFile>();
+const fileId = (f: SpaceFile) => String(f.index);
+const fileColumns = fileHelper.columns([
+  fileHelper.accessor("name", {
+    header: "Name",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  fileHelper.accessor("parent", {
+    header: "Folder",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  fileHelper.accessor((f) => gap(f.bytes), {
+    id: "size",
+    header: "Size",
+    meta: { align: "right", className: "w-24" },
+  }),
+  fileHelper.display({
+    id: "actions",
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { align: "left", className: "w-16" },
+  }),
+]);

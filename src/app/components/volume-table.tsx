@@ -1,14 +1,14 @@
 import { ratio } from "@core/chart-math";
 import { type ByteUnits, formatBytes } from "@core/format";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import { MeterTrack } from "~/widgets/meter-track";
 
 export interface VolumeRow {
@@ -35,26 +35,56 @@ export interface VolumeTableProps {
  * usage bar in the Disk accent.
  */
 export function VolumeTable({ rows, units, action }: VolumeTableProps) {
+  const columns = useMemo(
+    () =>
+      helper.columns([
+        helper.accessor("name", {
+          header: "Volume",
+          sortFn: "text",
+          meta: { align: "left" },
+        }),
+        helper.accessor((r) => gap(r.usedBytes), {
+          id: "used",
+          header: "Used",
+          meta: { align: "right" },
+        }),
+        helper.accessor((r) => gap(r.freeBytes), {
+          id: "free",
+          header: "Free",
+          meta: { align: "right" },
+        }),
+        helper.accessor((r) => gap(r.totalBytes), {
+          id: "size",
+          header: "Size",
+          meta: { align: "right" },
+        }),
+        helper.display({
+          id: "usage",
+          header: () => <span className="sr-only">Usage</span>,
+          meta: { align: "left", className: "w-40" },
+        }),
+        ...(action
+          ? [
+              helper.display({
+                id: "actions",
+                header: () => <span className="sr-only">Actions</span>,
+                meta: { align: "left", className: "w-0" },
+              }),
+            ]
+          : []),
+      ]),
+    [action]
+  );
+  const data = useDataTable({ data: rows, columns, getRowId });
   return (
     <Table>
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead>Volume</TableHead>
-          <TableHead className="text-right">Used</TableHead>
-          <TableHead className="text-right">Free</TableHead>
-          <TableHead className="text-right">Size</TableHead>
-          <TableHead className="w-40">
-            <span className="sr-only">Usage</span>
-          </TableHead>
-          {action && (
-            <TableHead className="w-0">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          )}
-        </TableRow>
+        <DataTableHead table={data.table} />
       </TableHeader>
-      <TableBody>
-        {rows.map((r) => {
+      <DataTable
+        table={data.table}
+        rows={data.rows}
+        renderRow={({ original: r }) => {
           const frac = ratio(r.usedBytes, r.totalBytes);
           return (
             <TableRow key={r.id} className="text-[12px]">
@@ -85,8 +115,11 @@ export function VolumeTable({ rows, units, action }: VolumeTableProps) {
               )}
             </TableRow>
           );
-        })}
-      </TableBody>
+        }}
+      />
     </Table>
   );
 }
+
+const helper = columnHelper<VolumeRow>();
+const getRowId = (row: VolumeRow) => row.id;

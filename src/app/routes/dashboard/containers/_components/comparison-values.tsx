@@ -7,6 +7,15 @@ import type {
   DockerContainer,
   DockerHistoryPoint,
 } from "@core/generated/bindings";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import type { ComparisonSeries } from "./comparison-chart";
 export function ComparisonValues({
   series,
@@ -25,34 +34,50 @@ export function ComparisonValues({
   statistics: (point: DockerHistoryPoint) => string;
   format: (value: number | null) => string;
 }) {
+  const pointsBySeries = new Map(
+    series.map((s) => [
+      s.container.id,
+      new Map(s.points.map((p) => [p.time_ms, p])),
+    ])
+  );
   return (
     <div className="h-60 overflow-auto">
-      <table
-        className="figures w-full text-[11px]"
+      <Table
+        className="figures w-full caption-top text-[11px]"
         aria-label="Container history values"
       >
-        <caption className="text-left text-muted-foreground">
+        <TableCaption className="mt-0 text-left text-[11px] text-muted-foreground">
           Per bucket: min / avg / max
-        </caption>
-        <thead className="sticky top-0 bg-card">
-          <tr>
-            <th className="p-2 text-left">Time</th>
+        </TableCaption>
+        <TableHeader className="sticky top-0 bg-card [&_tr]:border-b-0">
+          <TableRow className="border-0 transition-none hover:bg-transparent">
+            <TableHead className="h-auto p-2 text-left font-bold text-inherit">
+              Time
+            </TableHead>
             {series.map((s) => (
-              <th key={s.container.id} className="p-2 text-right">
+              <TableHead
+                key={s.container.id}
+                className="h-auto p-2 text-right font-bold text-inherit"
+              >
                 {displayName(s.container)}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {[...times].reverse().map((time) => (
-            <tr key={time}>
-              <td className="whitespace-nowrap p-2">{clock(time)}</td>
+            <TableRow
+              key={time}
+              className="border-0 transition-none hover:bg-transparent"
+            >
+              <TableCell className="whitespace-nowrap p-2">
+                {clock(time)}
+              </TableCell>
               {series.map((s) => {
-                const point = s.points.find((p) => p.time_ms === time);
+                const point = pointsBySeries.get(s.container.id)?.get(time);
                 const value = point ? pointValue(point, metric) : null;
                 return (
-                  <td
+                  <TableCell
                     key={s.container.id}
                     className="whitespace-nowrap p-2 text-right"
                   >
@@ -60,13 +85,13 @@ export function ComparisonValues({
                     {value !== null && point && !pointCovered(point, metric)
                       ? " partial"
                       : ""}
-                  </td>
+                  </TableCell>
                 );
               })}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
