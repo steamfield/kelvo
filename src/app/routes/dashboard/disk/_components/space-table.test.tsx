@@ -39,24 +39,24 @@ const names = () =>
 it.each([
   [
     "Name",
-    ["Proc10", "proc9", "Waiting"],
-    ["Waiting", "proc9", "Proc10"],
+    ["Proc10", "proc9", "Volume", "Waiting"],
+    ["Waiting", "Volume", "proc9", "Proc10"],
     "ascending",
   ],
   [
     "Size",
-    ["proc9", "Proc10", "Waiting"],
-    ["Proc10", "proc9", "Waiting"],
+    ["Volume", "proc9", "Proc10", "Waiting"],
+    ["Proc10", "proc9", "Volume", "Waiting"],
     "descending",
   ],
   [
     "Items",
-    ["Proc10", "proc9", "Waiting"],
-    ["proc9", "Proc10", "Waiting"],
+    ["Volume", "Proc10", "proc9", "Waiting"],
+    ["proc9", "Proc10", "Volume", "Waiting"],
     "descending",
   ],
 ])(
-  "sorts folder %s both ways, keeps gaps and synthetic rows last",
+  "sorts folder %s both ways with volumes, keeps gaps and remainders last",
   (label, first, second, direction) => {
     renderWithProviders(
       <SpaceTable
@@ -73,21 +73,21 @@ it.each([
       "proc9",
       "Proc10",
       "Waiting",
-      "Smaller",
       "Volume",
+      "Smaller",
       "Other",
     ]);
     const header = () =>
       screen.getByRole("columnheader", { name: new RegExp(label) });
     fireEvent.click(within(header()).getByRole("button"));
     expect(header()).toHaveAttribute("aria-sort", direction);
-    expect(names()).toEqual([...first, "Smaller", "Volume", "Other"]);
+    expect(names()).toEqual([...first, "Smaller", "Other"]);
     fireEvent.click(within(header()).getByRole("button"));
     expect(header()).toHaveAttribute(
       "aria-sort",
       direction === "ascending" ? "descending" : "ascending"
     );
-    expect(names()).toEqual([...second, "Smaller", "Volume", "Other"]);
+    expect(names()).toEqual([...second, "Smaller", "Other"]);
     expect(
       within(screen.getByRole("columnheader", { name: "Share" })).queryByRole(
         "button"

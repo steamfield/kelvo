@@ -58,6 +58,9 @@ function moveFocus(e: KeyboardEvent<HTMLElement>) {
   return true;
 }
 
+const isRemainder = (node: SpaceNode) =>
+  node.kind === "smaller" || node.kind === "other";
+
 /**
  * The current folder's entries, linked to the treemap by `hovered`. The
  * keyboard path: arrows move, Enter or Cmd+↓ opens a folder (Finder's keys).
@@ -82,8 +85,10 @@ export const SpaceTable = memo(function SpaceTable({
 }) {
   // Other names the host's filesystem: APFS on a Mac.
   const mac = useHostNoun() === "Mac";
-  const sortable = useMemo(() => rows.filter((r) => r.id !== null), [rows]);
-  const synthetic = useMemo(() => rows.filter((r) => r.id === null), [rows]);
+  // Remainders (smaller items, unaccounted space) stay last; other APFS
+  // volumes are real space and sort with the folders.
+  const sortable = useMemo(() => rows.filter((r) => !isRemainder(r)), [rows]);
+  const synthetic = useMemo(() => rows.filter(isRemainder), [rows]);
   const data = useDataTable({
     data: sortable,
     columns: nodeColumns,
