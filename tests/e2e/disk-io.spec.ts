@@ -1,6 +1,70 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+// SortHeader adds a button inside each head; that markup must keep column
+// alignment and the historical two-line Total label stable while sorting.
+for (const width of [360, 1280]) {
+  test(`sortable disk header buttons fill their columns at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/?window=dashboard&route=/dashboard/disk&ticks=0");
+    const table = page.getByRole("table", { name: "Disk processes · Live" });
+    await expect(table.getByRole("link").first()).toBeVisible();
+    for (const name of ["Process", "Read/s", "Write/s", "Total/s"]) {
+      const header = table.getByRole("columnheader", {
+        name: new RegExp(`^${name}`),
+      });
+      const insets = await header.evaluate((element) => {
+        const button = element.querySelector("button");
+        if (!button) throw new Error("Missing sortable header button");
+        const head = element.getBoundingClientRect();
+        const box = button.getBoundingClientRect();
+        return {
+          left: Math.round(box.left - head.left),
+          right: Math.round(head.right - box.right),
+        };
+      });
+      expect(insets, name).toEqual({ left: 0, right: 0 });
+    }
+  });
+
+  test(`historical disk header height stays fixed while sorting at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.clock.setFixedTime(new Date("2026-10-13T17:30:05Z"));
+    await page.goto("/?window=dashboard&route=/dashboard/disk&ticks=0");
+    await page
+      .getByRole("slider", { name: "Select a time range" })
+      .first()
+      .focus();
+    await page.keyboard.press("Enter");
+    const table = page.getByRole("table", {
+      name: /^Disk processes · selected/,
+    });
+    const total = table.getByRole("columnheader", { name: /^Total/ });
+    await expect(total).toHaveAttribute("aria-sort", "descending");
+    await expect(table.getByRole("link").first()).toBeVisible();
+    const height = () =>
+      table
+        .locator("thead")
+        .evaluate((head) => head.getBoundingClientRect().height);
+    const before = await height();
+    await table
+      .getByRole("columnheader", { name: "Read", exact: true })
+      .getByRole("button")
+      .click();
+    await expect(total).not.toHaveAttribute("aria-sort");
+    expect(await height()).toBe(before);
+    await total.getByRole("button").click();
+    await expect(total).toHaveAttribute("aria-sort", "descending");
+    expect(await height()).toBe(before);
+  });
+}
+
 for (const theme of ["dark", "light"] as const) {
   for (const width of [360, 1280]) {
     test(`Disk I/O ${theme} ${width}px keeps attribution visible and accessible`, async ({

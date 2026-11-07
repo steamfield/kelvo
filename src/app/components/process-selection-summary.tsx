@@ -1,5 +1,13 @@
 import { targetKey } from "@core/process-selection";
 import { Button } from "~/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import { quitExclusion } from "~/hooks/use-quit-flow";
 import { useProcessSelection } from "./process-selection-context";
 import {
@@ -14,16 +22,22 @@ export function SelectedProcessTable() {
   const { selected } = ctx;
   return (
     <div data-process-scroll className="max-h-96 min-h-0 overflow-auto">
-      <table aria-label="Selected processes" className="w-full text-[12px]">
-        <thead>
-          <tr>
+      <Table aria-label="Selected processes" className="w-full text-[12px]">
+        <TableHeader className="[&_tr]:border-b-0">
+          <TableRow className="border-0 transition-none hover:bg-transparent">
             <ProcessSelectionHead />
-            <th className="px-3 text-left font-normal">Process</th>
-            <th className="px-3 text-right font-normal">PID</th>
-            <th className="px-3 text-left font-normal">Last observed</th>
-          </tr>
-        </thead>
-        <tbody>
+            <TableHead className="h-auto px-3 text-left font-normal text-[12px] text-foreground">
+              Process
+            </TableHead>
+            <TableHead className="h-auto px-3 text-right font-normal text-[12px] text-foreground">
+              PID
+            </TableHead>
+            <TableHead className="h-auto px-3 text-left font-normal text-[12px] text-foreground">
+              Last observed
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="[&_tr:last-child]:border-b">
           {selected.map((p) => (
             <ProcessSelectionRow
               key={targetKey(p)}
@@ -31,16 +45,18 @@ export function SelectedProcessTable() {
               label={`${p.name} (${p.pid})`}
               targets={[p]}
             >
-              <td className="px-3">{p.name}</td>
-              <td className="figures px-3 text-right">{p.pid}</td>
-              <td className="px-3 text-muted-foreground">
+              <TableCell className="px-3 py-0">{p.name}</TableCell>
+              <TableCell className="figures px-3 py-0 text-right">
+                {p.pid}
+              </TableCell>
+              <TableCell className="px-3 py-0 text-muted-foreground">
                 {quitExclusion(p) ??
                   "Running when observed; checked again before sending"}
-              </td>
+              </TableCell>
             </ProcessSelectionRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

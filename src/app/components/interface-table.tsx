@@ -1,12 +1,14 @@
 import { formatBytes, formatRate, type RateUnits } from "@core/format";
+import type { SortingState } from "@tanstack/react-table";
+import { useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 
 export interface InterfaceRow {
   /** BSD name and row key, "en0". */
@@ -33,20 +35,28 @@ export interface InterfaceTableProps {
  * process table). No IP addresses: they are personal data in screenshots.
  */
 export function InterfaceTable({ rows, units }: InterfaceTableProps) {
+  const [paused, setPaused] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const data = useDataTable({
+    data: rows,
+    columns,
+    getRowId,
+    sorting,
+    onSortingChange: setSorting,
+    hold: { paused, resetKey: JSON.stringify(sorting) },
+  });
   return (
-    <Table>
+    <Table
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+    >
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead>Interface</TableHead>
-          <TableHead>Kind</TableHead>
-          <TableHead className="text-right">Down</TableHead>
-          <TableHead className="text-right">Up</TableHead>
-          <TableHead className="text-right">Received</TableHead>
-          <TableHead className="text-right">Sent</TableHead>
-        </TableRow>
+        <DataTableHead table={data.table} />
       </TableHeader>
-      <TableBody>
-        {rows.map((r) => (
+      <DataTable
+        table={data.table}
+        rows={data.rows}
+        renderRow={({ original: r }) => (
           <TableRow key={r.id} className="text-[12px]">
             <TableCell className="figures text-foreground">{r.id}</TableCell>
             <TableCell className="font-normal text-fg-subtle">
@@ -69,8 +79,43 @@ export function InterfaceTable({ rows, units }: InterfaceTableProps) {
               {formatBytes(r.txBytes)}
             </TableCell>
           </TableRow>
-        ))}
-      </TableBody>
+        )}
+      />
     </Table>
   );
 }
+
+const helper = columnHelper<InterfaceRow>();
+const getRowId = (row: InterfaceRow) => row.id;
+const columns = helper.columns([
+  helper.accessor("id", {
+    header: "Interface",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  helper.accessor("kind", {
+    header: "Kind",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  helper.accessor((r) => gap(r.rxBps), {
+    id: "down",
+    header: "Down",
+    meta: { align: "right" },
+  }),
+  helper.accessor((r) => gap(r.txBps), {
+    id: "up",
+    header: "Up",
+    meta: { align: "right" },
+  }),
+  helper.accessor((r) => gap(r.rxBytes), {
+    id: "received",
+    header: "Received",
+    meta: { align: "right" },
+  }),
+  helper.accessor((r) => gap(r.txBytes), {
+    id: "sent",
+    header: "Sent",
+    meta: { align: "right" },
+  }),
+]);

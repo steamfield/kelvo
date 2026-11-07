@@ -6,7 +6,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { FIELD_LABEL } from "~/widgets/lib/classes";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import type { Bucket } from "../_lib/buckets";
 import { formatMetric, type LaneUnits } from "../_lib/format";
 import type { Band } from "../_lib/gaps";
@@ -80,62 +87,67 @@ export function LaneTableDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto">
-          <table className="w-full border-collapse text-[12px]">
-            <thead className="sticky top-0 bg-popover">
-              <tr>
-                <th scope="col" className={`${FIELD_LABEL} py-1.5 text-left`}>
+          <Table className="w-full border-collapse text-[12px]">
+            <TableHeader className="sticky top-0 bg-popover [&_tr]:border-b-0">
+              <TableRow className="border-0 transition-none hover:bg-transparent">
+                <TableHead scope="col" className="h-auto px-0 py-1.5 text-left">
                   Time
-                </th>
+                </TableHead>
                 {metrics.flatMap((m) =>
                   ["min", "avg", "max"].map((stat) => (
-                    <th
+                    <TableHead
                       key={`${m.metric}-${stat}`}
                       scope="col"
-                      className={`${FIELD_LABEL} py-1.5 text-right`}
+                      className="h-auto px-0 py-1.5 text-right"
                     >
                       {multi ? `${SERIES_NAME[m.metric] ?? m.metric} ` : ""}
                       {stat}
-                    </th>
+                    </TableHead>
                   ))
                 )}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="[&_tr:last-child]:border-t">
               {rows.map((row) =>
                 row.kind === "gap" ? (
-                  <tr
+                  <TableRow
                     key={`gap-${row.t}`}
-                    className="border-border-subtle border-t"
+                    className="border-border-subtle border-t border-b-0 transition-none hover:bg-transparent"
                   >
-                    <td className="figures py-1">
+                    <TableCell className="figures px-0 py-1">
                       {formatClock(row.band.fromMs)}
-                    </td>
-                    <td
+                    </TableCell>
+                    <TableCell
                       colSpan={metrics.length * 3}
-                      className="py-1 text-right font-normal text-muted-foreground"
+                      className="px-0 py-1 text-right font-normal text-muted-foreground"
                     >
                       {row.band.label}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  <tr key={row.t} className="border-border-subtle border-t">
-                    <td className="figures py-1">{formatClock(row.t)}</td>
+                  <TableRow
+                    key={row.t}
+                    className="border-border-subtle border-t border-b-0 transition-none hover:bg-transparent"
+                  >
+                    <TableCell className="figures px-0 py-1">
+                      {formatClock(row.t)}
+                    </TableCell>
                     {metrics.flatMap((m, i) => {
                       const b = row.values[i];
                       return (["min", "avg", "max"] as const).map((stat) => (
-                        <td
+                        <TableCell
                           key={`${m.metric}-${stat}`}
-                          className="figures py-1 text-right"
+                          className="figures px-0 py-1 text-right"
                         >
                           {formatMetric(m.metric, b?.[stat], units)}
-                        </td>
+                        </TableCell>
                       ));
                     })}
-                  </tr>
+                  </TableRow>
                 )
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </DialogContent>
     </Dialog>

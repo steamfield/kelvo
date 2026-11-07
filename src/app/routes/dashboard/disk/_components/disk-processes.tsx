@@ -5,10 +5,17 @@ import { USAGE_KEEP_MS } from "@core/generated/bindings";
 import { FULL_TABLE } from "@core/process-interest";
 import { targetKey } from "@core/process-selection";
 import { remoteQueryText } from "@core/remote-errors";
-import { type ReactNode, useMemo, useState } from "react";
+import type { SortingState } from "@tanstack/react-table";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { AppsNote, AppsShell } from "~/components/app-table";
 import { brushScopeProps } from "~/components/brush-overlay";
+import {
+  columnHelper,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
 import {
   ProcessSelectionHead,
   ProcessSelectionRow,
@@ -16,18 +23,13 @@ import {
   SharedProcessActions,
   useProcessSelection,
 } from "~/components/process-selection";
-import {
-  diskTotal,
-  frozenOrder,
-  sortProcesses,
-} from "~/components/process-table";
+import { diskTotal } from "~/components/process-table";
 import { SearchField } from "~/components/search-field";
 import { Button } from "~/components/ui/button";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
@@ -53,20 +55,6 @@ export const requestedBytes = (
   p.read_bytes === null || p.write_bytes === null
     ? null
     : p.read_bytes + p.write_bytes;
-
-/** Presentation-only ranking; Rust supplies byte totals, rates and coverage. */
-export function historicalDiskProcesses(
-  apps: { processes: ProcessUsage[] }[]
-): ProcessUsage[] {
-  return apps
-    .flatMap((a) => a.processes)
-    .sort(
-      (a, b) =>
-        (requestedBytes(b) ?? -1) - (requestedBytes(a) ?? -1) ||
-        a.pid - b.pid ||
-        a.start_time_us - b.start_time_us
-    );
-}
 
 const appConfig = (mac: boolean): UsageTableConfig => ({
   by: "disk",
@@ -106,7 +94,6 @@ export function DiskProcesses({ windowMs }: { windowMs: number }) {
   );
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Existing cohesive logic; split when substantially changed (architecture refactor section 10).
 function DiskProcessList({
   windowMs,
   viewControl,
@@ -120,25 +107,12 @@ function DiskProcessList({
   // Quit is this Mac's only; a remote host's processes are listed (D-117).
   const edition = useEdition();
   const canSignal = local && edition?.process_signal === true;
-  useProcessInterest(range === null ? FULL_TABLE : null);
-  const live = useProcessRows();
-  const history = useUsageByApp(range, "disk");
+  const { data, live, history, orderKey, setPointer, setFocus } =
+    useDiskProcessTable(range);
   const [query, setQuery] = useState("");
-  const [heldOrder, setHeldOrder] = useState<string[] | null>(null);
   const [all, setAll] = useState(false);
   const location = useLocation();
-  const current = useMemo(() => {
-    const sorted = sortProcesses(live ?? EMPTY, {
-      by: "diskTotal",
-      dir: "desc",
-    });
-    return heldOrder ? frozenOrder(sorted, heldOrder) : sorted;
-  }, [live, heldOrder]);
-  const retained = useMemo(
-    () => historicalDiskProcesses(history.data?.apps ?? []),
-    [history.data]
-  );
-  const rows = range === null ? current : retained;
+  const rows = data.rows.map((r) => r.original);
   const filtered = rows.filter((p) =>
     `${p.name} ${p.pid}`.toLowerCase().includes(query.toLowerCase().trim())
   );
@@ -146,16 +120,7 @@ function DiskProcessList({
   const scope = range ? scopeWords(range, windowMs) : "Live";
   const waiting = range ? history.isPending : live === null;
   const unrecorded = range !== null && history.data?.covered_ms === 0;
-  const backParams = new URLSearchParams(location.search);
-  if (range) {
-    backParams.set("from", String(range.fromMs));
-    backParams.set("to", String(range.toMs));
-  } else {
-    backParams.delete("from");
-    backParams.delete("to");
-  }
-  const backSearch = backParams.toString();
-  const back = `${location.pathname}${backSearch ? `?${backSearch}` : ""}`;
+  const back = diskBack(location, range);
   return (
     <div {...brushScopeProps} className="contents">
       <AppsShell
@@ -175,76 +140,30 @@ function DiskProcessList({
           </AppsNote>
         ) : (
           <>
-            {range && history.data && history.data.covered_ms > 0 && (
-              <p className="px-4 pb-2 text-[11px] text-muted-foreground">
-                Averages cover {formatSpan(history.data.covered_ms)} sampled in
-                this interval.
-              </p>
-            )}
+            <DiskCoverageNote
+              range={range}
+              coveredMs={history.data?.covered_ms}
+            />
             <DiskSelection
               rows={shown}
               allTargets={filtered}
               scopeKey={range ? `${range.fromMs}:${range.toMs}` : "live"}
               enabled={canSignal}
+              orderKey={orderKey}
             >
-              <div
-                className="max-h-96 overflow-auto"
-                onPointerEnter={() => setHeldOrder(current.map(targetKey))}
-                onPointerLeave={() => setHeldOrder(null)}
-                onFocusCapture={() => setHeldOrder(current.map(targetKey))}
-                onBlurCapture={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget))
-                    setHeldOrder(null);
-                }}
-              >
-                <Table
-                  aria-label={`Disk processes · ${scope}`}
-                  className="table-fixed"
-                >
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <ProcessSelectionHead />
-                      <TableHead className="w-[38%] px-2 sm:px-3">
-                        Process
-                      </TableHead>
-                      <TableHead className="px-1 text-right sm:px-3">
-                        {range ? "Read" : "Read/s"}
-                      </TableHead>
-                      <TableHead className="px-1 text-right sm:px-3">
-                        {range ? "Written" : "Write/s"}
-                      </TableHead>
-                      <TableHead
-                        aria-sort="descending"
-                        className="px-2 text-right sm:px-3"
-                      >
-                        Total{range ? "" : "/s"}
-                        {range && (
-                          <span className="block font-normal">Avg/s</span>
-                        )}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <DiskRows shown={shown} range={range} back={back} />
-                    {shown.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={canSignal ? 5 : 4}
-                          className="px-4 py-3 text-muted-foreground"
-                        >
-                          {waiting
-                            ? "Waiting for process samples…"
-                            : unrecorded
-                              ? "No process data for this range."
-                              : query
-                                ? `No process matches “${query.trim()}”.`
-                                : "No recorded process I/O in this interval."}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DiskProcessTable
+                data={data}
+                shown={shown}
+                range={range}
+                back={back}
+                setPointer={setPointer}
+                setFocus={setFocus}
+                canSignal={canSignal}
+                scope={scope}
+                waiting={waiting}
+                unrecorded={unrecorded}
+                query={query}
+              />
             </DiskSelection>
             {!query && filtered.length > 10 && (
               <button
@@ -267,17 +186,206 @@ function DiskProcessList({
   );
 }
 
+function diskBack(
+  location: { search: string; pathname: string },
+  range: TimeRange | null
+) {
+  const backParams = new URLSearchParams(location.search);
+  if (range) {
+    backParams.set("from", String(range.fromMs));
+    backParams.set("to", String(range.toMs));
+  } else {
+    backParams.delete("from");
+    backParams.delete("to");
+  }
+  const backSearch = backParams.toString();
+  return `${location.pathname}${backSearch ? `?${backSearch}` : ""}`;
+}
+
+function DiskCoverageNote({
+  range,
+  coveredMs,
+}: {
+  range: TimeRange | null;
+  coveredMs: number | undefined;
+}) {
+  if (!range || coveredMs === undefined || coveredMs <= 0) return null;
+  return (
+    <p className="px-4 pb-2 text-[11px] text-muted-foreground">
+      Averages cover {formatSpan(coveredMs)} sampled in this interval.
+    </p>
+  );
+}
+
+function useDiskProcessTable(range: TimeRange | null) {
+  useProcessInterest(range === null ? FULL_TABLE : null);
+  const live = useProcessRows();
+  const history = useUsageByApp(range, "disk");
+  const [pointer, setPointer] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "total", desc: true },
+  ]);
+  const retained = useMemo(
+    () => history.data?.apps.flatMap((a) => a.processes) ?? EMPTY,
+    [history.data]
+  );
+  const historical = range !== null;
+  const columns = useMemo(() => processColumns(historical), [historical]);
+  const orderKey = JSON.stringify(sorting);
+  const data = useDataTable<DiskProcess>({
+    data: historical ? retained : (live ?? EMPTY),
+    columns,
+    getRowId: targetKey,
+    tiebreak: byPid,
+    sorting,
+    onSortingChange: setSorting,
+    hold: { paused: pointer || focus, resetKey: orderKey },
+  });
+  return { data, live, history, orderKey, setPointer, setFocus };
+}
+
+type DiskProcess = LiveProcess | ProcessUsage;
+const helper = columnHelper<DiskProcess>();
+const byPid = (a: DiskProcess, b: DiskProcess) =>
+  a.pid - b.pid || a.start_time_us - b.start_time_us;
+function processColumns(historical: boolean) {
+  return helper.columns([
+    helper.accessor("name", {
+      header: "Process",
+      sortFn: "text",
+      meta: {
+        align: "left",
+        className: "w-[38%] [&>button]:px-2 sm:[&>button]:px-3",
+      },
+    }),
+    helper.accessor(
+      (p) => gap("read_bytes" in p ? p.read_bytes : p.disk_read_bps),
+      {
+        id: "read",
+        header: historical ? "Read" : "Read/s",
+        meta: {
+          align: "right",
+          className: "[&>button]:px-1 sm:[&>button]:px-3",
+        },
+      }
+    ),
+    helper.accessor(
+      (p) => gap("write_bytes" in p ? p.write_bytes : p.disk_write_bps),
+      {
+        id: "write",
+        header: historical ? "Written" : "Write/s",
+        meta: {
+          align: "right",
+          className: "[&>button]:px-1 sm:[&>button]:px-3",
+        },
+      }
+    ),
+    helper.accessor(
+      (p) => gap("read_bytes" in p ? requestedBytes(p) : diskTotal(p)),
+      {
+        id: "total",
+        header: () => (
+          <span className="inline-block">
+            Total{historical ? "" : "/s"}
+            {historical && <span className="block font-normal">Avg/s</span>}
+          </span>
+        ),
+        meta: {
+          align: "right",
+          className: "whitespace-nowrap [&>button]:px-2 sm:[&>button]:px-3",
+        },
+      }
+    ),
+  ]);
+}
+
+function DiskProcessTable({
+  data,
+  shown,
+  range,
+  back,
+  setPointer,
+  setFocus,
+  canSignal,
+  scope,
+  waiting,
+  unrecorded,
+  query,
+}: {
+  data: ReturnType<typeof useDataTable<DiskProcess>>;
+  shown: DiskProcess[];
+  range: TimeRange | null;
+  back: string;
+  setPointer: (value: boolean) => void;
+  setFocus: (value: boolean) => void;
+  canSignal: boolean;
+  scope: string;
+  waiting: boolean;
+  unrecorded: boolean;
+  query: string;
+}) {
+  useEffect(
+    () => () => {
+      setPointer(false);
+      setFocus(false);
+    },
+    [setPointer, setFocus]
+  );
+  return (
+    <div
+      className="max-h-96 overflow-auto"
+      onPointerEnter={() => setPointer(true)}
+      onPointerLeave={() => setPointer(false)}
+      onFocusCapture={() => setFocus(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setFocus(false);
+      }}
+    >
+      <Table aria-label={`Disk processes · ${scope}`} className="table-fixed">
+        <TableHeader>
+          <DataTableHead
+            table={data.table}
+            leading={<ProcessSelectionHead />}
+          />
+        </TableHeader>
+        <TableBody>
+          <DiskRows shown={shown} range={range} back={back} />
+          {shown.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={canSignal ? 5 : 4}
+                className="px-4 py-3 text-muted-foreground"
+              >
+                {waiting
+                  ? "Waiting for process samples…"
+                  : unrecorded
+                    ? "No process data for this range."
+                    : query
+                      ? `No process matches “${query.trim()}”.`
+                      : "No recorded process I/O in this interval."}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 function DiskSelection({
   rows,
   allTargets,
   scopeKey,
   enabled,
+  orderKey,
   children,
 }: {
   rows: readonly (LiveProcess | ProcessUsage)[];
   allTargets: readonly (LiveProcess | ProcessUsage)[];
   scopeKey: string;
   enabled: boolean;
+  orderKey: string;
   children: ReactNode;
 }) {
   const descriptors = useMemo(
@@ -294,6 +402,7 @@ function DiskSelection({
       rows={descriptors}
       allTargets={allTargets}
       scopeKey={scopeKey}
+      orderKey={orderKey}
     >
       {children}
     </ProcessSelectionSurface>
