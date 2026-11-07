@@ -1,6 +1,7 @@
 import type { SpaceFile, SpaceNode } from "@core/generated/bindings";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@tests/test-utils";
+import { useState } from "react";
 import { LargestFilesTable, SpaceTable } from "./space-table";
 
 const node = (
@@ -128,6 +129,36 @@ const files: SpaceFile[] = [
   { index: 10, name: "Proc10", parent: "A/folder", bytes: 10 },
   { index: 11, name: "Waiting", parent: "m/folder", bytes: null },
 ];
+it("breaks equal largest-file sizes and gap pairs by numeric index in both directions", () => {
+  const tied = [
+    { index: 10, name: "ten", parent: "same", bytes: 20 },
+    { index: 2, name: "two", parent: "same", bytes: 20 },
+    { index: 11, name: "gap eleven", parent: "same", bytes: null },
+    { index: 3, name: "gap three", parent: "same", bytes: null },
+  ];
+  let update = () => {};
+  function Harness() {
+    const [files, setFiles] = useState(tied);
+    update = () => setFiles([...tied].reverse());
+    return <LargestFilesTable files={files} actions={actions} />;
+  }
+  renderWithProviders(<Harness />);
+  const expected = ["two", "ten", "gap three", "gap eleven"];
+  fireEvent.click(
+    within(screen.getByRole("columnheader", { name: "Size" })).getByRole(
+      "button"
+    )
+  );
+  expect(names()).toEqual(expected);
+  act(() => update());
+  expect(names()).toEqual(expected);
+  fireEvent.click(
+    within(screen.getByRole("columnheader", { name: /Size/ })).getByRole(
+      "button"
+    )
+  );
+  expect(names()).toEqual(expected);
+});
 it.each([
   [
     "Name",

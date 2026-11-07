@@ -6,7 +6,7 @@ import {
   type SortingState,
   useTable,
 } from "@tanstack/react-table";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { features, type TableFeatures } from "./features";
 
 interface DataTableOptions<T extends RowData> {
@@ -18,7 +18,7 @@ interface DataTableOptions<T extends RowData> {
   onSortingChange?: OnChangeFn<SortingState>;
   initialSorting?: SortingState;
   manualSorting?: boolean;
-  hold?: { paused: boolean; resetKey: string };
+  hold?: { paused: boolean };
 }
 
 export function useDataTable<T extends RowData>({
@@ -70,7 +70,7 @@ export function useDataTable<T extends RowData>({
       onSortingChange: onSortingChange ?? setSorting,
       manualSorting,
       defaultColumn: { sortUndefined: "last" },
-      enableSorting: true,
+      enableSorting: !manualSorting || !!onSortingChange,
       enableMultiSort: false,
       enableSortingRemoval: false,
       sortDescFirst: true,
@@ -78,15 +78,17 @@ export function useDataTable<T extends RowData>({
     (state) => ({ sorting: state.sorting })
   );
   const sorted = table.getRowModel().rows;
-  const held = useRef<{ resetKey: string; ids: string[] } | null>(null);
-  if (!hold?.paused) held.current = null;
-  else if (held.current?.resetKey !== hold.resetKey)
-    held.current = {
-      resetKey: hold.resetKey,
-      ids: sorted.map((row) => row.id),
-    };
-  const rows = held.current
-    ? holdOrder(sorted, held.current.ids, (row) => row.id)
+  const resetKey = JSON.stringify(activeSorting);
+  const [held, setHeld] = useState<{ resetKey: string; ids: string[] } | null>(
+    null
+  );
+  let snapshot = held;
+  if (!hold?.paused) snapshot = null;
+  else if (held?.resetKey !== resetKey)
+    snapshot = { resetKey, ids: sorted.map((row) => row.id) };
+  if (snapshot !== held) setHeld(snapshot);
+  const rows = snapshot
+    ? holdOrder(sorted, snapshot.ids, (row) => row.id)
     : sorted;
   return { table, rows };
 }

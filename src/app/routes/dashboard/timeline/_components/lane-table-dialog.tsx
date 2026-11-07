@@ -88,17 +88,22 @@ export function LaneTableDialog({
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto">
           <Table className="w-full border-collapse text-[12px]">
-            <TableHeader className="sticky top-0 bg-popover [&_tr]:border-b-0">
-              <TableRow className="border-0 transition-none hover:bg-transparent">
-                <TableHead scope="col" className="h-auto px-0 py-1.5 text-left">
+            <TableHeader variant="plain" className="sticky top-0 bg-popover">
+              <TableRow variant="plain">
+                <TableHead
+                  variant="plain"
+                  scope="col"
+                  className="py-1.5 text-left"
+                >
                   Time
                 </TableHead>
                 {metrics.flatMap((m) =>
                   ["min", "avg", "max"].map((stat) => (
                     <TableHead
+                      variant="plain"
                       key={`${m.metric}-${stat}`}
                       scope="col"
-                      className="h-auto px-0 py-1.5 text-right"
+                      className="py-1.5 text-right"
                     >
                       {multi ? `${SERIES_NAME[m.metric] ?? m.metric} ` : ""}
                       {stat}
@@ -107,12 +112,13 @@ export function LaneTableDialog({
                 )}
               </TableRow>
             </TableHeader>
-            <TableBody className="[&_tr:last-child]:border-t">
+            <TableBody variant="plain">
               {rows.map((row) =>
                 row.kind === "gap" ? (
                   <TableRow
+                    variant="plain"
                     key={`gap-${row.t}`}
-                    className="border-border-subtle border-t border-b-0 transition-none hover:bg-transparent"
+                    className="border-border-subtle border-t"
                   >
                     <TableCell className="figures px-0 py-1">
                       {formatClock(row.band.fromMs)}
@@ -126,8 +132,9 @@ export function LaneTableDialog({
                   </TableRow>
                 ) : (
                   <TableRow
+                    variant="plain"
                     key={row.t}
-                    className="border-border-subtle border-t border-b-0 transition-none hover:bg-transparent"
+                    className="border-border-subtle border-t"
                   >
                     <TableCell className="figures px-0 py-1">
                       {formatClock(row.t)}

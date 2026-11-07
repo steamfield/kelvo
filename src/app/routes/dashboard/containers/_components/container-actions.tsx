@@ -24,13 +24,12 @@ import {
 } from "~/components/ui/tooltip";
 import { useTransport } from "~/lib/transport-context";
 import { cn } from "~/lib/utils";
-import { dockerErrorMessage } from "../_lib/presentation";
+import { dockerErrorMessage, isLiveLifecycle } from "../_lib/presentation";
 
 export function containerAction(
   row: DockerContainer
 ): DockerContainerAction | null {
-  if (["running", "restarting", "paused"].includes(row.lifecycle))
-    return "stop";
+  if (isLiveLifecycle(row)) return "stop";
   if (["exited", "created"].includes(row.lifecycle)) return "start";
   return null;
 }

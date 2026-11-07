@@ -8,8 +8,8 @@ it.each([
   ["network", "desc"],
   ["io", "desc"],
   ["restarts", "desc"],
-  ["image", "desc"],
-  ["ports", "desc"],
+  ["image", "asc"],
+  ["ports", "asc"],
 ])("defaults a missing or invalid direction for %s to %s", (by, dir) => {
   for (const query of [`sort=${by}`, `sort=${by}&dir=wrong`])
     expect(

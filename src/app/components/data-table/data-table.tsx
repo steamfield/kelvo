@@ -1,9 +1,4 @@
-import {
-  FlexRender,
-  type Row,
-  type RowData,
-  type Table,
-} from "@tanstack/react-table";
+import type { Row, RowData, Table } from "@tanstack/react-table";
 import {
   observeElementRect,
   useVirtualizer,
@@ -17,7 +12,7 @@ import {
   useImperativeHandle,
 } from "react";
 import { TableBody, TableCell, TableRow } from "~/components/ui/table";
-import { cn } from "~/lib/utils";
+import { DataTableCells } from "./data-table-cells";
 import type { TableFeatures } from "./features";
 
 export interface DataTableVirtual {
@@ -30,15 +25,7 @@ export interface DataTableVirtual {
 }
 
 /** Body only, so selection and grouped bodies can share the same table model. */
-export function DataTable<T extends RowData>({
-  table,
-  rows,
-  renderRow,
-  after,
-  empty,
-  virtual,
-  className,
-}: {
+interface DataTableProps<T extends RowData> {
   className?: string | undefined;
   table: Table<TableFeatures, T>;
   rows: readonly Row<TableFeatures, T>[];
@@ -47,7 +34,28 @@ export function DataTable<T extends RowData>({
   /** A complete empty-state row, including its cells. */
   empty?: ReactNode;
   virtual?: DataTableVirtual;
-}) {
+}
+
+export function DataTable<T extends RowData>(props: DataTableProps<T>) {
+  return props.virtual ? (
+    <VirtualBody {...props} virtual={props.virtual} />
+  ) : (
+    <TableBody className={props.className}>
+      <BodyRows {...props} />
+      {props.after}
+    </TableBody>
+  );
+}
+
+function VirtualBody<T extends RowData>({
+  table,
+  rows,
+  renderRow,
+  after,
+  empty,
+  virtual,
+  className,
+}: DataTableProps<T> & { virtual: DataTableVirtual }) {
   const virtualizer = useVirtualizer({
     enabled: virtual?.enabled ?? false,
     count: rows.length,
@@ -82,30 +90,38 @@ export function DataTable<T extends RowData>({
       {virtual?.enabled && padTop > 0 && (
         <Spacer height={padTop} colSpan={colSpan} />
       )}
-      {visible.map((row) =>
-        renderRow ? (
-          <Fragment key={row.id}>{renderRow(row)}</Fragment>
-        ) : (
-          <TableRow key={row.id}>
-            {row.getAllCells().map((cell) => (
-              <TableCell
-                key={cell.id}
-                className={cn(
-                  cell.column.columnDef.meta?.align === "right" && "text-right"
-                )}
-              >
-                <FlexRender cell={cell} />
-              </TableCell>
-            ))}
-          </TableRow>
-        )
-      )}
-      {rows.length === 0 && empty}
+      <BodyRows
+        table={table}
+        rows={visible}
+        {...(renderRow ? { renderRow } : {})}
+        empty={rows.length === 0 && empty}
+      />
       {virtual?.enabled && padBottom > 0 && (
         <Spacer height={padBottom} colSpan={colSpan} />
       )}
       {after}
     </TableBody>
+  );
+}
+
+function BodyRows<T extends RowData>({
+  rows,
+  renderRow,
+  empty,
+}: DataTableProps<T>) {
+  return (
+    <>
+      {rows.map((row) =>
+        renderRow ? (
+          <Fragment key={row.id}>{renderRow(row)}</Fragment>
+        ) : (
+          <TableRow key={row.id}>
+            <DataTableCells row={row} />
+          </TableRow>
+        )
+      )}
+      {rows.length === 0 && empty}
+    </>
   );
 }
 

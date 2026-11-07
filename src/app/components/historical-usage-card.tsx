@@ -26,6 +26,7 @@ import {
   UnrecordedRange,
 } from "~/components/app-table";
 import {
+  type ColumnSort,
   columnHelper,
   DataTable,
   DataTableHead,
@@ -44,10 +45,7 @@ import { useHostId } from "~/stores/host-store";
 import { InitialChip } from "~/widgets/initial-chip";
 import type { Accent } from "~/widgets/lib/accent";
 
-export interface HistoricalUsageSort {
-  by: HistoricalUsageMetric;
-  dir: "asc" | "desc";
-}
+export type HistoricalUsageSort = ColumnSort<HistoricalUsageMetric>;
 
 export function HistoricalUsageCard({
   range,

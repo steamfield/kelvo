@@ -1,6 +1,7 @@
 import {
   type CellData,
   type TableFeatures as CoreTableFeatures,
+  constructSortFn,
   createColumnHelper,
   createSortedRowModel,
   type RowData,
@@ -18,6 +19,7 @@ declare module "@tanstack/table-core" {
   > {
     align: "left" | "right";
     className?: string;
+    cellClassName?: string;
     ranked?: boolean;
   }
 }
@@ -25,7 +27,11 @@ declare module "@tanstack/table-core" {
 export const features = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric, text: sortFn_text },
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    text: sortFn_text,
+    locale: constructSortFn({ sort: new Intl.Collator().compare }),
+  },
 });
 
 export type TableFeatures = typeof features;

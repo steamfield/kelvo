@@ -2,7 +2,6 @@ import type { DockerStorageResource } from "@core/generated/bindings";
 import { dockerKeys } from "@core/query-keys";
 import { unwrap } from "@core/transport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { constructSortFn } from "@tanstack/react-table";
 import { memo, useMemo, useState } from "react";
 import {
   columnHelper,
@@ -24,28 +23,30 @@ import { StorageResources } from "./storage-resources";
 
 const SORT_IDS = ["size", "name", "references", "age", "eligibility"] as const;
 
-const nameSort = constructSortFn({ sort: new Intl.Collator().compare });
 const helper = columnHelper<DockerStorageResource>();
 const COLUMNS = helper.columns([
   helper.accessor("name", {
     header: "Resource / type",
-    sortFn: nameSort,
+    sortFn: "locale",
     meta: { align: "left" },
   }),
   helper.accessor((row) => gap(row.size_bytes), {
     id: "size",
     header: "Size",
-    meta: { align: "right", className: "text-left [&_button]:text-left" },
+    sortDescFirst: true,
+    meta: { align: "left" },
   }),
   helper.accessor((row) => row.references.length, {
     id: "references",
     header: "References",
-    meta: { align: "right", className: "text-left [&_button]:text-left" },
+    sortDescFirst: true,
+    meta: { align: "left" },
   }),
   helper.accessor((row) => gap(row.age_ms), {
     id: "age",
     header: "Age evidence",
-    meta: { align: "right", className: "text-left [&_button]:text-left" },
+    sortDescFirst: true,
+    meta: { align: "left" },
   }),
   helper.accessor(
     (row) =>

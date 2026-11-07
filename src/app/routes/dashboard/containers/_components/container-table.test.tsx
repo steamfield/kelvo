@@ -4,6 +4,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@tests/test-utils";
 import { useState } from "react";
 import { expect, it, vi } from "vitest";
+import type { ContainerSort } from "../_lib/presentation";
 import { ContainerTable } from "./container-table";
 
 const defaults = {
@@ -26,6 +27,46 @@ const second = {
   lifecycle: "running" as const,
   metrics: { ...mockContainer(1, 1000).metrics, cpu_pct: 100 },
 };
+
+it.each(["Image", "Ports"])(
+  "starts right-aligned %s text ascending then flips",
+  (label) => {
+    function Harness() {
+      const [sort, onSort] = useState<ContainerSort>(defaults.sort);
+      return (
+        <ContainerTable
+          {...defaults}
+          sort={sort}
+          onSort={onSort}
+          columns={["image", "ports"]}
+          rows={[
+            { ...first, image: "z-image", ports: ["9000"] },
+            { ...second, image: "a-image", ports: ["1000"] },
+          ]}
+        />
+      );
+    }
+    renderWithProviders(<Harness />);
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: label })).getByRole(
+        "button"
+      )
+    );
+    expect(
+      screen.getByRole("columnheader", { name: new RegExp(label) })
+    ).toHaveAttribute("aria-sort", "ascending");
+    expect(screen.getAllByRole("link")[0]).toHaveTextContent("web");
+    fireEvent.click(
+      within(
+        screen.getByRole("columnheader", { name: new RegExp(label) })
+      ).getByRole("button")
+    );
+    expect(
+      screen.getByRole("columnheader", { name: new RegExp(label) })
+    ).toHaveAttribute("aria-sort", "descending");
+    expect(screen.getAllByRole("link")[0]).toHaveTextContent("api");
+  }
+);
 
 it("holds row order while focused, updates values, and resumes on blur without a status bar", () => {
   let update: (rows: DockerContainer[]) => void = () => {};

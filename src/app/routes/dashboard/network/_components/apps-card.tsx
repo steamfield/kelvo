@@ -195,7 +195,7 @@ function Unrecorded({
   );
 }
 
-export function AppsTable({
+function AppsTable({
   rows,
   rest,
   units,
@@ -216,7 +216,7 @@ export function AppsTable({
     tiebreak: byName,
     sorting,
     onSortingChange,
-    hold: { paused, resetKey: JSON.stringify(sorting) },
+    hold: { paused },
   });
   const bytes = (n: number) => formatBytes(n);
   return (
@@ -340,4 +340,5 @@ const APP_COLUMNS = helper.columns([
   }),
 ]);
 const appKey = (r: AppRow) => r.key;
-const byName = (a: AppRow, b: AppRow) => a.name.localeCompare(b.name);
+const byName = (a: AppRow, b: AppRow) =>
+  a.name.localeCompare(b.name) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);

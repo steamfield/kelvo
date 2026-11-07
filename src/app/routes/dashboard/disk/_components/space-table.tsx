@@ -363,6 +363,7 @@ export const LargestFilesTable = memo(function LargestFilesTable({
     data: files,
     columns: fileColumns,
     getRowId: fileId,
+    tiebreak: (a, b) => a.index - b.index,
   });
   return (
     <Table aria-label="Largest files" onKeyDown={moveFocus}>

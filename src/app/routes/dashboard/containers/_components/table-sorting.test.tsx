@@ -143,15 +143,15 @@ it.each([
   ],
   [
     "Image",
-    "descending",
-    ["zulu", "missing", "alpha"],
+    "ascending",
     ["alpha", "missing", "zulu"],
+    ["zulu", "missing", "alpha"],
   ],
   [
     "Ports",
-    "descending",
-    ["zulu", "alpha", "missing"],
+    "ascending",
     ["alpha", "zulu", "missing"],
+    ["zulu", "alpha", "missing"],
   ],
   [
     "Restarts",

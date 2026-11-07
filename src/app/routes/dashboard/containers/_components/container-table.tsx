@@ -112,29 +112,8 @@ export function ContainerTable({
     onSort,
     sortIds
   );
-  const data = useMemo(
-    () =>
-      rows.map((row) =>
-        historical ||
-        ["running", "paused", "restarting"].includes(row.lifecycle)
-          ? row
-          : {
-              ...row,
-              metrics: {
-                ...row.metrics,
-                cpu_pct: null,
-                working_set_bytes: null,
-                network_rx_bps: null,
-                network_tx_bps: null,
-                block_read_bps: null,
-                block_write_bps: null,
-              },
-            }
-      ),
-    [rows, historical]
-  );
   const model = useDataTable({
-    data,
+    data: rows,
     columns: definitions,
     getRowId: containerRowId,
     tiebreak: containerTiebreak,
@@ -142,13 +121,10 @@ export function ContainerTable({
     onSortingChange,
     hold: {
       paused: hovered || keyboard || contextOpen || actions.pendingIds.size > 0,
-      resetKey: `${activeSort.by}:${activeSort.dir}`,
     },
   });
   const ordered = model.rows.map((row) => row.original);
-  const visibleColumns = model.table
-    .getAllLeafColumns()
-    .map((column) => column.id);
+  const visibleColumns = model.table.getAllLeafColumns();
   const groups = grouped
     ? [...new Set(ordered.map((row) => row.project ?? "Standalone"))]
     : [""];

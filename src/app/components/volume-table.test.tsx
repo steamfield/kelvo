@@ -1,3 +1,6 @@
+vi.mock("@tanstack/react-table", { spy: true });
+
+import * as tanstack from "@tanstack/react-table";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { type VolumeRow, VolumeTable } from "./volume-table";
 
@@ -17,6 +20,51 @@ const names = () =>
     .getAllByRole("row")
     .slice(1)
     .map((r) => within(r).getAllByRole("cell")[0]?.textContent);
+
+it("keeps sorting while inline actions change and calls the latest action", () => {
+  const table = vi.mocked(tanstack.useTable);
+  table.mockClear();
+  const clicked: string[] = [];
+  const { rerender } = render(
+    <VolumeTable
+      rows={rows}
+      units="GB"
+      action={(r) => (
+        <button type="button" onClick={() => clicked.push(`old:${r.id}`)}>
+          Scan {r.name}
+        </button>
+      )}
+    />
+  );
+  fireEvent.click(
+    within(screen.getByRole("columnheader", { name: "Used" })).getByRole(
+      "button"
+    )
+  );
+  const columns = table.mock.calls.at(-1)?.[0].columns;
+  rerender(
+    <VolumeTable
+      rows={[...rows]}
+      units="GB"
+      action={(r) => (
+        <button type="button" onClick={() => clicked.push(`new:${r.id}`)}>
+          Scan {r.name}
+        </button>
+      )}
+    />
+  );
+  expect(names()).toEqual(["proc9", "Proc10", "Waiting"]);
+  expect(table.mock.calls.at(-1)?.[0].columns).toBe(columns);
+  expect(screen.getByRole("columnheader", { name: /Used/ })).toHaveAttribute(
+    "aria-sort",
+    "descending"
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Scan proc9" }));
+  expect(clicked).toEqual(["new:z"]);
+  rerender(<VolumeTable rows={rows} units="GB" />);
+  expect(screen.queryByRole("columnheader", { name: "Actions" })).toBeNull();
+  table.mockClear();
+});
 
 it.each([
   [

@@ -5,6 +5,7 @@ import type {
   DockerLifecycle,
   DockerStatus,
 } from "@core/generated/bindings";
+import type { ColumnSort } from "~/components/data-table";
 export const statusLabel: Record<DockerStatus, string> = {
   disabled: "Monitoring off",
   connecting: "Connecting",
@@ -33,37 +34,38 @@ export const healthLabel: Record<DockerHealth, string> = {
   unhealthy: "Unhealthy",
   unknown: "Unknown",
 };
-export type ContainerSortColumn =
-  | "cpu"
-  | "memory"
-  | "name"
-  | "restarts"
-  | "network"
-  | "io"
-  | "state"
-  | "image"
-  | "ports";
-export interface ContainerSort {
-  by: ContainerSortColumn;
-  dir: "asc" | "desc";
-}
+export const CONTAINER_SORT_COLUMNS = [
+  "cpu",
+  "memory",
+  "name",
+  "restarts",
+  "network",
+  "io",
+  "state",
+  "image",
+  "ports",
+] as const;
+export type ContainerSortColumn = (typeof CONTAINER_SORT_COLUMNS)[number];
+export type ContainerSort = ColumnSort<ContainerSortColumn>;
 export const DEFAULT_CONTAINER_SORT: ContainerSort = { by: "cpu", dir: "desc" };
+const TEXT_COLUMNS: readonly ContainerSortColumn[] = [
+  "name",
+  "state",
+  "image",
+  "ports",
+];
+export const containerSortDescFirst = (by: ContainerSortColumn) =>
+  !TEXT_COLUMNS.includes(by);
 export const containerFirstDir = (by: ContainerSortColumn) =>
-  by === "name" || by === "state" ? "asc" : "desc";
+  containerSortDescFirst(by) ? "desc" : "asc";
 export const isContainerSortColumn = (
   value: string
 ): value is ContainerSortColumn =>
-  [
-    "cpu",
-    "memory",
-    "name",
-    "restarts",
-    "network",
-    "io",
-    "state",
-    "image",
-    "ports",
-  ].includes(value);
+  CONTAINER_SORT_COLUMNS.some((column) => column === value);
+export const isLiveLifecycle = (row: DockerContainer) =>
+  row.lifecycle === "running" ||
+  row.lifecycle === "paused" ||
+  row.lifecycle === "restarting";
 export const containerPath = (engine: string, container: string) =>
   `/dashboard/containers/${encodeURIComponent(engine)}/${encodeURIComponent(container)}`;
 export function cpuLeader(rows: readonly DockerContainer[]) {

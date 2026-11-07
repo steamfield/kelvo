@@ -9,13 +9,14 @@ import {
 } from "@core/format";
 import type { LiveProcess } from "@core/generated/bindings";
 import { targetKey } from "@core/process-selection";
-import { FlexRender, sortFn_textCaseSensitive } from "@tanstack/react-table";
+import { sortFn_textCaseSensitive } from "@tanstack/react-table";
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   type ColumnSort,
   columnHelper,
   DataTable,
+  DataTableCells,
   DataTableHead,
   gap,
   useColumnSort,
@@ -167,16 +168,16 @@ function PercentBar({
 }
 
 const helper = columnHelper<LiveProcess>();
+const HEADER = "h-auto whitespace-nowrap border-border border-b";
+const NO_DESCRIPTORS: { key: string; label: string; targets: LiveProcess[] }[] =
+  [];
 
 const STATIC_COLUMNS = {
-  name: helper.accessor((p) => gap(p.name.toLowerCase()), {
+  name: helper.accessor((p) => p.name, {
     id: "name",
     header: "Process",
     sortFn: "text",
-    meta: {
-      align: "left",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "left", className: HEADER },
     cell: ({ row: { original: p } }) => (
       <span className="inline-flex max-w-64 items-center gap-2 text-foreground">
         <InitialChip text={p.name} />
@@ -184,14 +185,10 @@ const STATIC_COLUMNS = {
       </span>
     ),
   }),
-  pid: helper.accessor((p) => gap(p.pid), {
+  pid: helper.accessor((p) => p.pid, {
     id: "pid",
     header: "PID",
-    sortFn: "auto",
-    meta: {
-      align: "right",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "right", className: HEADER },
     cell: ({ row: { original: p } }) =>
       figure(String(p.pid), "text-muted-foreground"),
   }),
@@ -199,11 +196,7 @@ const STATIC_COLUMNS = {
   port: helper.accessor((p) => gap(p.ports?.[0] ?? null), {
     id: "port",
     header: "Port",
-    sortFn: "auto",
-    meta: {
-      align: "right",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "right", className: HEADER },
     cell: ({ row: { original: p } }) => (
       <span
         className="figures text-muted-foreground"
@@ -217,57 +210,38 @@ const STATIC_COLUMNS = {
       </span>
     ),
   }),
-  threads: helper.accessor((p) => gap(p.threads), {
+  threads: helper.accessor((p) => p.threads, {
     id: "threads",
     header: "Threads",
-    sortFn: "auto",
-    meta: {
-      align: "right",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "right", className: HEADER },
     cell: ({ row: { original: p } }) => figure(num(p.threads)),
   }),
   wakeups: helper.accessor((p) => gap(p.idle_wakeups_per_s), {
     id: "wakeups",
     header: "Idle wake-ups",
-    sortFn: "auto",
-    meta: {
-      align: "right",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "right", className: HEADER },
     cell: ({ row: { original: p } }) => figure(num(p.idle_wakeups_per_s)),
   }),
   energy: helper.accessor((p) => gap(p.energy), {
     id: "energy",
     header: "Energy",
-    sortFn: "auto",
-    meta: {
-      align: "right",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "right", className: HEADER },
     cell: ({ row: { original: p } }) => figure(num(p.energy, 1)),
   }),
   // Percent of the whole GPU (D-085), so the bar is out of 100.
   gpu: helper.accessor((p) => gap(p.gpu_pct), {
     id: "gpu",
     header: "% GPU",
-    sortFn: "auto",
-    meta: {
-      align: "right",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "right", className: HEADER },
     cell: ({ row: { original: p } }) => (
       <PercentBar pct={p.gpu_pct} max={100} fill="var(--color-gpu)" />
     ),
   }),
-  user: helper.accessor((p) => gap(p.user), {
+  user: helper.accessor((p) => p.user, {
     id: "user",
     header: "User",
     sortFn: sortFn_textCaseSensitive,
-    meta: {
-      align: "left",
-      className: "h-auto whitespace-nowrap border-border border-b",
-    },
+    meta: { align: "left", className: HEADER },
     cell: ({ row: { original: p } }) => figure(p.user, "text-muted-foreground"),
   }),
 };
@@ -278,11 +252,7 @@ function processColumns(c: CellCtx) {
     cpu: helper.accessor((p) => gap(p.cpu_pct), {
       id: "cpu",
       header: "% CPU",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) => (
         <PercentBar
           pct={p.cpu_pct}
@@ -291,58 +261,38 @@ function processColumns(c: CellCtx) {
         />
       ),
     }),
-    mem: helper.accessor((p) => gap(p.mem_bytes), {
+    mem: helper.accessor((p) => p.mem_bytes, {
       id: "mem",
       header: "Memory",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(formatBytes(p.mem_bytes, { units: c.memUnits })),
     }),
     compressed: helper.accessor((p) => gap(p.compressed_bytes), {
       id: "compressed",
       header: "Compressed",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(formatBytes(p.compressed_bytes, { units: c.memUnits })),
     }),
     diskRead: helper.accessor((p) => gap(p.disk_read_bps), {
       id: "diskRead",
       header: "Disk read",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(formatRate(p.disk_read_bps, { units: c.rateUnits })),
     }),
     diskWrite: helper.accessor((p) => gap(p.disk_write_bps), {
       id: "diskWrite",
       header: "Disk write",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(formatRate(p.disk_write_bps, { units: c.rateUnits })),
     }),
     diskTotal: helper.accessor((p) => gap(diskTotal(p)), {
       id: "diskTotal",
       header: "Disk total",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(
           formatRate(diskTotal(p), { units: c.rateUnits }),
@@ -352,33 +302,21 @@ function processColumns(c: CellCtx) {
     netRx: helper.accessor((p) => gap(p.net_rx_bps), {
       id: "netRx",
       header: "Down",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(formatRate(p.net_rx_bps, { units: c.rateUnits })),
     }),
     netTx: helper.accessor((p) => gap(p.net_tx_bps), {
       id: "netTx",
       header: "Up",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(formatRate(p.net_tx_bps, { units: c.rateUnits })),
     }),
     netTotal: helper.accessor((p) => gap(netTotal(p)), {
       id: "netTotal",
       header: "Net total",
-      sortFn: "auto",
-      meta: {
-        align: "right",
-        className: "h-auto whitespace-nowrap border-border border-b",
-      },
+      meta: { align: "right", className: HEADER },
       cell: ({ row: { original: p } }) =>
         figure(
           formatRate(netTotal(p), { units: c.rateUnits }),
@@ -409,16 +347,18 @@ export function ProcessTable(props: ProcessTableProps) {
     tiebreak: byPid,
     sorting,
     onSortingChange,
-    hold: { paused, resetKey: `${by}:${dir}` },
+    hold: { paused },
   });
   const descriptors = useMemo(
     () =>
-      data.rows.map(({ id, original: p }) => ({
-        key: id,
-        label: `${p.name} (${p.pid})`,
-        targets: [p],
-      })),
-    [data.rows]
+      props.selectable
+        ? data.rows.map(({ id, original: p }) => ({
+            key: id,
+            label: `${p.name} (${p.pid})`,
+            targets: [p],
+          }))
+        : NO_DESCRIPTORS,
+    [data.rows, props.selectable]
   );
   const body = (
     <ProcessTableBody
@@ -556,18 +496,10 @@ function ProcessTableBody({
                 data-key={id}
                 className="group h-[29px] border-border-subtle border-b hover:bg-selected"
               >
-                {row.getAllCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className={cn(
-                      "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle",
-                      cell.column.columnDef.meta?.align === "right" &&
-                        "text-right"
-                    )}
-                  >
-                    <FlexRender cell={cell} />
-                  </td>
-                ))}
+                <DataTableCells
+                  row={row}
+                  className="whitespace-nowrap px-3 py-0 font-normal text-fg-subtle"
+                />
                 {hasActions && (
                   <td className="w-36 min-w-36 whitespace-nowrap py-0 pr-2 pl-1 text-right">
                     <span className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 group-data-[state=open]:opacity-100">

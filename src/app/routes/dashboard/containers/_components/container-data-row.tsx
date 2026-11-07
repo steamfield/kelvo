@@ -4,14 +4,17 @@ import type {
   DockerContainer,
   DockerRankedContainer,
 } from "@core/generated/bindings";
+import type { Column } from "@tanstack/react-table";
 import { type MouseEvent, memo, type ReactNode } from "react";
 import { Link } from "react-router";
 import { SeriesSwatch } from "~/components/charts/chart-tooltip";
+import type { TableFeatures } from "~/components/data-table";
 import type { useUnits } from "~/hooks/use-units";
 import { cn } from "~/lib/utils";
 import {
   containerPath,
   healthLabel,
+  isLiveLifecycle,
   lifecycleLabel,
 } from "../_lib/presentation";
 import { ContainerActionButton } from "./container-actions";
@@ -43,12 +46,12 @@ export function ContainerDataRow({
     id: string
   ) => void;
   historical: boolean;
-  columns: readonly string[];
+  columns: readonly Column<TableFeatures, DockerContainer>[];
   bytes: ReturnType<typeof useUnits>["bytes"];
   rate: ReturnType<typeof useUnits>["rate"];
 }) {
   const byte = (value: number | null) => formatBytes(value, { units: bytes });
-  const live = ["running", "paused", "restarting"].includes(row.lifecycle);
+  const live = isLiveLifecycle(row);
   const metrics = historical || live ? row.metrics : null;
   const health = containerHealth(row);
 
@@ -64,7 +67,7 @@ export function ContainerDataRow({
         isFocused && "bg-selected"
       )}
     >
-      {columns.map((column) => {
+      {columns.map(({ id: column, columnDef }) => {
         switch (column) {
           case "swatch":
             return (
@@ -78,6 +81,7 @@ export function ContainerDataRow({
               <ContainerIdentityCells
                 key={column}
                 column={column}
+                className={columnDef.meta?.cellClassName}
                 engineId={row.engine_id}
                 id={row.id}
                 name={row.name}
@@ -114,6 +118,7 @@ export function ContainerDataRow({
             return (
               <ContainerMemoryCell
                 key={column}
+                className={columnDef.meta?.cellClassName}
                 row={row}
                 summary={summary}
                 metrics={metrics}
@@ -125,7 +130,10 @@ export function ContainerDataRow({
             return (
               <td
                 key={column}
-                className={`figures whitespace-nowrap px-2 py-1 text-right text-[12px] [@container(max-width:719px)]:hidden`}
+                className={cn(
+                  "figures whitespace-nowrap px-2 py-1 text-right text-[12px]",
+                  columnDef.meta?.cellClassName
+                )}
               >
                 {formatRate(
                   metrics?.network_rx_bps != null &&
@@ -169,7 +177,9 @@ const ContainerIdentityCells = memo(function ContainerIdentityCells({
   health,
   failure,
   onNavigate,
+  className,
 }: {
+  className: string | undefined;
   column: "name" | "state";
   engineId: string;
   id: string;
@@ -213,9 +223,7 @@ const ContainerIdentityCells = memo(function ContainerIdentityCells({
       </span>
     </td>
   ) : (
-    <td
-      className={`px-2 py-1 text-[12px] [@container(max-width:480px)]:hidden`}
-    >
+    <td className={cn("px-2 py-1 text-[12px]", className)}>
       {lifecycleLabel[lifecycle]}
       {health && (
         <div
@@ -272,18 +280,23 @@ function ContainerMemoryCell({
   metrics,
   historical,
   byte,
+  className,
 }: {
   row: DockerContainer;
   summary: DockerRankedContainer | undefined;
   metrics: DockerContainer["metrics"] | null;
   historical: boolean;
   byte: (value: number | null) => string;
+  className: string | undefined;
 }) {
   const limit = row.explicit_limit_bytes;
   const showLimit = metrics !== null && limit !== null && !historical;
   return (
     <td
-      className={`figures px-2 py-1 text-right text-[12px] leading-[14px] [@container(max-width:480px)]:w-[92px]`}
+      className={cn(
+        "figures px-2 py-1 text-right text-[12px] leading-[14px]",
+        className
+      )}
     >
       <span className="whitespace-nowrap">
         {byte(metrics?.working_set_bytes ?? null)}

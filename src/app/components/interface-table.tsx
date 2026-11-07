@@ -43,7 +43,7 @@ export function InterfaceTable({ rows, units }: InterfaceTableProps) {
     getRowId,
     sorting,
     onSortingChange: setSorting,
-    hold: { paused, resetKey: JSON.stringify(sorting) },
+    hold: { paused },
   });
   return (
     <Table

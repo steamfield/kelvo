@@ -8,10 +8,11 @@ export const storageKindLabel: Record<DockerStorageKind, string> = {
   volume: "Volumes",
   build_cache: "Build cache",
 };
-export type StorageSort = {
-  by: "size" | "name" | "references" | "age" | "eligibility";
-  dir: "asc" | "desc";
-};
+
+import type { ColumnSort } from "~/components/data-table";
+export type StorageSort = ColumnSort<
+  "size" | "name" | "references" | "age" | "eligibility"
+>;
 export function storageRows(
   resources: readonly DockerStorageResource[],
   query: string,

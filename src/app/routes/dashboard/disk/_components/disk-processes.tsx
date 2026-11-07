@@ -240,7 +240,7 @@ function useDiskProcessTable(range: TimeRange | null) {
     tiebreak: byPid,
     sorting,
     onSortingChange: setSorting,
-    hold: { paused: pointer || focus, resetKey: orderKey },
+    hold: { paused: pointer || focus },
   });
   return { data, live, history, orderKey, setPointer, setFocus };
 }
@@ -354,7 +354,9 @@ function DiskProcessTable({
           {shown.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={canSignal ? 5 : 4}
+                colSpan={
+                  data.table.getAllLeafColumns().length + (canSignal ? 1 : 0)
+                }
                 className="px-4 py-3 text-muted-foreground"
               >
                 {waiting

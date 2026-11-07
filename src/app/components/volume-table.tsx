@@ -35,6 +35,7 @@ export interface VolumeTableProps {
  * usage bar in the Disk accent.
  */
 export function VolumeTable({ rows, units, action }: VolumeTableProps) {
+  const hasAction = Boolean(action);
   const columns = useMemo(
     () =>
       helper.columns([
@@ -63,7 +64,7 @@ export function VolumeTable({ rows, units, action }: VolumeTableProps) {
           header: () => <span className="sr-only">Usage</span>,
           meta: { align: "left", className: "w-40" },
         }),
-        ...(action
+        ...(hasAction
           ? [
               helper.display({
                 id: "actions",
@@ -73,7 +74,7 @@ export function VolumeTable({ rows, units, action }: VolumeTableProps) {
             ]
           : []),
       ]),
-    [action]
+    [hasAction]
   );
   const data = useDataTable({ data: rows, columns, getRowId });
   return (

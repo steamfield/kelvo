@@ -23,21 +23,30 @@ export function SelectedProcessTable() {
   return (
     <div data-process-scroll className="max-h-96 min-h-0 overflow-auto">
       <Table aria-label="Selected processes" className="w-full text-[12px]">
-        <TableHeader className="[&_tr]:border-b-0">
-          <TableRow className="border-0 transition-none hover:bg-transparent">
+        <TableHeader variant="plain">
+          <TableRow variant="plain">
             <ProcessSelectionHead />
-            <TableHead className="h-auto px-3 text-left font-normal text-[12px] text-foreground">
+            <TableHead
+              variant="plain"
+              className="px-3 text-left font-normal text-[12px] text-foreground"
+            >
               Process
             </TableHead>
-            <TableHead className="h-auto px-3 text-right font-normal text-[12px] text-foreground">
+            <TableHead
+              variant="plain"
+              className="px-3 text-right font-normal text-[12px] text-foreground"
+            >
               PID
             </TableHead>
-            <TableHead className="h-auto px-3 text-left font-normal text-[12px] text-foreground">
+            <TableHead
+              variant="plain"
+              className="px-3 text-left font-normal text-[12px] text-foreground"
+            >
               Last observed
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody className="[&_tr:last-child]:border-b">
+        <TableBody variant="plain">
           {selected.map((p) => (
             <ProcessSelectionRow
               key={targetKey(p)}

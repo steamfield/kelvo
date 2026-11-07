@@ -1,6 +1,9 @@
+vi.mock("@tanstack/react-virtual", { spy: true });
+
 import type { SortingState } from "@tanstack/react-table";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { useState } from "react";
+import * as virtual from "@tanstack/react-virtual";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { Suspense, startTransition, useRef, useState } from "react";
 import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import { columnHelper, DataTable, DataTableHead, gap, useDataTable } from ".";
 
@@ -33,11 +36,13 @@ function Harness({
   initialSorting = [],
   manualSorting = false,
   paused = false,
+  suspend = false,
 }: {
   data?: Item[];
   initialSorting?: SortingState;
   manualSorting?: boolean;
   paused?: boolean;
+  suspend?: boolean;
 }) {
   const [sorting, setSorting] = useState(initialSorting);
   const { table, rows } = useDataTable({
@@ -45,10 +50,11 @@ function Harness({
     columns,
     getRowId,
     sorting,
-    onSortingChange: setSorting,
+    ...(manualSorting ? {} : { onSortingChange: setSorting }),
     manualSorting,
-    hold: { paused, resetKey: JSON.stringify(sorting) },
+    hold: { paused },
   });
+  if (suspend) throw pending;
   return (
     <Table aria-label="Items">
       <TableHeader>
@@ -66,6 +72,40 @@ function Harness({
     </Table>
   );
 }
+const pending = new Promise<void>(() => {});
+
+describe("Virtual DataTable", () => {
+  it("shows empty only for an empty source, while a populated viewport awaits measurement", () => {
+    function Unmeasured({ data }: { data: Item[] }) {
+      const scrollRef = useRef<HTMLDivElement>(null);
+      const model = useDataTable({ data, columns, getRowId });
+      return (
+        <Table>
+          <DataTable
+            table={model.table}
+            rows={model.rows}
+            virtual={{
+              scrollRef,
+              estimateSize: 29,
+              overscan: 6,
+              initialHeight: 0,
+              enabled: true,
+            }}
+            empty={
+              <TableRow>
+                <TableCell colSpan={3}>No items</TableCell>
+              </TableRow>
+            }
+          />
+        </Table>
+      );
+    }
+    const { rerender } = render(<Unmeasured data={[a]} />);
+    expect(screen.queryByText("No items")).toBeNull();
+    rerender(<Unmeasured data={[]} />);
+    expect(screen.getByRole("cell", { name: "No items" })).toBeVisible();
+  });
+});
 
 function names() {
   return within(screen.getByRole("table"))
@@ -75,6 +115,59 @@ function names() {
 }
 
 describe("DataTable", () => {
+  it("preserves committed hover order when an unpaused render is suspended and abandoned", async () => {
+    type Frame = {
+      data: Item[];
+      paused: boolean;
+      suspend: boolean;
+    };
+    let update = (_frame: Frame) => {};
+    function Concurrent() {
+      const [frame, setFrame] = useState<Frame>({
+        data: [a, b],
+        paused: true,
+        suspend: false,
+      });
+      update = setFrame;
+      return (
+        <Suspense fallback="Pending">
+          <Harness {...frame} initialSorting={[{ id: "value", desc: true }]} />
+        </Suspense>
+      );
+    }
+    render(<Concurrent />);
+    await act(async () =>
+      startTransition(() =>
+        update({ data: [a, b], paused: false, suspend: true })
+      )
+    );
+    expect(screen.queryByText("Pending")).toBeNull();
+    act(() =>
+      update({ data: [a, { ...b, value: 9 }], paused: true, suspend: false })
+    );
+    expect(names()).toEqual(["proc9", "Proc10", "Remainder"]);
+    expect(screen.getByRole("cell", { name: "9" })).toBeVisible();
+  });
+});
+
+describe("Plain DataTable", () => {
+  it("renders all plain rows without virtual spacer rows", () => {
+    const virtualizer = vi.mocked(virtual.useVirtualizer);
+    const data = Array.from({ length: 150 }, (_, i) => ({
+      id: String(i),
+      name: `Item ${i}`,
+      value: i,
+    }));
+    render(<Harness data={data} />);
+    expect(screen.getAllByRole("row")).toHaveLength(152);
+    expect(screen.getByRole("cell", { name: "Item 149" })).toBeVisible();
+    expect(
+      screen.getByRole("table").querySelector("tr[aria-hidden]")
+    ).toBeNull();
+    expect(virtualizer).not.toHaveBeenCalled();
+    virtualizer.mockClear();
+  });
+
   it("orders distinct IDs that collate equally consistently across frames", () => {
     const composed = { id: "tie:é", name: "composed tie", value: 2 };
     const decomposed = { id: "tie:e\u0301", name: "decomposed tie", value: 2 };
@@ -250,8 +343,9 @@ describe("DataTable", () => {
       />
     );
     expect(names()).toEqual(["gap", "Proc10", "proc9", "Remainder"]);
-    fireEvent.click(screen.getByRole("button", { name: /Value/ }));
-    expect(names()).toEqual(["gap", "Proc10", "proc9", "Remainder"]);
+    for (const head of screen.getAllByRole("columnheader")) {
+      expect(within(head).queryByRole("button")).toBeNull();
+    }
   });
 
   it("holds order while paused, appends new rows, drops departed rows and resets at once on sort", () => {

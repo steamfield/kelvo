@@ -28,7 +28,6 @@ const helper = columnHelper<NowRow>();
 const columns = helper.columns([
   helper.accessor("name", {
     header: "App",
-    enableSorting: false,
     meta: { align: "left" },
   }),
   helper.accessor("bps", {

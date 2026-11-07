@@ -49,15 +49,19 @@ export function ComparisonValues({
         <TableCaption className="mt-0 text-left text-[11px] text-muted-foreground">
           Per bucket: min / avg / max
         </TableCaption>
-        <TableHeader className="sticky top-0 bg-card [&_tr]:border-b-0">
-          <TableRow className="border-0 transition-none hover:bg-transparent">
-            <TableHead className="h-auto p-2 text-left font-bold text-inherit">
+        <TableHeader variant="plain" className="sticky top-0 bg-card">
+          <TableRow variant="plain">
+            <TableHead
+              variant="plain"
+              className="p-2 text-left font-bold text-inherit"
+            >
               Time
             </TableHead>
             {series.map((s) => (
               <TableHead
+                variant="plain"
                 key={s.container.id}
-                className="h-auto p-2 text-right font-bold text-inherit"
+                className="p-2 text-right font-bold text-inherit"
               >
                 {displayName(s.container)}
               </TableHead>
@@ -66,10 +70,7 @@ export function ComparisonValues({
         </TableHeader>
         <TableBody>
           {[...times].reverse().map((time) => (
-            <TableRow
-              key={time}
-              className="border-0 transition-none hover:bg-transparent"
-            >
+            <TableRow variant="plain" key={time}>
               <TableCell className="whitespace-nowrap p-2">
                 {clock(time)}
               </TableCell>
