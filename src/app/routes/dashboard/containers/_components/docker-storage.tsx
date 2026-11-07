@@ -1,7 +1,10 @@
+import type { DockerStorageResource } from "@core/generated/bindings";
 import { dockerKeys } from "@core/query-keys";
 import { unwrap } from "@core/transport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { constructSortFn, type SortingState } from "@tanstack/react-table";
 import { memo, useMemo, useState } from "react";
+import { columnHelper, gap, useDataTable } from "~/components/data-table";
 import { Button } from "~/components/ui/button";
 import { useTransport } from "~/lib/transport-context";
 import {
@@ -13,6 +16,41 @@ import type { CleanupFlow } from "./docker-cleanup-flow";
 import { StorageFilters } from "./storage-filters";
 import { StorageInventorySummary } from "./storage-inventory-summary";
 import { StorageResources } from "./storage-resources";
+
+const nameSort = constructSortFn({ sort: new Intl.Collator().compare });
+const helper = columnHelper<DockerStorageResource>();
+const COLUMNS = helper.columns([
+  helper.accessor("name", {
+    header: "Resource / type",
+    sortFn: nameSort,
+    meta: { align: "left" },
+  }),
+  helper.accessor((row) => gap(row.size_bytes), {
+    id: "size",
+    header: "Size",
+    meta: { align: "right", className: "text-left [&_button]:text-left" },
+  }),
+  helper.accessor((row) => row.references.length, {
+    id: "references",
+    header: "References",
+    meta: { align: "right", className: "text-left [&_button]:text-left" },
+  }),
+  helper.accessor((row) => gap(row.age_ms), {
+    id: "age",
+    header: "Age evidence",
+    meta: { align: "right", className: "text-left [&_button]:text-left" },
+  }),
+  helper.accessor(
+    (row) =>
+      row.can_delete ? "Available for review" : (row.reason ?? "Not eligible"),
+    {
+      id: "eligibility",
+      header: "Eligibility",
+      sortFn: "text",
+      meta: { align: "left" },
+    }
+  ),
+]);
 export const DockerStorage = memo(function DockerStorage({
   engine,
   generation,
@@ -29,7 +67,7 @@ export const DockerStorage = memo(function DockerStorage({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [age, setAge] = useState("7");
-  const [sort, setSort] = useState<StorageSort>("size");
+  const [sort, setSort] = useState<StorageSort>({ by: "size", dir: "desc" });
   const [grouped, setGrouped] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -45,10 +83,36 @@ export const DockerStorage = memo(function DockerStorage({
     retry: false,
   });
   const snapshot = storage.data?.snapshot;
-  const rows = useMemo(
-    () => storageRows(snapshot?.resources ?? [], query, category, age, sort),
-    [snapshot, query, category, age, sort]
+  const filtered = useMemo(
+    () => storageRows(snapshot?.resources ?? [], query, category, age),
+    [snapshot, query, category, age]
   );
+  const sorting = useMemo<SortingState>(
+    () => [{ id: sort.by, desc: sort.dir === "desc" }],
+    [sort.by, sort.dir]
+  );
+  const model = useDataTable({
+    data: filtered,
+    columns: COLUMNS,
+    getRowId: storageResourceKey,
+    sorting,
+    onSortingChange: (updater) => {
+      const next = (
+        typeof updater === "function" ? updater(sorting) : updater
+      )[0];
+      const by = next?.id;
+      if (
+        next &&
+        (by === "size" ||
+          by === "name" ||
+          by === "references" ||
+          by === "age" ||
+          by === "eligibility")
+      )
+        setSort({ by, dir: next.desc ? "desc" : "asc" });
+    },
+  });
+  const rows = model.rows.map((row) => row.original);
   const chosen =
     snapshot?.resources.filter(
       (row) => selected.has(storageResourceKey(row)) && row.can_delete
@@ -145,8 +209,7 @@ export const DockerStorage = memo(function DockerStorage({
             pageRows={pageRows}
             selected={selected}
             setSelected={setSelected}
-            sort={sort}
-            setSort={setSort}
+            table={model.table}
             currentPage={currentPage}
             setPage={setPage}
           />

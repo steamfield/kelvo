@@ -2,13 +2,12 @@ import type {
   DockerStorageResource,
   DockerStorageSnapshot,
 } from "@core/generated/bindings";
+import type { Table } from "@tanstack/react-table";
 import type { Dispatch, SetStateAction } from "react";
+import { DataTableHead, type TableFeatures } from "~/components/data-table";
 import { SectionCard } from "~/components/section-card";
 import { Button } from "~/components/ui/button";
-import {
-  type StorageSort,
-  storageResourceKey,
-} from "../_lib/storage-presentation";
+import { storageResourceKey } from "../_lib/storage-presentation";
 import type { CleanupFlow } from "./docker-cleanup-flow";
 import { StorageResourceRow } from "./storage-resource-row";
 export function StorageResources({
@@ -25,8 +24,7 @@ export function StorageResources({
   pageRows,
   selected,
   setSelected,
-  sort,
-  setSort,
+  table,
   currentPage,
   setPage,
 }: {
@@ -43,8 +41,7 @@ export function StorageResources({
   pageRows: readonly DockerStorageResource[];
   selected: Set<string>;
   setSelected: Dispatch<SetStateAction<Set<string>>>;
-  sort: StorageSort;
-  setSort: (value: StorageSort) => void;
+  table: Table<TableFeatures, DockerStorageResource>;
   currentPage: number;
   setPage: (page: number) => void;
 }) {
@@ -85,38 +82,7 @@ export function StorageResources({
           className="w-full border-collapse text-[12px]"
         >
           <thead className="border-border border-y text-[11px] text-muted-foreground">
-            <tr>
-              {(
-                [
-                  ["Resource / type", "name"],
-                  ["Size", "size"],
-                  ["References", "references"],
-                  ["Age evidence", "age"],
-                ] as const
-              ).map(([label, key]) => (
-                <th
-                  key={key}
-                  className="px-3 py-2 text-left font-normal"
-                  aria-sort={
-                    sort === key
-                      ? key === "name"
-                        ? "ascending"
-                        : "descending"
-                      : "none"
-                  }
-                >
-                  <button
-                    type="button"
-                    className="rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => setSort(key)}
-                  >
-                    {label}
-                    {sort === key ? (key === "name" ? " ↑" : " ↓") : ""}
-                  </button>
-                </th>
-              ))}
-              <th className="px-3 py-2 text-left font-normal">Eligibility</th>
-            </tr>
+            <DataTableHead table={table} />
           </thead>
           <tbody>
             {groups.flatMap((group) => [

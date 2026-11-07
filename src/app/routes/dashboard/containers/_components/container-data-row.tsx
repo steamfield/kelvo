@@ -64,66 +64,101 @@ export function ContainerDataRow({
         isFocused && "bg-selected"
       )}
     >
-      <td className="w-5 pl-3">
-        {slot && <SeriesSwatch color={seriesColor(slot ?? 1)} />}
-      </td>
-      <ContainerIdentityCells
-        engineId={row.engine_id}
-        id={row.id}
-        name={row.name}
-        image={row.image}
-        project={row.project}
-        lifecycle={row.lifecycle}
-        metadataObservedMs={row.metadata_observed_ms}
-        health={health}
-        failure={failure}
-        onNavigate={openDetail}
-      />
-      <td className="figures whitespace-nowrap px-2 py-1 text-right text-[12px]">
-        {formatPercent(
-          metrics?.cpu_pct ?? null,
-          historical ? { significantDigits: 3 } : {}
-        )}
-        {summary && (
-          <div className="text-[10px] text-muted-foreground">
-            {formatPercent(summary.avg_cpu_pct, { significantDigits: 3 })} avg
-          </div>
-        )}
-      </td>
-      <ContainerMemoryCell
-        row={row}
-        summary={summary}
-        metrics={metrics}
-        historical={historical}
-        byte={byte}
-      />
-      <td
-        className={`figures whitespace-nowrap px-2 py-1 text-right text-[12px] [@container(max-width:719px)]:hidden`}
-        hidden={historical}
-      >
-        {formatRate(
-          metrics?.network_rx_bps != null && metrics.network_tx_bps !== null
-            ? metrics.network_rx_bps + metrics.network_tx_bps
-            : null,
-          { units: rate }
-        )}
-      </td>
-      {columns.map((column) => (
-        <td
-          key={column}
-          className="figures max-w-32 truncate px-2 text-right text-[11px]"
-        >
-          {extraColumnValue(column, row, metrics)}
-        </td>
-      ))}
-      <td className="w-18 px-2 text-right">
-        {current && <ContainerActionButton row={current} reveal />}
-      </td>
+      {columns.map((column) => {
+        switch (column) {
+          case "swatch":
+            return (
+              <td key={column} className="w-5 pl-3">
+                {slot && <SeriesSwatch color={seriesColor(slot ?? 1)} />}
+              </td>
+            );
+          case "name":
+          case "state":
+            return (
+              <ContainerIdentityCells
+                key={column}
+                column={column}
+                engineId={row.engine_id}
+                id={row.id}
+                name={row.name}
+                image={row.image}
+                project={row.project}
+                lifecycle={row.lifecycle}
+                metadataObservedMs={row.metadata_observed_ms}
+                health={health}
+                failure={failure}
+                onNavigate={openDetail}
+              />
+            );
+          case "cpu":
+            return (
+              <td
+                key={column}
+                className="figures whitespace-nowrap px-2 py-1 text-right text-[12px]"
+              >
+                {formatPercent(
+                  metrics?.cpu_pct ?? null,
+                  historical ? { significantDigits: 3 } : {}
+                )}
+                {summary && (
+                  <div className="text-[10px] text-muted-foreground">
+                    {formatPercent(summary.avg_cpu_pct, {
+                      significantDigits: 3,
+                    })}{" "}
+                    avg
+                  </div>
+                )}
+              </td>
+            );
+          case "memory":
+            return (
+              <ContainerMemoryCell
+                key={column}
+                row={row}
+                summary={summary}
+                metrics={metrics}
+                historical={historical}
+                byte={byte}
+              />
+            );
+          case "network":
+            return (
+              <td
+                key={column}
+                className={`figures whitespace-nowrap px-2 py-1 text-right text-[12px] [@container(max-width:719px)]:hidden`}
+              >
+                {formatRate(
+                  metrics?.network_rx_bps != null &&
+                    metrics.network_tx_bps !== null
+                    ? metrics.network_rx_bps + metrics.network_tx_bps
+                    : null,
+                  { units: rate }
+                )}
+              </td>
+            );
+          case "action":
+            return (
+              <td key={column} className="w-18 px-2 text-right">
+                {current && <ContainerActionButton row={current} reveal />}
+              </td>
+            );
+          default:
+            return (
+              <td
+                key={column}
+                className="figures max-w-32 truncate px-2 text-right text-[11px]"
+              >
+                {extraColumnValue(column, row, metrics)}
+              </td>
+            );
+        }
+      })}
     </tr>
   );
 }
 // Sampling changes metrics every second; identity and lifecycle change independently.
 const ContainerIdentityCells = memo(function ContainerIdentityCells({
+  column,
   engineId,
   id,
   name,
@@ -135,6 +170,7 @@ const ContainerIdentityCells = memo(function ContainerIdentityCells({
   failure,
   onNavigate,
 }: {
+  column: "name" | "state";
   engineId: string;
   id: string;
   name: string;
@@ -150,53 +186,52 @@ const ContainerIdentityCells = memo(function ContainerIdentityCells({
     id: string
   ) => void;
 }) {
-  return (
-    <>
-      <td className="min-w-0 px-2 py-1 text-[12px]">
-        <Link
-          to={containerPath(engineId, id)}
-          onClick={(event) => onNavigate(event, engineId, id)}
-          className="block truncate rounded-control focus-visible:ring-2 focus-visible:ring-ring"
-          title={`${name} · ${image}`}
-        >
-          {name}
-          <span className="text-muted-foreground">
-            {project ? ` · ${project}` : ""}
-          </span>
-        </Link>
-        {failure && (
-          <p role="alert" className="text-[11px] text-destructive">
-            {failure}
-          </p>
-        )}
-        <span
-          className="hidden truncate text-[10px] text-muted-foreground [@container(max-width:480px)]:block"
-          title={`${lifecycleLabel[lifecycle]} · ${health}`}
-        >
-          {lifecycleLabel[lifecycle]}
-          {health ? ` · ${health}` : ""}
+  return column === "name" ? (
+    <td className="min-w-0 px-2 py-1 text-[12px]">
+      <Link
+        to={containerPath(engineId, id)}
+        onClick={(event) => onNavigate(event, engineId, id)}
+        className="block truncate rounded-control focus-visible:ring-2 focus-visible:ring-ring"
+        title={`${name} · ${image}`}
+      >
+        {name}
+        <span className="text-muted-foreground">
+          {project ? ` · ${project}` : ""}
         </span>
-      </td>
-      <td
-        className={`px-2 py-1 text-[12px] [@container(max-width:480px)]:hidden`}
+      </Link>
+      {failure && (
+        <p role="alert" className="text-[11px] text-destructive">
+          {failure}
+        </p>
+      )}
+      <span
+        className="hidden truncate text-[10px] text-muted-foreground [@container(max-width:480px)]:block"
+        title={`${lifecycleLabel[lifecycle]} · ${health}`}
       >
         {lifecycleLabel[lifecycle]}
-        {health && (
-          <div
-            className="truncate text-[10px] text-muted-foreground"
-            title={`${health} · ${metadataObservedMs ? new Date(metadataObservedMs).toLocaleString() : "time unknown"}`}
-          >
-            {health} ·{" "}
-            {metadataObservedMs
-              ? new Date(metadataObservedMs).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "time unknown"}
-          </div>
-        )}
-      </td>
-    </>
+        {health ? ` · ${health}` : ""}
+      </span>
+    </td>
+  ) : (
+    <td
+      className={`px-2 py-1 text-[12px] [@container(max-width:480px)]:hidden`}
+    >
+      {lifecycleLabel[lifecycle]}
+      {health && (
+        <div
+          className="truncate text-[10px] text-muted-foreground"
+          title={`${health} · ${metadataObservedMs ? new Date(metadataObservedMs).toLocaleString() : "time unknown"}`}
+        >
+          {health} ·{" "}
+          {metadataObservedMs
+            ? new Date(metadataObservedMs).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "time unknown"}
+        </div>
+      )}
+    </td>
   );
 });
 

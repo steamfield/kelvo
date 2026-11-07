@@ -8,13 +8,15 @@ export const storageKindLabel: Record<DockerStorageKind, string> = {
   volume: "Volumes",
   build_cache: "Build cache",
 };
-export type StorageSort = "size" | "name" | "references" | "age";
+export type StorageSort = {
+  by: "size" | "name" | "references" | "age" | "eligibility";
+  dir: "asc" | "desc";
+};
 export function storageRows(
   resources: readonly DockerStorageResource[],
   query: string,
   category: string,
-  age: string,
-  sort: StorageSort
+  age: string
 ) {
   const needle = query.trim().toLocaleLowerCase();
   return (
@@ -49,17 +51,6 @@ export function storageRows(
             return false;
         }
         return true;
-      })
-      .sort((a, b) => {
-        const result =
-          sort === "name"
-            ? a.name.localeCompare(b.name)
-            : sort === "references"
-              ? b.references.length - a.references.length
-              : sort === "age"
-                ? (b.age_ms ?? -1) - (a.age_ms ?? -1)
-                : (b.size_bytes ?? -1) - (a.size_bytes ?? -1);
-        return result || a.id.localeCompare(b.id);
       })
   );
 }

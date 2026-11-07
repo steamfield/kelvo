@@ -157,7 +157,16 @@ function LocalContainersRoute() {
               setParams={setParams}
               onSort={(value) => {
                 sortOverride.current = value;
-                set("sort", value);
+                setParams(
+                  (old) => {
+                    const next = new URLSearchParams(old);
+                    next.set("sort", value.by);
+                    next.set("dir", value.dir);
+                    next.delete("page");
+                    return next;
+                  },
+                  { replace: true }
+                );
               }}
               onManage={() => setMonitoring(true)}
               resume={resume}

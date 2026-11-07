@@ -12,11 +12,7 @@ import {
   useDockerEvents,
   useDockerHistory,
 } from "../_hooks/use-docker";
-import {
-  containerPath,
-  sortedContainers,
-  statusLabel,
-} from "../_lib/presentation";
+import { containerPath, cpuLeader, statusLabel } from "../_lib/presentation";
 import { ContainerHistory } from "./container-history";
 
 function LivePopoverSummary({ compact = false, onToggle }: PresentationProps) {
@@ -24,16 +20,7 @@ function LivePopoverSummary({ compact = false, onToggle }: PresentationProps) {
   const { snapshot } = useDocker();
   const transport = useTransport();
   const rows = snapshot?.containers;
-  const leader = useMemo(
-    () =>
-      sortedContainers(
-        (rows ?? []).filter(
-          (row) => row.monitored && row.metrics.cpu_pct !== null
-        ),
-        "cpu"
-      )[0],
-    [rows]
-  );
+  const leader = useMemo(() => cpuLeader(rows ?? []), [rows]);
   if (!snapshot) return null;
   if (compact)
     return (

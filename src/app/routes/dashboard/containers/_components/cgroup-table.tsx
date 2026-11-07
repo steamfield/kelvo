@@ -8,8 +8,16 @@ import {
   MISSING,
   type RateUnits,
 } from "@core/format";
-import { type ReactNode, useState } from "react";
-import { type ColumnDef, SortHeader } from "~/components/sort-header";
+import type { SortingState } from "@tanstack/react-table";
+import { type ReactNode, useMemo, useState } from "react";
+import {
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
+import type { ColumnDef } from "~/components/sort-header";
 import { cn } from "~/lib/utils";
 import { InitialChip } from "~/widgets/initial-chip";
 import { MeterTrack } from "~/widgets/meter-track";
@@ -17,8 +25,8 @@ import {
   type CgroupColumn,
   type CgroupRow,
   type CgroupSort,
+  DEFAULT_SORT,
   KIND_LABEL,
-  sortCgroups,
 } from "../_lib/cgroups";
 
 interface CellCtx {
@@ -126,6 +134,24 @@ const COLUMNS: Record<CgroupColumn, ColumnDef<CgroupRow, CellCtx>> = {
   },
 };
 
+const helper = columnHelper<CgroupRow>();
+const getRowId = (row: CgroupRow) => row.id;
+const byName = (a: CgroupRow, b: CgroupRow) => a.name.localeCompare(b.name);
+const TABLE_COLUMNS = Object.fromEntries(
+  Object.entries(COLUMNS).map(([id, column]) => [
+    id,
+    helper.accessor((row) => gap(column.sortValue(row)), {
+      id,
+      header: column.label,
+      ...(column.align === "left" ? { sortFn: "text" as const } : {}),
+      meta: {
+        align: column.align,
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+    }),
+  ])
+);
+
 const CELL = "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle";
 
 export interface CgroupTableProps {
@@ -155,45 +181,56 @@ export function CgroupTable({
   rate,
   empty,
 }: CgroupTableProps) {
-  const [frozen, setFrozen] = useState<string[] | null>(null);
-  const sorted = sortCgroups(rows, sort);
-  const shown = frozen ? holdOrder(sorted, frozen) : sorted;
+  const [paused, setPaused] = useState(false);
+  const activeSort = columns.includes(sort.by) ? sort : DEFAULT_SORT;
+  const sorting = useMemo<SortingState>(
+    () => [{ id: activeSort.by, desc: activeSort.dir === "desc" }],
+    [activeSort.by, activeSort.dir]
+  );
+  const definitions = useMemo(
+    () => helper.columns(columns.flatMap((id) => TABLE_COLUMNS[id] ?? [])),
+    [columns]
+  );
+  const data = useDataTable({
+    data: rows,
+    columns: definitions,
+    getRowId,
+    tiebreak: byName,
+    sorting,
+    onSortingChange: (updater) => {
+      const next = (
+        typeof updater === "function" ? updater(sorting) : updater
+      )[0];
+      const by = columns.find((id) => id === next?.id);
+      if (next && by) onSort({ by, dir: next.desc ? "desc" : "asc" });
+    },
+    hold: { paused, resetKey: `${activeSort.by}:${activeSort.dir}` },
+  });
   const ctx: CellCtx = { bytes, rate };
-  const sortBy = (next: CgroupSort) => {
-    if (frozen) setFrozen(sortCgroups(rows, next).map((r) => r.id));
-    onSort(next);
-  };
   return (
     <div
       className="min-h-0 overflow-auto"
-      onPointerEnter={() => setFrozen(sorted.map((r) => r.id))}
-      onPointerLeave={() => setFrozen(null)}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
     >
       <table
         aria-label="Services and containers"
         className="w-full border-collapse text-[12px]"
       >
         <thead className="sticky top-0 z-10 bg-card">
-          <tr>
-            {columns.map((col) => {
-              const { label, align } = COLUMNS[col];
-              return (
-                <SortHeader
-                  key={col}
-                  by={col}
-                  label={label}
-                  align={align}
-                  sort={sort}
-                  onSort={sortBy}
-                  firstDir={align === "left" ? "asc" : "desc"}
-                  className="h-auto whitespace-nowrap border-border border-b"
-                />
-              );
-            })}
-          </tr>
+          <DataTableHead table={data.table} />
         </thead>
-        <tbody>
-          {shown.map((r) => (
+        <DataTable
+          table={data.table}
+          rows={data.rows}
+          className={
+            other
+              ? "[&_tr:last-child]:border-t"
+              : rows.length > 0
+                ? "[&_tr:last-child]:border-b"
+                : undefined
+          }
+          renderRow={({ original: r }) => (
             <tr
               key={r.id}
               className="h-[29px] border-border-subtle border-b hover:bg-selected"
@@ -210,8 +247,8 @@ export function CgroupTable({
                 </td>
               ))}
             </tr>
-          ))}
-          {shown.length === 0 && (
+          )}
+          empty={
             <tr className="h-[29px]">
               <td
                 colSpan={columns.length}
@@ -220,16 +257,18 @@ export function CgroupTable({
                 {empty}
               </td>
             </tr>
-          )}
-          {other && (
-            <OtherRow
-              label={other.label}
-              row={other.row}
-              columns={columns}
-              ctx={ctx}
-            />
-          )}
-        </tbody>
+          }
+          after={
+            other && (
+              <OtherRow
+                label={other.label}
+                row={other.row}
+                columns={columns}
+                ctx={ctx}
+              />
+            )
+          }
+        />
       </table>
     </div>
   );
@@ -273,20 +312,4 @@ function OtherRow({
       ))}
     </tr>
   );
-}
-
-/** `sorted` in the order of `ids`, new rows after them, gone ones dropped. */
-function holdOrder(sorted: readonly CgroupRow[], ids: readonly string[]) {
-  const byId = new Map(sorted.map((r) => [r.id, r]));
-  const placed = new Set<string>();
-  const out: CgroupRow[] = [];
-  for (const id of ids) {
-    const r = byId.get(id);
-    if (r) {
-      out.push(r);
-      placed.add(id);
-    }
-  }
-  for (const r of sorted) if (!placed.has(r.id)) out.push(r);
-  return out;
 }

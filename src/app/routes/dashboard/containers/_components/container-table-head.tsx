@@ -1,78 +1,130 @@
-import type { ContainerSort } from "../_lib/presentation";
+import type { DockerContainer } from "@core/generated/bindings";
+import { constructSortFn } from "@tanstack/react-table";
+import { useMemo } from "react";
+import { columnHelper, gap } from "~/components/data-table";
+import { lifecycleLabel } from "../_lib/presentation";
 
-export function ContainerTableHead({
-  sort,
-  onSort,
-  historical,
-  columns,
-}: {
-  sort: ContainerSort;
-  onSort: (sort: ContainerSort) => void;
-  historical: boolean;
-  columns: readonly string[];
-}) {
-  const heading = (label: string, key: ContainerSort) => (
-    <button
-      type="button"
-      onClick={() => onSort(key)}
-      className="rounded-control focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {label}
-      {sort === key ? (key === "name" ? " ↑" : " ↓") : ""}
-    </button>
-  );
-  return (
-    <thead className="sticky top-0 z-10 bg-card text-[11px] text-muted-foreground">
-      <tr className="h-8 border-border border-y">
-        <th className="w-5">
-          <span className="sr-only">Chart color</span>
-        </th>
-        <th
-          className={`w-[32%] px-2 text-left font-normal [@container(max-width:480px)]:w-auto`}
-          aria-sort={sort === "name" ? "ascending" : "none"}
-        >
-          {heading("Name / project", "name")}
-        </th>
-        <th
-          className={`px-2 text-left font-normal [@container(max-width:480px)]:hidden`}
-        >
-          State
-        </th>
-        <th
-          className={`px-2 text-right font-normal [@container(max-width:480px)]:w-[52px]`}
-          aria-sort={sort === "cpu" ? "descending" : "none"}
-        >
-          {heading(historical ? "Peak CPU" : "CPU", "cpu")}
-        </th>
-        <th
-          className={`px-2 text-right font-normal [@container(max-width:480px)]:w-[92px]`}
-          aria-sort={sort === "memory" ? "descending" : "none"}
-        >
-          {heading(historical ? "Peak memory" : "Memory", "memory")}
-        </th>
-        <th
-          className={`px-2 text-right font-normal [@container(max-width:719px)]:hidden`}
-          hidden={historical}
-        >
-          {heading("Net", "network")}
-        </th>
-        {columns.map((column) => (
-          <th key={column} className="px-2 text-right font-normal">
-            {column === "io"
-              ? heading("Block I/O", "io")
-              : column === "restarts"
-                ? heading("Restarts", "restarts")
-                : column === "image"
-                  ? "Image"
-                  : column === "ports"
-                    ? "Ports"
-                    : "PIDs"}
-          </th>
-        ))}
-        <th className="w-18">
-          <span className="sr-only">Action</span>
-        </th>
-      </tr>
-    </thead>
+const nameSort = constructSortFn({ sort: new Intl.Collator().compare });
+const helper = columnHelper<DockerContainer>();
+const extra = {
+  io: helper.accessor(
+    (row) => {
+      const metrics = row.metrics;
+      return gap(
+        metrics.block_read_bps === null || metrics.block_write_bps === null
+          ? null
+          : metrics.block_read_bps + metrics.block_write_bps
+      );
+    },
+    { id: "io", header: "Block I/O", meta: { align: "right" } }
+  ),
+  image: helper.accessor("image", {
+    header: "Image",
+    sortFn: "text",
+    meta: { align: "right" },
+  }),
+  ports: helper.accessor((row) => gap(row.ports.join(", ") || null), {
+    id: "ports",
+    header: "Ports",
+    sortFn: "text",
+    meta: { align: "right" },
+  }),
+  restarts: helper.accessor((row) => gap(row.restart_count), {
+    id: "restarts",
+    header: "Restarts",
+    meta: { align: "right" },
+  }),
+  // The current wire model has no PID count; its cell is always a gap.
+  pids: helper.display({
+    id: "pids",
+    header: "PIDs",
+    meta: { align: "right" },
+  }),
+};
+
+export const containerRowId = (row: DockerContainer) => row.id;
+const byId = (a: DockerContainer, b: DockerContainer) =>
+  a.id.localeCompare(b.id);
+export const containerTiebreak = byId;
+
+/** One column set drives the shared head and the grouped body. */
+export function useContainerColumns(
+  optional: readonly string[],
+  historical: boolean
+) {
+  return useMemo(
+    () =>
+      helper.columns([
+        helper.display({
+          id: "swatch",
+          header: () => <span className="sr-only">Chart color</span>,
+          meta: { align: "left", className: "w-5 p-0" },
+        }),
+        helper.accessor("name", {
+          header: "Name / project",
+          sortFn: nameSort,
+          meta: {
+            align: "left",
+            className: "w-[32%] [@container(max-width:480px)]:w-auto",
+          },
+        }),
+        helper.accessor((row) => lifecycleLabel[row.lifecycle], {
+          id: "state",
+          header: "State",
+          sortFn: "text",
+          meta: {
+            align: "left",
+            className: "[@container(max-width:480px)]:hidden",
+          },
+        }),
+        helper.accessor((row) => gap(row.metrics.cpu_pct), {
+          id: "cpu",
+          header: historical ? "Peak CPU" : "CPU",
+          meta: {
+            align: "right",
+            className: "[@container(max-width:480px)]:w-[52px]",
+          },
+        }),
+        helper.accessor((row) => gap(row.metrics.working_set_bytes), {
+          id: "memory",
+          header: historical ? "Peak memory" : "Memory",
+          meta: {
+            align: "right",
+            className: "[@container(max-width:480px)]:w-[92px]",
+          },
+        }),
+        ...(!historical
+          ? [
+              helper.accessor(
+                (row) =>
+                  gap(
+                    row.metrics.network_rx_bps === null ||
+                      row.metrics.network_tx_bps === null
+                      ? null
+                      : row.metrics.network_rx_bps + row.metrics.network_tx_bps
+                  ),
+                {
+                  id: "network",
+                  header: "Net",
+                  meta: {
+                    align: "right",
+                    className: "[@container(max-width:719px)]:hidden",
+                  },
+                }
+              ),
+            ]
+          : []),
+        ...optional.flatMap((id) =>
+          Object.entries(extra)
+            .filter(([key]) => key === id)
+            .map(([, column]) => column)
+        ),
+        helper.display({
+          id: "action",
+          header: () => <span className="sr-only">Action</span>,
+          meta: { align: "right", className: "w-18 p-0" },
+        }),
+      ]),
+    [optional, historical]
   );
 }

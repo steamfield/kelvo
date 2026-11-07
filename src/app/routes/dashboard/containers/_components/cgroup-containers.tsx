@@ -35,14 +35,17 @@ export function CgroupContainers() {
   const [filter, setFilter] = useState<CgroupFilter>("all");
   const [sort, setSort] = useState<CgroupSort>(DEFAULT_SORT);
 
-  const columns: CgroupColumn[] = [
-    "name",
-    "kind",
-    "cpu",
-    "mem",
-    ...(groups.io ? (["ioRead", "ioWrite"] as const) : []),
-    ...(groups.psi ? (["memPsi"] as const) : []),
-  ];
+  const columns = useMemo<CgroupColumn[]>(
+    () => [
+      "name",
+      "kind",
+      "cpu",
+      "mem",
+      ...(groups.io ? (["ioRead", "ioWrite"] as const) : []),
+      ...(groups.psi ? (["memPsi"] as const) : []),
+    ],
+    [groups.io, groups.psi]
+  );
   const all = groups.groups.map((g) => cgroupRow(g, held));
   const rows = all.filter((r) => inFilter(r.kind, filter));
   const otherCount = held[OTHER_COUNT_KEY] ?? null;
