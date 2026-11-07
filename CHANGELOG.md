@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.2](https://github.com/steamfield/statglass/compare/v0.6.1...v0.6.2) - 2026-11-07
+
+### Changed
+
+- Every dashboard table sorts through one shared table layer (TanStack Table), and every
+  value column sorts by default. The first click sorts descending, or ascending for text,
+  and a second click flips the order. Missing readings sort last in both directions, ties
+  keep a stable order, and live tables hold their order while the pointer is over them.
+- Containers and storage sort in both directions. The containers page keeps the direction
+  in its URL (`&dir=`), and Image, Ports, State and Restarts are sortable.
+- Remainder rows (Other apps, protocol overhead, N others, smaller items, unaccounted
+  space) stay below the sorted rows. Other APFS volumes in the Disk space view sort among
+  the folders.
+
+### Added
+
+- The Interfaces, Volumes, Disk space, Largest files and Disk processes tables are
+  sortable. Disk processes sort the full list before the top-10 cut and search.
+
 ## [0.6.1](https://github.com/steamfield/statglass/compare/v0.5.0...v0.6.1) - 2026-11-04
 
 0.6.0 was tagged but not published: its build dropped a list's data too early, so

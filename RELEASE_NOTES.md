@@ -1,27 +1,27 @@
-# StatGlass 0.6.1
+# StatGlass 0.6.2
 
 StatGlass is a free, open-source system monitor for Apple Silicon Macs running macOS
 26 or later.
 
-This release cuts StatGlass's memory use, most of all while the popover is open and
-after you close the dashboard.
+This release makes the dashboard's tables sortable by every value column.
 
-- With the popover open, StatGlass measured about 170 MB in all, down from about
-  420 MB. Most of the difference was graphics memory WebKit kept for the popover's
-  once-a-second redraw.
-- Closing the dashboard now releases it after 10 seconds instead of 5 minutes, so the
-  app is back to about 170 MB within seconds. Opening it again takes a fraction of a
-  second.
-- History a chart no longer shows is dropped after 30 seconds instead of 5 minutes,
-  and history reads keep fewer database connections open.
+- Click a column header to sort by it. The first click puts the largest values first,
+  or sorts text from A to Z, and a second click flips the order.
+- The interface, volume, disk space, largest files and disk process tables can now be
+  sorted. On the Disk page, sorting processes by Read or Written now ranks every
+  process, not just the top 10 by total.
+- The containers and storage tables sort both ways, and the containers page remembers
+  the direction. Image, ports, state and restarts can be sorted too.
+- Missing readings, such as a stopped container's CPU, always sort to the bottom
+  instead of being treated as zero.
+- Rows that summarize the rest, such as **Other apps** or **N smaller items**, stay at the
+  bottom whatever the sort. On the Disk page, other volumes in the same container (System,
+  VM and so on) now sort among your folders by size.
+- Live tables keep their order while the pointer is over them, so a row doesn't move out
+  from under the cursor.
 
-The `statglass` command-line tool also gets a few additions:
-
-- `--from` and `--to` accept a local date and time, such as `2026-11-03 15:00`, or a
-  date alone for midnight.
-- `statglass events --summary` counts a range's events per kind.
-- A remote host's last minutes that have not synced yet are labelled as such, and a
-  mistyped series label suggests the closest stored series.
+Tables ranked by StatGlass itself, such as the top apps over a time range, keep their
+ranking column.
 
 ## Moving from Kelvo
 
