@@ -123,7 +123,7 @@ export function useContainerColumns(
               helper.accessor(
                 (row) =>
                   gap(
-                    (!historical && !isLiveLifecycle(row)) ||
+                    !isLiveLifecycle(row) ||
                       row.metrics.network_rx_bps === null ||
                       row.metrics.network_tx_bps === null
                       ? null

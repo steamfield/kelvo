@@ -2,6 +2,8 @@ import type {
   DockerStorageKind,
   DockerStorageResource,
 } from "@core/generated/bindings";
+import type { ColumnSort } from "~/components/data-table";
+
 export const storageKindLabel: Record<DockerStorageKind, string> = {
   container: "Containers",
   image: "Images",
@@ -9,7 +11,6 @@ export const storageKindLabel: Record<DockerStorageKind, string> = {
   build_cache: "Build cache",
 };
 
-import type { ColumnSort } from "~/components/data-table";
 export type StorageSort = ColumnSort<
   "size" | "name" | "references" | "age" | "eligibility"
 >;

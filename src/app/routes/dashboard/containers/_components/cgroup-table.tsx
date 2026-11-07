@@ -62,6 +62,8 @@ function Bar({
   );
 }
 
+/** Row id of the pinned "N others" remainder; real rows are `kind/name`. */
+const REMAINDER_ID = "_other";
 const helper = columnHelper<CgroupRow>();
 const getRowId = (row: CgroupRow) => row.id;
 const byName = (a: CgroupRow, b: CgroupRow) =>
@@ -75,7 +77,7 @@ const STATIC_COLUMNS = {
     sortFn: "text",
     meta: { align: "left", className: HEADER },
     cell: ({ row }) =>
-      row.id === "_other" ? (
+      row.id === REMAINDER_ID ? (
         <OtherName label={row.original.name} />
       ) : (
         <span className="inline-flex max-w-72 items-center gap-2 text-foreground">
@@ -92,7 +94,7 @@ const STATIC_COLUMNS = {
     sortFn: "text",
     meta: { align: "left", className: HEADER },
     cell: ({ row }) =>
-      row.id === "_other"
+      row.id === REMAINDER_ID
         ? null
         : figure(KIND_LABEL[row.original.kind], "text-muted-foreground"),
   }),
@@ -115,7 +117,7 @@ const STATIC_COLUMNS = {
     header: "Memory pressure",
     meta: { align: "right", className: HEADER },
     cell: ({ row }) =>
-      row.id === "_other"
+      row.id === REMAINDER_ID
         ? null
         : figure(formatPercent(row.original.memPsi, { decimals: 1 })),
   }),
@@ -278,7 +280,7 @@ function OtherRow({
 }) {
   const remainder = constructRow(
     table,
-    "_other",
+    REMAINDER_ID,
     { ...row, name: label },
     0,
     0

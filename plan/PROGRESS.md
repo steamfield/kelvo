@@ -4,6 +4,45 @@ This file tracks where StatGlass is against the plan. Task-level checkboxes live
 
 Agents update this file whenever a phase starts or finishes. Each update adds a log entry: what changed, how it was verified, and anything left open. They also tick the matching checkboxes in the version doc.
 
+## Shared table layer, sortable by default (2026-11-06)
+
+Every frontend table now goes through one shared layer on TanStack Table v9
+(`src/app/components/data-table/`), plus a pure `holdOrder` in `src/core/held-order.ts`. The
+layer replaces five hand-written sort comparators, four copies of hold-on-hover, five copies
+of the sort-state bridge and the legacy `sort-header.tsx`. Gaps sort last in both directions
+(`defaultColumn.sortUndefined: "last"`). Ties keep key order, because the input is pre-sorted.
+A first click sorts descending, or ascending for text, and a second click flips. Remainder,
+synthetic and footnote rows go in an `after` slot and never sort. Rust-ranked top-N tables
+(usage apps, apps now, historical usage) keep `manualSorting` with a ranked header. The three
+static tables use the `ui/table` primitives with a new `plain` variant. `calendar-heatmap` is a
+grid and stays as it is.
+
+Behavior changes:
+- Containers and storage sort in both directions with true nulls-last. The container URL gains
+  `&dir=`.
+- Image, ports, state and restarts are sortable.
+- The volume, interface, space, largest-files and disk-process tables are newly sortable. Disk
+  processes sort before the top-10 slice and search.
+- In Space, only the "smaller" and "other" remainders are pinned. Other APFS volumes sort with
+  the folders.
+- Container headers use the shared `SortHeader` look: a full-width button with px-3.
+
+Implemented by Codex delegates through foreman (`gpt-6.1-sol`) in five runs, each reviewed and
+gated before merging. A devil's-advocate pass corrected the plan first, and a code-review pass
+followed by 24 fixes ran last.
+
+Verified with:
+- `bun run check`: 1,549 Vitest tests, Biome and typecheck
+- the full Playwright suite: 512 of 512 on Chromium and WebKit, before the review fixes
+- the table-touching specs and `perf-gate.spec.ts` again after the review fixes
+- `make check`: every Rust and policy target passed. `updater-patch-test` fails only inside a
+  nested worktree, where cargo sees the parent workspace. It's rerun on main.
+- screenshots of Processes, Containers, Storage, Network, Disk and the gallery, compared with
+  main
+
+The Processes page isn't covered by the perf gate, and its CPU wasn't measured (`make bench`
+not run). Still open: `apps-now-card` keys rows by pid alone.
+
 ## Five more blog articles (2026-11-05)
 
 Topics picked from Google autocomplete demand around the product and checked against the
