@@ -2,9 +2,14 @@ import type { DockerStorageResource } from "@core/generated/bindings";
 import { dockerKeys } from "@core/query-keys";
 import { unwrap } from "@core/transport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { constructSortFn, type SortingState } from "@tanstack/react-table";
+import { constructSortFn } from "@tanstack/react-table";
 import { memo, useMemo, useState } from "react";
-import { columnHelper, gap, useDataTable } from "~/components/data-table";
+import {
+  columnHelper,
+  gap,
+  useColumnSort,
+  useDataTable,
+} from "~/components/data-table";
 import { Button } from "~/components/ui/button";
 import { useTransport } from "~/lib/transport-context";
 import {
@@ -16,6 +21,8 @@ import type { CleanupFlow } from "./docker-cleanup-flow";
 import { StorageFilters } from "./storage-filters";
 import { StorageInventorySummary } from "./storage-inventory-summary";
 import { StorageResources } from "./storage-resources";
+
+const SORT_IDS = ["size", "name", "references", "age", "eligibility"] as const;
 
 const nameSort = constructSortFn({ sort: new Intl.Collator().compare });
 const helper = columnHelper<DockerStorageResource>();
@@ -87,30 +94,13 @@ export const DockerStorage = memo(function DockerStorage({
     () => storageRows(snapshot?.resources ?? [], query, category, age),
     [snapshot, query, category, age]
   );
-  const sorting = useMemo<SortingState>(
-    () => [{ id: sort.by, desc: sort.dir === "desc" }],
-    [sort.by, sort.dir]
-  );
+  const { sorting, onSortingChange } = useColumnSort(sort, setSort, SORT_IDS);
   const model = useDataTable({
     data: filtered,
     columns: COLUMNS,
     getRowId: storageResourceKey,
     sorting,
-    onSortingChange: (updater) => {
-      const next = (
-        typeof updater === "function" ? updater(sorting) : updater
-      )[0];
-      const by = next?.id;
-      if (
-        next &&
-        (by === "size" ||
-          by === "name" ||
-          by === "references" ||
-          by === "age" ||
-          by === "eligibility")
-      )
-        setSort({ by, dir: next.desc ? "desc" : "asc" });
-    },
+    onSortingChange,
   });
   const rows = model.rows.map((row) => row.original);
   const chosen =

@@ -12,13 +12,7 @@ import { renderWithProviders } from "@tests/test-utils";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { useProcessRows } from "~/hooks/use-process-interest";
-import {
-  diskTotal,
-  frozenOrder,
-  type ProcessSort,
-  ProcessTable,
-  processKey,
-} from "./process-table";
+import { diskTotal, type ProcessSort, ProcessTable } from "./process-table";
 
 function proc(pid: number, name: string, cpu: number): LiveProcess {
   return {
@@ -65,16 +59,6 @@ function names(): string[] {
     .filter(Boolean)
     .map((s) => s.slice(1));
 }
-
-describe("frozenOrder", () => {
-  it("keeps the frozen order, drops gone rows and appends new ones", () => {
-    const a = proc(1, "a", 1);
-    const b = proc(2, "b", 2);
-    const c = proc(3, "c", 3);
-    const out = frozenOrder([c, a], [processKey(a), processKey(b)]);
-    expect(out.map((p) => p.name)).toEqual(["a", "c"]);
-  });
-});
 
 describe("ProcessTable order freeze", () => {
   it("releases hover order when Selected only unmounts the live body", async () => {

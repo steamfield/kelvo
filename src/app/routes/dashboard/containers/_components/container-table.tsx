@@ -2,7 +2,6 @@ import type {
   DockerContainer,
   DockerRankedContainer,
 } from "@core/generated/bindings";
-import type { SortingState } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   type MouseEvent,
@@ -14,7 +13,11 @@ import {
   useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { DataTableHead, useDataTable } from "~/components/data-table";
+import {
+  DataTableHead,
+  useColumnSort,
+  useDataTable,
+} from "~/components/data-table";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -36,12 +39,12 @@ import {
   containerAction,
   useContainerActions,
 } from "./container-actions";
-import { ContainerDataRow } from "./container-data-row";
 import {
   containerRowId,
   containerTiebreak,
   useContainerColumns,
-} from "./container-table-head";
+} from "./container-columns";
+import { ContainerDataRow } from "./container-data-row";
 export const needsAttention = (row: DockerContainer) =>
   row.health === "unhealthy" || row.oom_killed || row.repeated_restarts;
 export function ContainerTable({
@@ -93,16 +96,21 @@ export function ContainerTable({
     (row) => row.id === contextId
   );
   const definitions = useContainerColumns(columns, historical);
-  const activeSort = definitions.some(
-    (column) =>
-      column.id === sort.by ||
-      ("accessorKey" in column && column.accessorKey === sort.by)
-  )
-    ? sort
-    : DEFAULT_CONTAINER_SORT;
-  const sorting = useMemo<SortingState>(
-    () => [{ id: activeSort.by, desc: activeSort.dir === "desc" }],
-    [activeSort.by, activeSort.dir]
+  const sortIds = useMemo(
+    () =>
+      definitions.flatMap((column) => {
+        const id =
+          column.id ??
+          ("accessorKey" in column ? column.accessorKey : undefined);
+        return id && isContainerSortColumn(id) ? [id] : [];
+      }),
+    [definitions]
+  );
+  const activeSort = sortIds.includes(sort.by) ? sort : DEFAULT_CONTAINER_SORT;
+  const { sorting, onSortingChange } = useColumnSort(
+    activeSort,
+    onSort,
+    sortIds
   );
   const data = useMemo(
     () =>
@@ -131,16 +139,7 @@ export function ContainerTable({
     getRowId: containerRowId,
     tiebreak: containerTiebreak,
     sorting,
-    onSortingChange: (updater) => {
-      const next = (
-        typeof updater === "function" ? updater(sorting) : updater
-      )[0];
-      const by = model.table
-        .getAllLeafColumns()
-        .find((column) => column.id === next?.id)?.id;
-      if (next && by && isContainerSortColumn(by))
-        onSort({ by, dir: next.desc ? "desc" : "asc" });
-    },
+    onSortingChange,
     hold: {
       paused: hovered || keyboard || contextOpen || actions.pendingIds.size > 0,
       resetKey: `${activeSort.by}:${activeSort.dir}`,

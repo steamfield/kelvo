@@ -8,19 +8,17 @@ import {
   type RateUnits,
 } from "@core/format";
 import type { LiveProcess } from "@core/generated/bindings";
-import { holdOrder } from "@core/held-order";
 import { targetKey } from "@core/process-selection";
-import {
-  type SortingState,
-  sortFn_textCaseSensitive,
-} from "@tanstack/react-table";
+import { FlexRender, sortFn_textCaseSensitive } from "@tanstack/react-table";
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
+  type ColumnSort,
   columnHelper,
   DataTable,
   DataTableHead,
   gap,
+  useColumnSort,
   useDataTable,
 } from "~/components/data-table";
 import {
@@ -31,7 +29,6 @@ import {
   SharedProcessActions,
   useProcessSelection,
 } from "~/components/process-selection";
-import type { ColumnDef } from "~/components/sort-header";
 import { Table, TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import { InitialChip } from "~/widgets/initial-chip";
@@ -56,10 +53,7 @@ export type ProcessColumn =
   | "gpu"
   | "user";
 
-export interface ProcessSort {
-  by: ProcessColumn;
-  dir: "asc" | "desc";
-}
+export type ProcessSort = ColumnSort<ProcessColumn>;
 
 export interface ProcessTableProps {
   rows: readonly LiveProcess[];
@@ -113,39 +107,8 @@ export function netTotal(p: LiveProcess): number | null {
   return p.net_rx_bps + p.net_tx_bps;
 }
 
-/**
- * `sorted` in the order of `keys` (the order when the pointer entered), with
- * rows that have since appeared appended in sorted order and rows that have
- * gone dropped.
- */
-export function frozenOrder(
-  sorted: readonly LiveProcess[],
-  keys: readonly string[]
-): LiveProcess[] {
-  return holdOrder(sorted, keys, processKey);
-}
-
 /** Stable identity: a pid is reused, (pid, start time) is not. */
 export const processKey = targetKey;
-
-/** Sort a copy; `null` values go last in either direction, ties by pid. */
-export function sortProcesses(
-  rows: readonly LiveProcess[],
-  { by, dir }: ProcessSort
-): LiveProcess[] {
-  const sign = dir === "asc" ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const value = COLUMNS[by].sortValue;
-    const va = value(a);
-    const vb = value(b);
-    if (va == null && vb == null) return a.pid - b.pid;
-    if (va == null) return 1;
-    if (vb == null) return -1;
-    if (va < vb) return -sign;
-    if (va > vb) return sign;
-    return a.pid - b.pid;
-  });
-}
 
 const grouped = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
@@ -203,30 +166,45 @@ function PercentBar({
   );
 }
 
-const COLUMNS: Record<ProcessColumn, ColumnDef<LiveProcess, CellCtx>> = {
-  name: {
-    label: "Process",
-    align: "left",
-    sortValue: (p) => p.name.toLowerCase(),
-    cell: (p) => (
+const helper = columnHelper<LiveProcess>();
+
+const STATIC_COLUMNS = {
+  name: helper.accessor((p) => gap(p.name.toLowerCase()), {
+    id: "name",
+    header: "Process",
+    sortFn: "text",
+    meta: {
+      align: "left",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => (
       <span className="inline-flex max-w-64 items-center gap-2 text-foreground">
         <InitialChip text={p.name} />
         <span className="truncate">{p.name}</span>
       </span>
     ),
-  },
-  pid: {
-    label: "PID",
-    align: "right",
-    sortValue: (p) => p.pid,
-    cell: (p) => figure(String(p.pid), "text-muted-foreground"),
-  },
-  port: {
-    label: "Port",
-    align: "right",
-    // The lowest port; a process listening on none sorts with the unread.
-    sortValue: (p) => p.ports?.[0] ?? null,
-    cell: (p) => (
+  }),
+  pid: helper.accessor((p) => gap(p.pid), {
+    id: "pid",
+    header: "PID",
+    sortFn: "auto",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) =>
+      figure(String(p.pid), "text-muted-foreground"),
+  }),
+  // The lowest port; a process listening on none sorts with the unread.
+  port: helper.accessor((p) => gap(p.ports?.[0] ?? null), {
+    id: "port",
+    header: "Port",
+    sortFn: "auto",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => (
       <span
         className="figures text-muted-foreground"
         title={
@@ -238,111 +216,177 @@ const COLUMNS: Record<ProcessColumn, ColumnDef<LiveProcess, CellCtx>> = {
         {portsText(p.ports)}
       </span>
     ),
-  },
-  cpu: {
-    label: "% CPU",
-    align: "right",
-    sortValue: (p) => p.cpu_pct,
-    cell: (p, c) => (
-      <PercentBar
-        pct={p.cpu_pct}
-        max={c.cpuBarMaxPct}
-        fill="var(--color-cpu)"
-      />
-    ),
-  },
-  mem: {
-    label: "Memory",
-    align: "right",
-    sortValue: (p) => p.mem_bytes,
-    cell: (p, c) => figure(formatBytes(p.mem_bytes, { units: c.memUnits })),
-  },
-  compressed: {
-    label: "Compressed",
-    align: "right",
-    sortValue: (p) => p.compressed_bytes,
-    cell: (p, c) =>
-      figure(formatBytes(p.compressed_bytes, { units: c.memUnits })),
-  },
-  threads: {
-    label: "Threads",
-    align: "right",
-    sortValue: (p) => p.threads,
-    cell: (p) => figure(num(p.threads)),
-  },
-  wakeups: {
-    label: "Idle wake-ups",
-    align: "right",
-    sortValue: (p) => p.idle_wakeups_per_s,
-    cell: (p) => figure(num(p.idle_wakeups_per_s)),
-  },
-  energy: {
-    label: "Energy",
-    align: "right",
-    sortValue: (p) => p.energy,
-    cell: (p) => figure(num(p.energy, 1)),
-  },
-  diskRead: {
-    label: "Disk read",
-    align: "right",
-    sortValue: (p) => p.disk_read_bps,
-    cell: (p, c) => figure(formatRate(p.disk_read_bps, { units: c.rateUnits })),
-  },
-  diskWrite: {
-    label: "Disk write",
-    align: "right",
-    sortValue: (p) => p.disk_write_bps,
-    cell: (p, c) =>
-      figure(formatRate(p.disk_write_bps, { units: c.rateUnits })),
-  },
-  diskTotal: {
-    label: "Disk total",
-    align: "right",
-    sortValue: diskTotal,
-    cell: (p, c) =>
-      figure(
-        formatRate(diskTotal(p), { units: c.rateUnits }),
-        "text-foreground"
-      ),
-  },
-  netRx: {
-    label: "Down",
-    align: "right",
-    sortValue: (p) => p.net_rx_bps,
-    cell: (p, c) => figure(formatRate(p.net_rx_bps, { units: c.rateUnits })),
-  },
-  netTx: {
-    label: "Up",
-    align: "right",
-    sortValue: (p) => p.net_tx_bps,
-    cell: (p, c) => figure(formatRate(p.net_tx_bps, { units: c.rateUnits })),
-  },
-  netTotal: {
-    label: "Net total",
-    align: "right",
-    sortValue: netTotal,
-    cell: (p, c) =>
-      figure(
-        formatRate(netTotal(p), { units: c.rateUnits }),
-        "text-foreground"
-      ),
-  },
-  gpu: {
-    label: "% GPU",
-    align: "right",
-    sortValue: (p) => p.gpu_pct,
-    // Percent of the whole GPU (D-085), so the bar is out of 100.
-    cell: (p) => (
+  }),
+  threads: helper.accessor((p) => gap(p.threads), {
+    id: "threads",
+    header: "Threads",
+    sortFn: "auto",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => figure(num(p.threads)),
+  }),
+  wakeups: helper.accessor((p) => gap(p.idle_wakeups_per_s), {
+    id: "wakeups",
+    header: "Idle wake-ups",
+    sortFn: "auto",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => figure(num(p.idle_wakeups_per_s)),
+  }),
+  energy: helper.accessor((p) => gap(p.energy), {
+    id: "energy",
+    header: "Energy",
+    sortFn: "auto",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => figure(num(p.energy, 1)),
+  }),
+  // Percent of the whole GPU (D-085), so the bar is out of 100.
+  gpu: helper.accessor((p) => gap(p.gpu_pct), {
+    id: "gpu",
+    header: "% GPU",
+    sortFn: "auto",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => (
       <PercentBar pct={p.gpu_pct} max={100} fill="var(--color-gpu)" />
     ),
-  },
-  user: {
-    label: "User",
-    align: "left",
-    sortValue: (p) => p.user,
-    cell: (p) => figure(p.user, "text-muted-foreground"),
-  },
+  }),
+  user: helper.accessor((p) => gap(p.user), {
+    id: "user",
+    header: "User",
+    sortFn: sortFn_textCaseSensitive,
+    meta: {
+      align: "left",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: p } }) => figure(p.user, "text-muted-foreground"),
+  }),
 };
+
+function processColumns(c: CellCtx) {
+  return {
+    ...STATIC_COLUMNS,
+    cpu: helper.accessor((p) => gap(p.cpu_pct), {
+      id: "cpu",
+      header: "% CPU",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) => (
+        <PercentBar
+          pct={p.cpu_pct}
+          max={c.cpuBarMaxPct}
+          fill="var(--color-cpu)"
+        />
+      ),
+    }),
+    mem: helper.accessor((p) => gap(p.mem_bytes), {
+      id: "mem",
+      header: "Memory",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(formatBytes(p.mem_bytes, { units: c.memUnits })),
+    }),
+    compressed: helper.accessor((p) => gap(p.compressed_bytes), {
+      id: "compressed",
+      header: "Compressed",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(formatBytes(p.compressed_bytes, { units: c.memUnits })),
+    }),
+    diskRead: helper.accessor((p) => gap(p.disk_read_bps), {
+      id: "diskRead",
+      header: "Disk read",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(formatRate(p.disk_read_bps, { units: c.rateUnits })),
+    }),
+    diskWrite: helper.accessor((p) => gap(p.disk_write_bps), {
+      id: "diskWrite",
+      header: "Disk write",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(formatRate(p.disk_write_bps, { units: c.rateUnits })),
+    }),
+    diskTotal: helper.accessor((p) => gap(diskTotal(p)), {
+      id: "diskTotal",
+      header: "Disk total",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(
+          formatRate(diskTotal(p), { units: c.rateUnits }),
+          "text-foreground"
+        ),
+    }),
+    netRx: helper.accessor((p) => gap(p.net_rx_bps), {
+      id: "netRx",
+      header: "Down",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(formatRate(p.net_rx_bps, { units: c.rateUnits })),
+    }),
+    netTx: helper.accessor((p) => gap(p.net_tx_bps), {
+      id: "netTx",
+      header: "Up",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(formatRate(p.net_tx_bps, { units: c.rateUnits })),
+    }),
+    netTotal: helper.accessor((p) => gap(netTotal(p)), {
+      id: "netTotal",
+      header: "Net total",
+      sortFn: "auto",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: p } }) =>
+        figure(
+          formatRate(netTotal(p), { units: c.rateUnits }),
+          "text-foreground"
+        ),
+    }),
+  };
+}
 
 /**
  * Sortable, virtualized process table. The external sort stays in the process
@@ -352,47 +396,19 @@ export function ProcessTable(props: ProcessTableProps) {
   const { rows, columns, sort, onSort } = props;
   const [paused, setPaused] = useState(false);
   const { by, dir } = sort;
-  const sorting = useMemo<SortingState>(
-    () => [{ id: by, desc: dir === "desc" }],
-    [by, dir]
-  );
-  const definitions = useMemo(
-    () =>
-      helper.columns(
-        columns.map((id) => {
-          const column = COLUMNS[id];
-          return helper.accessor((row) => gap(column.sortValue(row)), {
-            id,
-            header: column.label,
-            sortFn:
-              id === "user"
-                ? sortFn_textCaseSensitive
-                : column.align === "left"
-                  ? "text"
-                  : "auto",
-            meta: {
-              align: column.align,
-              className: "h-auto whitespace-nowrap border-border border-b",
-            },
-          });
-        })
-      ),
-    [columns]
-  );
+  const { sorting, onSortingChange } = useColumnSort(sort, onSort, columns);
+  const { cpuBarMaxPct = 100, memUnits = "GB", rateUnits = "MBps" } = props;
+  const definitions = useMemo(() => {
+    const definitions = processColumns({ cpuBarMaxPct, memUnits, rateUnits });
+    return helper.columns(columns.map((id) => definitions[id]));
+  }, [columns, cpuBarMaxPct, memUnits, rateUnits]);
   const data = useDataTable({
     data: rows,
     columns: definitions,
     getRowId: processKey,
     tiebreak: byPid,
     sorting,
-    onSortingChange: (updater) => {
-      const next = (
-        typeof updater === "function" ? updater(sorting) : updater
-      )[0];
-      const column = columns.find((id) => id === next?.id);
-      if (next && column)
-        onSort({ by: column, dir: next.desc ? "desc" : "asc" });
-    },
+    onSortingChange,
     hold: { paused, resetKey: `${by}:${dir}` },
   });
   const descriptors = useMemo(
@@ -425,15 +441,11 @@ export function ProcessTable(props: ProcessTableProps) {
   );
 }
 
-const helper = columnHelper<LiveProcess>();
 const byPid = (a: LiveProcess, b: LiveProcess) => a.pid - b.pid;
 
 function ProcessTableBody({
   columns,
-  cpuBarMaxPct = 100,
   height,
-  memUnits = "GB",
-  rateUnits = "MBps",
   freezeOrderOnHover = false,
   growOnly = false,
   empty,
@@ -472,7 +484,6 @@ function ProcessTableBody({
       revealRef.current = null;
     };
   }, [revealRef, rows]);
-  const ctx: CellCtx = { cpuBarMaxPct, memUnits, rateUnits };
   return (
     <div
       ref={scrollRef}
@@ -535,34 +546,38 @@ function ProcessTableBody({
               </TableRow>
             )
           }
-          renderRow={({ original: p, id }) => (
-            <ProcessSelectionRow
-              rowKey={id}
-              label={`${p.name} (${p.pid})`}
-              targets={[p]}
-              data-key={id}
-              className="group h-[29px] border-border-subtle border-b hover:bg-selected"
-            >
-              {columns.map((col) => (
-                <td
-                  key={col}
-                  className={cn(
-                    "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle",
-                    COLUMNS[col].align === "right" && "text-right"
-                  )}
-                >
-                  {COLUMNS[col].cell(p, ctx)}
-                </td>
-              ))}
-              {hasActions && (
-                <td className="w-36 min-w-36 whitespace-nowrap py-0 pr-2 pl-1 text-right">
-                  <span className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 group-data-[state=open]:opacity-100">
-                    <SharedProcessActions targets={[p]} />
-                  </span>
-                </td>
-              )}
-            </ProcessSelectionRow>
-          )}
+          renderRow={(row) => {
+            const { original: p, id } = row;
+            return (
+              <ProcessSelectionRow
+                rowKey={id}
+                label={`${p.name} (${p.pid})`}
+                targets={[p]}
+                data-key={id}
+                className="group h-[29px] border-border-subtle border-b hover:bg-selected"
+              >
+                {row.getAllCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    className={cn(
+                      "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle",
+                      cell.column.columnDef.meta?.align === "right" &&
+                        "text-right"
+                    )}
+                  >
+                    <FlexRender cell={cell} />
+                  </td>
+                ))}
+                {hasActions && (
+                  <td className="w-36 min-w-36 whitespace-nowrap py-0 pr-2 pl-1 text-right">
+                    <span className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 group-data-[state=open]:opacity-100">
+                      <SharedProcessActions targets={[p]} />
+                    </span>
+                  </td>
+                )}
+              </ProcessSelectionRow>
+            );
+          }}
         />
       </Table>
     </div>

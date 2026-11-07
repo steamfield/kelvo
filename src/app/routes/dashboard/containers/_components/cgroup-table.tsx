@@ -8,16 +8,17 @@ import {
   MISSING,
   type RateUnits,
 } from "@core/format";
-import type { SortingState } from "@tanstack/react-table";
+import { type ColumnDef, FlexRender } from "@tanstack/react-table";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   columnHelper,
   DataTable,
   DataTableHead,
   gap,
+  type TableFeatures,
+  useColumnSort,
   useDataTable,
 } from "~/components/data-table";
-import type { ColumnDef } from "~/components/sort-header";
 import { cn } from "~/lib/utils";
 import { InitialChip } from "~/widgets/initial-chip";
 import { MeterTrack } from "~/widgets/meter-track";
@@ -60,12 +61,20 @@ function Bar({
   );
 }
 
-const COLUMNS: Record<CgroupColumn, ColumnDef<CgroupRow, CellCtx>> = {
-  name: {
-    label: "Name",
-    align: "left",
-    sortValue: (r) => r.name,
-    cell: (r) => (
+const helper = columnHelper<CgroupRow>();
+const getRowId = (row: CgroupRow) => row.id;
+const byName = (a: CgroupRow, b: CgroupRow) => a.name.localeCompare(b.name);
+
+const STATIC_COLUMNS = {
+  name: helper.accessor((r) => gap(r.name), {
+    id: "name",
+    header: "Name",
+    sortFn: "text",
+    meta: {
+      align: "left",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: r } }) => (
       <span className="inline-flex max-w-72 items-center gap-2 text-foreground">
         <InitialChip text={r.name} />
         <span className="truncate" title={r.name}>
@@ -73,19 +82,27 @@ const COLUMNS: Record<CgroupColumn, ColumnDef<CgroupRow, CellCtx>> = {
         </span>
       </span>
     ),
-  },
-  kind: {
-    label: "Kind",
-    align: "left",
-    sortValue: (r) => KIND_LABEL[r.kind],
-    cell: (r) => figure(KIND_LABEL[r.kind], "text-muted-foreground"),
-  },
-  cpu: {
-    // Percent of one core, so the bar fills at one core and the figure can pass 100.
-    label: "% CPU",
-    align: "right",
-    sortValue: (r) => r.cpu,
-    cell: (r) => (
+  }),
+  kind: helper.accessor((r) => gap(KIND_LABEL[r.kind]), {
+    id: "kind",
+    header: "Kind",
+    sortFn: "text",
+    meta: {
+      align: "left",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: r } }) =>
+      figure(KIND_LABEL[r.kind], "text-muted-foreground"),
+  }),
+  // Percent of one core, so the bar fills at one core and the figure can pass 100.
+  cpu: helper.accessor((r) => gap(r.cpu), {
+    id: "cpu",
+    header: "% CPU",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
+    },
+    cell: ({ row: { original: r } }) => (
       <Bar fraction={ratio(r.cpu, 100)} fill="var(--color-cpu)">
         {figure(
           r.cpu === null ? MISSING : fixed(r.cpu, 1),
@@ -93,64 +110,67 @@ const COLUMNS: Record<CgroupColumn, ColumnDef<CgroupRow, CellCtx>> = {
         )}
       </Bar>
     ),
-  },
-  mem: {
-    label: "Memory",
-    align: "right",
-    sortValue: (r) => r.mem,
-    cell: (r, c) => {
-      const used = figure(formatBytes(r.mem, { units: c.bytes }));
-      if (r.memMax === null) return used;
-      return (
-        <Bar fraction={ratio(r.mem, r.memMax)} fill="var(--color-mem)">
-          <span className="inline-block min-w-30 text-right">
-            {used}
-            {figure(
-              ` / ${formatBytes(r.memMax, { units: c.bytes })}`,
-              "text-muted-foreground"
-            )}
-          </span>
-        </Bar>
-      );
+  }),
+  memPsi: helper.accessor((r) => gap(r.memPsi), {
+    id: "memPsi",
+    header: "Memory pressure",
+    meta: {
+      align: "right",
+      className: "h-auto whitespace-nowrap border-border border-b",
     },
-  },
-  ioRead: {
-    label: "Disk read",
-    align: "right",
-    sortValue: (r) => r.ioRead,
-    cell: (r, c) => figure(formatRate(r.ioRead, { units: c.rate })),
-  },
-  ioWrite: {
-    label: "Disk write",
-    align: "right",
-    sortValue: (r) => r.ioWrite,
-    cell: (r, c) => figure(formatRate(r.ioWrite, { units: c.rate })),
-  },
-  memPsi: {
-    label: "Memory pressure",
-    align: "right",
-    sortValue: (r) => r.memPsi,
-    cell: (r) => figure(formatPercent(r.memPsi, { decimals: 1 })),
-  },
+    cell: ({ row: { original: r } }) =>
+      figure(formatPercent(r.memPsi, { decimals: 1 })),
+  }),
 };
 
-const helper = columnHelper<CgroupRow>();
-const getRowId = (row: CgroupRow) => row.id;
-const byName = (a: CgroupRow, b: CgroupRow) => a.name.localeCompare(b.name);
-const TABLE_COLUMNS = Object.fromEntries(
-  Object.entries(COLUMNS).map(([id, column]) => [
-    id,
-    helper.accessor((row) => gap(column.sortValue(row)), {
-      id,
-      header: column.label,
-      ...(column.align === "left" ? { sortFn: "text" as const } : {}),
+function cgroupColumns(c: CellCtx) {
+  return {
+    ...STATIC_COLUMNS,
+    mem: helper.accessor((r) => gap(r.mem), {
+      id: "mem",
+      header: "Memory",
       meta: {
-        align: column.align,
+        align: "right",
         className: "h-auto whitespace-nowrap border-border border-b",
       },
+      cell: ({ row: { original: r } }) => {
+        const used = figure(formatBytes(r.mem, { units: c.bytes }));
+        if (r.memMax === null) return used;
+        return (
+          <Bar fraction={ratio(r.mem, r.memMax)} fill="var(--color-mem)">
+            <span className="inline-block min-w-30 text-right">
+              {used}
+              {figure(
+                ` / ${formatBytes(r.memMax, { units: c.bytes })}`,
+                "text-muted-foreground"
+              )}
+            </span>
+          </Bar>
+        );
+      },
     }),
-  ])
-);
+    ioRead: helper.accessor((r) => gap(r.ioRead), {
+      id: "ioRead",
+      header: "Disk read",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: r } }) =>
+        figure(formatRate(r.ioRead, { units: c.rate })),
+    }),
+    ioWrite: helper.accessor((r) => gap(r.ioWrite), {
+      id: "ioWrite",
+      header: "Disk write",
+      meta: {
+        align: "right",
+        className: "h-auto whitespace-nowrap border-border border-b",
+      },
+      cell: ({ row: { original: r } }) =>
+        figure(formatRate(r.ioWrite, { units: c.rate })),
+    }),
+  };
+}
 
 const CELL = "whitespace-nowrap px-3 py-0 font-normal text-fg-subtle";
 
@@ -183,30 +203,24 @@ export function CgroupTable({
 }: CgroupTableProps) {
   const [paused, setPaused] = useState(false);
   const activeSort = columns.includes(sort.by) ? sort : DEFAULT_SORT;
-  const sorting = useMemo<SortingState>(
-    () => [{ id: activeSort.by, desc: activeSort.dir === "desc" }],
-    [activeSort.by, activeSort.dir]
+  const { sorting, onSortingChange } = useColumnSort(
+    activeSort,
+    onSort,
+    columns
   );
-  const definitions = useMemo(
-    () => helper.columns(columns.flatMap((id) => TABLE_COLUMNS[id] ?? [])),
-    [columns]
-  );
+  const definitions = useMemo(() => {
+    const definitions = cgroupColumns({ bytes, rate });
+    return helper.columns(columns.map((id) => definitions[id]));
+  }, [columns, bytes, rate]);
   const data = useDataTable({
     data: rows,
     columns: definitions,
     getRowId,
     tiebreak: byName,
     sorting,
-    onSortingChange: (updater) => {
-      const next = (
-        typeof updater === "function" ? updater(sorting) : updater
-      )[0];
-      const by = columns.find((id) => id === next?.id);
-      if (next && by) onSort({ by, dir: next.desc ? "desc" : "asc" });
-    },
+    onSortingChange,
     hold: { paused, resetKey: `${activeSort.by}:${activeSort.dir}` },
   });
-  const ctx: CellCtx = { bytes, rate };
   return (
     <div
       className="min-h-0 overflow-auto"
@@ -230,20 +244,21 @@ export function CgroupTable({
                 ? "[&_tr:last-child]:border-b"
                 : undefined
           }
-          renderRow={({ original: r }) => (
+          renderRow={(row) => (
             <tr
-              key={r.id}
+              key={row.id}
               className="h-[29px] border-border-subtle border-b hover:bg-selected"
             >
-              {columns.map((col) => (
+              {row.getAllCells().map((cell) => (
                 <td
-                  key={col}
+                  key={cell.id}
                   className={cn(
                     CELL,
-                    COLUMNS[col].align === "right" && "text-right"
+                    cell.column.columnDef.meta?.align === "right" &&
+                      "text-right"
                   )}
                 >
-                  {COLUMNS[col].cell(r, ctx)}
+                  <FlexRender cell={cell} />
                 </td>
               ))}
             </tr>
@@ -263,8 +278,7 @@ export function CgroupTable({
               <OtherRow
                 label={other.label}
                 row={other.row}
-                columns={columns}
-                ctx={ctx}
+                columns={definitions}
               />
             )
           }
@@ -279,37 +293,40 @@ function OtherRow({
   label,
   row,
   columns,
-  ctx,
 }: {
   label: string;
   row: CgroupRow;
-  columns: readonly CgroupColumn[];
-  ctx: CellCtx;
+  columns: readonly ColumnDef<TableFeatures, CgroupRow>[];
 }) {
+  const data = useMemo(() => [row], [row]);
+  const model = useDataTable({ data, columns, getRowId });
   return (
     <tr className="h-[29px] border-border border-t text-muted-foreground">
-      {columns.map((col) => (
-        <td
-          key={col}
-          className={cn(
-            CELL,
-            "text-muted-foreground",
-            COLUMNS[col].align === "right" && "text-right"
-          )}
-        >
-          {col === "name" ? (
-            <span className="inline-flex items-center gap-2">
-              <span
-                aria-hidden
-                className="inline-block size-4 flex-none rounded-[4px] border border-border-strong/50 border-dashed"
-              />
-              <span className="truncate">{label}</span>
-            </span>
-          ) : col === "kind" || col === "memPsi" ? null : (
-            COLUMNS[col].cell(row, ctx)
-          )}
-        </td>
-      ))}
+      {model.rows
+        .flatMap((row) => row.getAllCells())
+        .map((cell) => (
+          <td
+            key={cell.id}
+            className={cn(
+              CELL,
+              "text-muted-foreground",
+              cell.column.columnDef.meta?.align === "right" && "text-right"
+            )}
+          >
+            {cell.column.id === "name" ? (
+              <span className="inline-flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-block size-4 flex-none rounded-[4px] border border-border-strong/50 border-dashed"
+                />
+                <span className="truncate">{label}</span>
+              </span>
+            ) : cell.column.id === "kind" ||
+              cell.column.id === "memPsi" ? null : (
+              <FlexRender cell={cell} />
+            )}
+          </td>
+        ))}
     </tr>
   );
 }

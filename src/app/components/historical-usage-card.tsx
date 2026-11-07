@@ -17,7 +17,6 @@ import {
 import { historyKeys } from "@core/query-keys";
 import { remoteQueryText } from "@core/remote-errors";
 import { useQueryClient } from "@tanstack/react-query";
-import type { SortingState } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -31,6 +30,7 @@ import {
   DataTable,
   DataTableHead,
   gap,
+  useColumnSort,
   useDataTable,
 } from "~/components/data-table";
 import { HistoricalUsageCells } from "~/components/historical-usage-cells";
@@ -272,10 +272,7 @@ function HistoricalUsageTable({
     () => (sort.dir === "asc" ? [...data.apps].reverse() : data.apps),
     [data.apps, sort.dir]
   );
-  const sorting = useMemo<SortingState>(
-    () => [{ id: sort.by, desc: sort.dir === "desc" }],
-    [sort.by, sort.dir]
-  );
+  const { sorting, onSortingChange } = useColumnSort(sort, onSort, columns);
   const definitions = useMemo(
     () =>
       helper.columns([
@@ -300,13 +297,7 @@ function HistoricalUsageTable({
     getRowId: appName,
     manualSorting: true,
     sorting,
-    onSortingChange: (updater) => {
-      const next = (
-        typeof updater === "function" ? updater(sorting) : updater
-      )[0];
-      const by = columns.find((metric) => metric === next?.id);
-      if (next && by) onSort({ by, dir: next.desc ? "desc" : "asc" });
-    },
+    onSortingChange,
   });
   const prior = new Map(previous?.apps.map((app) => [app.name, app.figures]));
   const toggle = (name: string) =>

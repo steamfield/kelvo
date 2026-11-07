@@ -1,16 +1,18 @@
 import type { LiveProcess } from "@core/generated/bindings";
 import { createMockTransport } from "@core/mock-transport";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@tests/test-utils";
 import { Profiler, useState } from "react";
 import { useProcessRows } from "~/hooks/use-process-interest";
-import {
-  type ProcessSort,
-  ProcessTable,
-  processKey,
-  sortProcesses,
-} from "./process-table";
+import { type ProcessSort, ProcessTable, processKey } from "./process-table";
 
 function proc(
   over: Partial<LiveProcess> & Pick<LiveProcess, "pid" | "name">
@@ -42,11 +44,17 @@ const ROWS: LiveProcess[] = [
   proc({ pid: 5531, name: "node", cpu_pct: null, threads: 12 }),
 ];
 
-function Harness({ initial }: { initial: ProcessSort }) {
+function Harness({
+  initial,
+  rows = ROWS,
+}: {
+  initial: ProcessSort;
+  rows?: readonly LiveProcess[];
+}) {
   const [sort, setSort] = useState(initial);
   return (
     <ProcessTable
-      rows={ROWS}
+      rows={rows}
       columns={["name", "pid", "cpu", "threads"]}
       sort={sort}
       onSort={setSort}
@@ -123,10 +131,26 @@ describe("ProcessTable", () => {
     );
   });
 
-  it("sortProcesses does not mutate its input", () => {
-    const copy = [...ROWS];
-    sortProcesses(ROWS, { by: "threads", dir: "asc" });
-    expect(ROWS).toEqual(copy);
+  it("sorts through the header without mutating its input", () => {
+    const rows = Object.freeze([...ROWS]);
+    const copy = [...rows];
+    render(<Harness initial={{ by: "cpu", dir: "desc" }} rows={rows} />);
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: "Threads" })).getByRole(
+        "button"
+      )
+    );
+    expect(names()).toEqual(["kernel_task", "Xcode", "WindowServer", "node"]);
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: /Threads/ })).getByRole(
+        "button"
+      )
+    );
+    expect(
+      screen.getByRole("columnheader", { name: /Threads/ })
+    ).toHaveAttribute("aria-sort", "ascending");
+    expect(names()).toEqual(["node", "WindowServer", "Xcode", "kernel_task"]);
+    expect(rows).toEqual(copy);
   });
 
   it("breaks ties and gap pairs by numeric PID across reordered frames", () => {
@@ -161,15 +185,32 @@ describe("ProcessTable", () => {
       proc({ pid: 9, name: "a", user: "alice" }),
       proc({ pid: 2, name: "b", user: "Zed" }),
     ];
-    const props = {
-      rows,
-      sort: { by: "user", dir: "asc" } satisfies ProcessSort,
-      onSort: () => {},
-      height: 200,
-      ariaLabel: "Users",
-    };
-    const { rerender } = render(
-      <ProcessTable {...props} columns={["name", "user", "pid"]} />
+    function Users({
+      columns,
+    }: {
+      columns: readonly ("name" | "user" | "pid")[];
+    }) {
+      const [sort, setSort] = useState<ProcessSort>({ by: "name", dir: "asc" });
+      return (
+        <ProcessTable
+          rows={rows}
+          sort={sort}
+          onSort={setSort}
+          height={200}
+          ariaLabel="Users"
+          columns={columns}
+        />
+      );
+    }
+    const { rerender } = render(<Users columns={["name", "user", "pid"]} />);
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: "User" })).getByRole(
+        "button"
+      )
+    );
+    expect(screen.getByRole("columnheader", { name: /User/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending"
     );
     expect(
       screen
@@ -177,11 +218,7 @@ describe("ProcessTable", () => {
         .slice(1)
         .map((row) => within(row).getAllByRole("cell")[1]?.textContent)
     ).toEqual(["Zed", "alice"]);
-    expect(sortProcesses(rows, props.sort).map((row) => row.user)).toEqual([
-      "Zed",
-      "alice",
-    ]);
-    rerender(<ProcessTable {...props} columns={["pid", "user", "name"]} />);
+    rerender(<Users columns={["pid", "user", "name"]} />);
     expect(
       screen.getAllByRole("columnheader").map((head) => head.textContent)
     ).toEqual(["PID", "User ↑", "Process"]);
@@ -191,6 +228,21 @@ describe("ProcessTable", () => {
         .slice(1)
         .map((row) => within(row).getAllByRole("cell")[0]?.textContent)
     ).toEqual(["2", "9"]);
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: /User/ })).getByRole(
+        "button"
+      )
+    );
+    expect(screen.getByRole("columnheader", { name: /User/ })).toHaveAttribute(
+      "aria-sort",
+      "descending"
+    );
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("cell")[1]?.textContent)
+    ).toEqual(["alice", "Zed"]);
   });
 
   it("commits once per process frame with controlled sorting", async () => {
