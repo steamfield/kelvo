@@ -30,11 +30,11 @@ import {
   OtherAppsRow,
   ShareCell,
   UnrecordedRange,
+  UsageHead,
 } from "~/components/app-table";
 import { brushScopeProps } from "~/components/brush-overlay";
 import { HistoricalUsageCard } from "~/components/historical-usage-card";
 import {
-  ProcessSelectionHead,
   ProcessSelectionRow,
   ProcessSelectionSurface,
   SharedProcessActions,
@@ -42,12 +42,10 @@ import {
 } from "~/components/process-selection";
 import { SearchField } from "~/components/search-field";
 import { SelectionChip } from "~/components/selection-chip";
-import { SortHeader } from "~/components/sort-header";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
@@ -200,7 +198,6 @@ function LiveUsageAppsCard({
 
 const MemoUsageBody = memo(UsageBody);
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Existing cohesive logic; split when substantially changed (architecture refactor section 10).
 function UsageBody({
   data,
   config,
@@ -283,23 +280,7 @@ function UsageBody({
       <div className="overflow-x-auto">
         <Table aria-label={`${config.noun} by app`}>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <ProcessSelectionHead />
-              <TableHead>App</TableHead>
-              {config.columns.map((c) =>
-                c.ranked ? (
-                  <SortHeader key={c.label} ranked label={c.label} />
-                ) : (
-                  <TableHead key={c.label} className="text-right">
-                    {c.label}
-                  </TableHead>
-                )
-              )}
-              {share && <TableHead className="text-right">Share</TableHead>}
-              <TableHead className="w-[132px]">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
+            <UsageHead columns={config.columns} share={share} />
           </TableHeader>
           <TableBody>
             {shown.length === 0 && (
@@ -337,10 +318,7 @@ function UsageBody({
                 </TableCell>
               </TableRow>
             )}
-            {!searching &&
-              rest.map((r, i) => (
-                <RestRow key={r.kind} row={r} config={config} first={i === 0} />
-              ))}
+            <RestRows rows={rest} config={config} searching={searching} />
             <TableRow className="hover:bg-transparent">
               <TableCell
                 colSpan={span}
@@ -654,4 +632,19 @@ function ActionsCell({ processes }: { processes: readonly ProcessUsage[] }) {
 
 function SelectionSpacer() {
   return useProcessSelection() ? <TableCell aria-label="Selection" /> : null;
+}
+
+function RestRows({
+  rows,
+  config,
+  searching,
+}: {
+  rows: readonly RemainderRow[];
+  config: UsageTableConfig;
+  searching: boolean;
+}) {
+  if (searching) return null;
+  return rows.map((row, i) => (
+    <RestRow key={row.kind} row={row} config={config} first={i === 0} />
+  ));
 }

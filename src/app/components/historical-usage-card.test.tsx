@@ -2,7 +2,10 @@ import { createMockTransport } from "@core/mock-transport";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@tests/test-utils";
 import { useState } from "react";
-import { HistoricalUsageCard } from "./historical-usage-card";
+import {
+  HistoricalUsageCard,
+  type HistoricalUsageSort,
+} from "./historical-usage-card";
 
 const NOW = 1_800_000_000_000;
 const RANGE = { fromMs: NOW - 600_000, toMs: NOW - 10_000 };
@@ -23,9 +26,20 @@ it("ranks by the selected resource and reverses the same app set without another
     name: "Recorded apps in this range",
   });
   expect(within(table).getAllByRole("row")[1]).toHaveTextContent("Compiler");
-  await user.click(screen.getByRole("button", { name: "Avg CPU" }));
+  await user.click(
+    within(screen.getByRole("columnheader", { name: /Avg CPU/ })).getByRole(
+      "button"
+    )
+  );
+  expect(screen.getByRole("columnheader", { name: /Avg CPU/ })).toHaveAttribute(
+    "aria-sort",
+    "ascending"
+  );
   expect(within(table).getAllByRole("row")[1]).toHaveTextContent("Editor");
   expect(apps).toHaveBeenCalledTimes(1);
+  expect(within(table).getAllByRole("row").at(-1)).toHaveTextContent(
+    "reversing the order keeps those same apps"
+  );
   await user.click(screen.getByRole("button", { name: "Peak RAM" }));
   await waitFor(() =>
     expect(apps).toHaveBeenLastCalledWith(
@@ -35,6 +49,117 @@ it("ranks by the selected resource and reverses the same app set without another
   expect(
     screen.queryByRole("button", { name: /Quit|Terminate/ })
   ).not.toBeInTheDocument();
+});
+
+it("accepts external ranking and reports header sorting in controlled mode", async () => {
+  const transport = createMockTransport({
+    now: () => NOW,
+    autoTick: false,
+    chartWindow: { absolute: { from_ms: RANGE.fromMs, to_ms: RANGE.toMs } },
+  });
+  function Controlled() {
+    const [sort, setSort] = useState<HistoricalUsageSort>({
+      by: "cpu",
+      dir: "desc",
+    });
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setSort({ by: "cpu", dir: "desc" })}
+        >
+          Rank apps by CPU
+        </button>
+        <HistoricalUsageCard
+          range={RANGE}
+          by={sort.by}
+          sort={sort}
+          onSortChange={setSort}
+        />
+      </>
+    );
+  }
+  const { user } = renderWithProviders(<Controlled />, {
+    transport,
+    route: "/dashboard/timeline",
+  });
+  await screen.findByText("Compiler");
+  await user.click(
+    within(screen.getByRole("columnheader", { name: "Peak RAM" })).getByRole(
+      "button"
+    )
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("columnheader", { name: /Peak RAM/ })
+    ).toHaveAttribute("aria-sort", "descending")
+  );
+  await screen.findByText("Compiler");
+  await user.click(
+    within(screen.getByRole("columnheader", { name: /Peak RAM/ })).getByRole(
+      "button"
+    )
+  );
+  expect(
+    screen.getByRole("columnheader", { name: /Peak RAM/ })
+  ).toHaveAttribute("aria-sort", "ascending");
+  expect(
+    within(
+      screen.getByRole("table", { name: "Recorded apps in this range" })
+    ).getAllByRole("row")[1]
+  ).toHaveTextContent("Editor");
+  await user.click(screen.getByRole("button", { name: "Rank apps by CPU" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("columnheader", { name: /Avg CPU/ })
+    ).toHaveAttribute("aria-sort", "descending")
+  );
+  await screen.findByText("Compiler");
+});
+
+it("resets local ranking when by changes and falls back when a sorted column disappears", async () => {
+  function ChangingColumns() {
+    const [by, setBy] = useState<"cpu" | "memory">("cpu");
+    const [narrow, setNarrow] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setBy("memory")}>
+          Memory default
+        </button>
+        <button type="button" onClick={() => setNarrow(true)}>
+          CPU only
+        </button>
+        <HistoricalUsageCard
+          range={RANGE}
+          by={by}
+          {...(narrow ? { columns: ["cpu"] } : {})}
+        />
+      </>
+    );
+  }
+  const { user } = renderWithProviders(<ChangingColumns />, {
+    transportOptions: { now: () => NOW },
+  });
+  await screen.findByText("Compiler");
+  await user.click(
+    within(screen.getByRole("columnheader", { name: /Avg CPU/ })).getByRole(
+      "button"
+    )
+  );
+  await user.click(screen.getByRole("button", { name: "Memory default" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("columnheader", { name: /Peak RAM/ })
+    ).toHaveAttribute("aria-sort", "descending")
+  );
+  await screen.findByText("Compiler");
+  await user.click(screen.getByRole("button", { name: "CPU only" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("columnheader", { name: /Avg CPU/ })
+    ).toHaveAttribute("aria-sort", "descending")
+  );
+  expect(screen.queryByRole("columnheader", { name: /Peak RAM/ })).toBeNull();
 });
 
 it("compares the current membership against exactly the preceding equal interval", async () => {
