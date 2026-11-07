@@ -33,42 +33,49 @@ export const healthLabel: Record<DockerHealth, string> = {
   unhealthy: "Unhealthy",
   unknown: "Unknown",
 };
-export type ContainerSort =
+export type ContainerSortColumn =
   | "cpu"
   | "memory"
   | "name"
   | "restarts"
   | "network"
-  | "io";
+  | "io"
+  | "state"
+  | "image"
+  | "ports";
+export interface ContainerSort {
+  by: ContainerSortColumn;
+  dir: "asc" | "desc";
+}
+export const DEFAULT_CONTAINER_SORT: ContainerSort = { by: "cpu", dir: "desc" };
+export const containerFirstDir = (by: ContainerSortColumn) =>
+  by === "name" || by === "state" ? "asc" : "desc";
+export const isContainerSortColumn = (
+  value: string
+): value is ContainerSortColumn =>
+  [
+    "cpu",
+    "memory",
+    "name",
+    "restarts",
+    "network",
+    "io",
+    "state",
+    "image",
+    "ports",
+  ].includes(value);
 export const containerPath = (engine: string, container: string) =>
   `/dashboard/containers/${encodeURIComponent(engine)}/${encodeURIComponent(container)}`;
-export function sortedContainers(
-  rows: readonly DockerContainer[],
-  sort: ContainerSort
-): DockerContainer[] {
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Controller and presentation split tracked in architecture refactor package H.
-  return [...rows].sort((a, b) => {
-    const delta =
-      sort === "name"
-        ? a.name.localeCompare(b.name)
-        : sort === "cpu"
-          ? (b.metrics.cpu_pct ?? -1) - (a.metrics.cpu_pct ?? -1)
-          : sort === "memory"
-            ? (b.metrics.working_set_bytes ?? -1) -
-              (a.metrics.working_set_bytes ?? -1)
-            : sort === "network"
-              ? (b.metrics.network_rx_bps ?? -1) +
-                (b.metrics.network_tx_bps ?? -1) -
-                ((a.metrics.network_rx_bps ?? -1) +
-                  (a.metrics.network_tx_bps ?? -1))
-              : sort === "io"
-                ? (b.metrics.block_read_bps ?? -1) +
-                  (b.metrics.block_write_bps ?? -1) -
-                  ((a.metrics.block_read_bps ?? -1) +
-                    (a.metrics.block_write_bps ?? -1))
-                : (b.restart_count ?? -1) - (a.restart_count ?? -1);
-    return delta || a.id.localeCompare(b.id);
-  });
+export function cpuLeader(rows: readonly DockerContainer[]) {
+  return rows.reduce<DockerContainer | undefined>((leader, row) => {
+    if (!row.monitored || row.metrics.cpu_pct === null) return leader;
+    if (!leader || row.metrics.cpu_pct > (leader.metrics.cpu_pct ?? -1))
+      return row;
+    return row.metrics.cpu_pct === leader.metrics.cpu_pct &&
+      row.id.localeCompare(leader.id) < 0
+      ? row
+      : leader;
+  }, undefined);
 }
 export function filterContainers(
   rows: readonly DockerContainer[],

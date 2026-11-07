@@ -1,13 +1,6 @@
 import { layoutInfo } from "@core/live-state";
 import { seriesKey } from "@core/series-key";
-import {
-  type CgroupRow,
-  cgroupLayout,
-  cgroupRow,
-  inFilter,
-  othersLabel,
-  sortCgroups,
-} from "./cgroups";
+import { cgroupLayout, cgroupRow, inFilter, othersLabel } from "./cgroups";
 
 const g = (metric: string, kind: string, name: string) =>
   seriesKey(metric, { kind, name });
@@ -65,18 +58,6 @@ describe("cgroupLayout", () => {
 });
 
 describe("rows", () => {
-  const row = (name: string, cpu: number | null): CgroupRow => ({
-    id: `docker/${name}`,
-    kind: "docker",
-    name,
-    cpu,
-    mem: null,
-    memMax: null,
-    ioRead: null,
-    ioWrite: null,
-    memPsi: null,
-  });
-
   it("reads a missing value as a gap, never 0", () => {
     const [group] = cgroupLayout(
       layoutInfo(1, [g("cgroup.cpu", "docker", "web")])
@@ -84,14 +65,6 @@ describe("rows", () => {
     if (!group) throw new Error("no group");
     expect(cgroupRow(group, {}).cpu).toBeNull();
     expect(cgroupRow(group, {}).mem).toBeNull();
-  });
-
-  it("sorts gaps last in either direction", () => {
-    const rows = [row("a", null), row("b", 1), row("c", 5)];
-    const names = (dir: "asc" | "desc") =>
-      sortCgroups(rows, { by: "cpu", dir }).map((r) => r.name);
-    expect(names("desc")).toEqual(["c", "b", "a"]);
-    expect(names("asc")).toEqual(["b", "c", "a"]);
   });
 
   it("files user services with services and Podman with containers", () => {

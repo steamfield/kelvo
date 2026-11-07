@@ -155,31 +155,6 @@ export interface CgroupSort {
 
 export const DEFAULT_SORT: CgroupSort = { by: "cpu", dir: "desc" };
 
-function sortValue(row: CgroupRow, by: CgroupColumn): number | string | null {
-  if (by === "name") return row.name.toLowerCase();
-  if (by === "kind") return KIND_LABEL[row.kind];
-  return row[by];
-}
-
-/** Sort a copy; a gap sorts last in either direction, ties by name. */
-export function sortCgroups(
-  rows: readonly CgroupRow[],
-  { by, dir }: CgroupSort
-): CgroupRow[] {
-  const sign = dir === "asc" ? 1 : -1;
-  const byName = (a: CgroupRow, b: CgroupRow) => a.name.localeCompare(b.name);
-  return [...rows].sort((a, b) => {
-    const va = sortValue(a, by);
-    const vb = sortValue(b, by);
-    if (va === null && vb === null) return byName(a, b);
-    if (va === null) return 1;
-    if (vb === null) return -1;
-    if (va < vb) return -sign;
-    if (va > vb) return sign;
-    return byName(a, b);
-  });
-}
-
 /** "25 others"; "Others" while the count is a gap. */
 export function othersLabel(count: number | null): string {
   if (count === null) return "Others";

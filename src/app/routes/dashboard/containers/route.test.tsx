@@ -10,6 +10,43 @@ import { renderWithProviders } from "@tests/test-utils";
 import { expect, it, vi } from "vitest";
 import ContainersRoute from "./route";
 
+it("round-trips header sort and direction through the URL and browser navigation", async () => {
+  const result = renderWithProviders(<ContainersRoute />, {
+    transportOptions: { scenarios: ["docker-11"], historyRows: 1 },
+    route: "/dashboard/containers?sort=name&dir=desc",
+  });
+  await screen.findByRole("table", { name: "Containers now" });
+  expect(
+    screen.getByRole("columnheader", { name: "Name / project" })
+  ).toHaveAttribute("aria-sort", "descending");
+  await result.user.click(
+    within(
+      screen.getByRole("columnheader", { name: "Name / project" })
+    ).getByRole("button")
+  );
+  expect(
+    new URLSearchParams(result.router.state.location.search).get("sort")
+  ).toBe("name");
+  expect(
+    new URLSearchParams(result.router.state.location.search).get("dir")
+  ).toBe("asc");
+  await act(async () => {
+    await result.router.navigate("/dashboard/containers?sort=memory&dir=asc");
+  });
+  expect(screen.getByRole("columnheader", { name: "Memory" })).toHaveAttribute(
+    "aria-sort",
+    "ascending"
+  );
+  await act(async () => {
+    await result.router.navigate(-1);
+  });
+  expect(
+    screen.getByRole("columnheader", { name: "Name / project" })
+  ).toHaveAttribute("aria-sort", "ascending");
+  result.unmount();
+  result.transport.dispose();
+});
+
 it("does not remeasure the view switcher on metric ticks but updates on selection", async () => {
   const transport = createMockTransport({
     scenarios: ["docker-11"],

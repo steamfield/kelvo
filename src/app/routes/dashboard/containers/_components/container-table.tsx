@@ -2,16 +2,19 @@ import type {
   DockerContainer,
   DockerRankedContainer,
 } from "@core/generated/bindings";
+import type { SortingState } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   type MouseEvent,
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { DataTableHead, useDataTable } from "~/components/data-table";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -25,16 +28,20 @@ import {
 import {
   type ContainerSort,
   containerPath,
-  sortedContainers,
+  DEFAULT_CONTAINER_SORT,
+  isContainerSortColumn,
 } from "../_lib/presentation";
 import {
   ContainerActionMenuItem,
   containerAction,
   useContainerActions,
 } from "./container-actions";
-
 import { ContainerDataRow } from "./container-data-row";
-import { ContainerTableHead } from "./container-table-head";
+import {
+  containerRowId,
+  containerTiebreak,
+  useContainerColumns,
+} from "./container-table-head";
 export const needsAttention = (row: DockerContainer) =>
   row.health === "unhealthy" || row.oom_killed || row.repeated_restarts;
 export function ContainerTable({
@@ -85,22 +92,64 @@ export function ContainerTable({
   const contextRow = (liveRows ?? (historical ? [] : rows)).find(
     (row) => row.id === contextId
   );
-  const held = useRef<string[]>([]);
-  const previousSort = useRef(sort);
-  const paused =
-    hovered || keyboard || contextOpen || actions.pendingIds.size > 0;
-  const sorted = sortedContainers(rows, sort);
-  if (!paused || previousSort.current !== sort)
-    held.current = sorted.map((row) => row.id);
-  previousSort.current = sort;
-  const rank = new Map(held.current.map((id, index) => [id, index]));
-  const ordered = paused
-    ? [...rows].sort(
-        (a, b) =>
-          (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) ||
-          a.id.localeCompare(b.id)
-      )
-    : sorted;
+  const definitions = useContainerColumns(columns, historical);
+  const activeSort = definitions.some(
+    (column) =>
+      column.id === sort.by ||
+      ("accessorKey" in column && column.accessorKey === sort.by)
+  )
+    ? sort
+    : DEFAULT_CONTAINER_SORT;
+  const sorting = useMemo<SortingState>(
+    () => [{ id: activeSort.by, desc: activeSort.dir === "desc" }],
+    [activeSort.by, activeSort.dir]
+  );
+  const data = useMemo(
+    () =>
+      rows.map((row) =>
+        historical ||
+        ["running", "paused", "restarting"].includes(row.lifecycle)
+          ? row
+          : {
+              ...row,
+              metrics: {
+                ...row.metrics,
+                cpu_pct: null,
+                working_set_bytes: null,
+                network_rx_bps: null,
+                network_tx_bps: null,
+                block_read_bps: null,
+                block_write_bps: null,
+              },
+            }
+      ),
+    [rows, historical]
+  );
+  const model = useDataTable({
+    data,
+    columns: definitions,
+    getRowId: containerRowId,
+    tiebreak: containerTiebreak,
+    sorting,
+    onSortingChange: (updater) => {
+      const next = (
+        typeof updater === "function" ? updater(sorting) : updater
+      )[0];
+      const by = model.table
+        .getAllLeafColumns()
+        .find((column) => column.id === next?.id)?.id;
+      if (next && by && isContainerSortColumn(by))
+        onSort({ by, dir: next.desc ? "desc" : "asc" });
+    },
+    hold: {
+      paused: hovered || keyboard || contextOpen || actions.pendingIds.size > 0,
+      resetKey: `${activeSort.by}:${activeSort.dir}`,
+    },
+  });
+  const ordered = model.rows.map((row) => row.original);
+  const visibleColumns = model.table
+    .getAllLeafColumns()
+    .map((column) => column.id);
   const groups = grouped
     ? [...new Set(ordered.map((row) => row.project ?? "Standalone"))]
     : [""];
@@ -153,7 +202,7 @@ export function ContainerTable({
       scrollFocusedRow(scroller.current, focused);
     }
   }, [focused, hovered, items, rows.length, virtual]);
-  const count = 7 + columns.length;
+  const count = visibleColumns.length;
   const openDetail = useCallback(
     (event: MouseEvent<HTMLAnchorElement>, engine: string, id: string) => {
       if (!isContainerDetailClick(event)) return;
@@ -198,7 +247,7 @@ export function ContainerTable({
         failure={actions.failures[row.id]}
         openDetail={openDetail}
         historical={historical}
-        columns={columns}
+        columns={visibleColumns}
         bytes={bytes}
         rate={rate}
       />
@@ -255,12 +304,9 @@ export function ContainerTable({
               className="w-full table-fixed border-collapse"
               aria-label={title}
             >
-              <ContainerTableHead
-                sort={sort}
-                onSort={onSort}
-                historical={historical}
-                columns={columns}
-              />
+              <thead className="sticky top-0 z-10 border-border border-y bg-card text-[11px] text-muted-foreground">
+                <DataTableHead table={model.table} />
+              </thead>
               <tbody>
                 {rows.length > 100 ? (
                   <>

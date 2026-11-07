@@ -1,14 +1,11 @@
 import { DOCKER_RANGES, dockerRange, historyEnd } from "./history-params";
-import { type ContainerSort, lifecycleLabel } from "./presentation";
+import {
+  type ContainerSort,
+  containerFirstDir,
+  isContainerSortColumn,
+  lifecycleLabel,
+} from "./presentation";
 
-const SORTS: readonly ContainerSort[] = [
-  "cpu",
-  "memory",
-  "name",
-  "restarts",
-  "network",
-  "io",
-];
 const COLUMNS = ["io", "image", "ports", "restarts", "pids"];
 
 export function containerRouteState(
@@ -23,6 +20,11 @@ export function containerRouteState(
   const now = Math.floor(nowMs / 10_000) * 10_000;
   const to = end ?? now;
   const rawSort = params.get("sort");
+  const by = rawSort && isContainerSortColumn(rawSort) ? rawSort : null;
+  const dir = params.get("dir");
+  const sort: ContainerSort = by
+    ? { by, dir: dir === "asc" || dir === "desc" ? dir : containerFirstDir(by) }
+    : (fallbackSort ?? { by: metric, dir: containerFirstDir(metric) });
   const state = params.get("state") ?? "all";
   return {
     storageView: params.get("view") === "storage",
@@ -30,7 +32,7 @@ export function containerRouteState(
     project: params.get("project"),
     query: params.get("q") ?? "",
     state: Object.hasOwn(lifecycleLabel, state) ? state : "all",
-    sort: SORTS.find((sort) => sort === rawSort) ?? fallbackSort ?? metric,
+    sort,
     grouped: params.get("group") === "grouped",
     columns: [
       ...new Set(

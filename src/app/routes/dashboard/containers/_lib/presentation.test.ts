@@ -1,6 +1,6 @@
 import { mockContainer } from "@core/mock/docker";
 import { describe, expect, it } from "vitest";
-import { filterContainers, sortedContainers } from "./presentation";
+import { cpuLeader, filterContainers } from "./presentation";
 
 describe("container view shaping", () => {
   it("searches official project, image and name without dropping exited rows", () => {
@@ -13,17 +13,15 @@ describe("container view shaping", () => {
     ).toEqual(["container-6"]);
     expect(rows).toHaveLength(8);
   });
-  it("uses stable container identity to break ties, placing unknown metrics last", () => {
+  it("keeps the monitored highest CPU leader, breaking ties by identity and ignoring gaps", () => {
     const a = mockContainer(1, 1000);
     const b = { ...mockContainer(2, 1000), metrics: { ...a.metrics } };
     const missing = {
       ...mockContainer(3, 1000),
       metrics: { ...a.metrics, cpu_pct: null },
     };
-    expect(sortedContainers([missing, b, a], "cpu").map((r) => r.id)).toEqual([
-      a.id,
-      b.id,
-      missing.id,
-    ]);
+    expect(cpuLeader([missing, b, a])?.id).toBe(a.id);
+    expect(cpuLeader([missing])).toBeUndefined();
+    expect(cpuLeader([{ ...a, monitored: false }, b])?.id).toBe(b.id);
   });
 });

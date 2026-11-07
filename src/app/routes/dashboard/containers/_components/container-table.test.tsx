@@ -7,7 +7,7 @@ import { expect, it, vi } from "vitest";
 import { ContainerTable } from "./container-table";
 
 const defaults = {
-  sort: "cpu" as const,
+  sort: { by: "cpu", dir: "desc" } as const,
   onSort: () => {},
   grouped: false,
   onCollapse: () => {},

@@ -1,5 +1,43 @@
 import { containerRouteState, restoredScroll } from "./route-state";
 
+it.each([
+  ["name", "asc"],
+  ["state", "asc"],
+  ["cpu", "desc"],
+  ["memory", "desc"],
+  ["network", "desc"],
+  ["io", "desc"],
+  ["restarts", "desc"],
+  ["image", "desc"],
+  ["ports", "desc"],
+])("defaults a missing or invalid direction for %s to %s", (by, dir) => {
+  for (const query of [`sort=${by}`, `sort=${by}&dir=wrong`])
+    expect(
+      containerRouteState(new URLSearchParams(query), 0, null).sort
+    ).toEqual({ by, dir });
+  for (const direction of ["asc", "desc"])
+    expect(
+      containerRouteState(
+        new URLSearchParams(`sort=${by}&dir=${direction}`),
+        0,
+        null
+      ).sort
+    ).toEqual({ by, dir: direction });
+});
+
+it.each(["cpu", "memory"])(
+  "uses the metric's first direction for %s fallback",
+  (metric) => {
+    expect(
+      containerRouteState(
+        new URLSearchParams(`metric=${metric}&dir=asc`),
+        0,
+        null
+      ).sort
+    ).toEqual({ by: metric, dir: "desc" });
+  }
+);
+
 it("normalizes unknown filters and caps custom chart membership without duplicate slots", () => {
   const state = containerRouteState(
     new URLSearchParams(
@@ -10,7 +48,7 @@ it("normalizes unknown filters and caps custom chart membership without duplicat
   );
   expect(state).toMatchObject({
     metric: "cpu",
-    sort: "cpu",
+    sort: { by: "cpu", dir: "desc" },
     state: "all",
     range: "15m",
     end: null,
@@ -27,11 +65,11 @@ it("preserves explicit empty chart selection and valid saved range/navigation ch
       "metric=memory&sort=name&view=storage&group=grouped&project=api&q=worker&range=1h&end=600000&chart=&collapsed=api&collapsed=db"
     ),
     900_000,
-    "cpu"
+    { by: "cpu", dir: "desc" }
   );
   expect(state).toMatchObject({
     metric: "memory",
-    sort: "name",
+    sort: { by: "name", dir: "asc" },
     storageView: true,
     grouped: true,
     project: "api",
@@ -44,12 +82,18 @@ it("preserves explicit empty chart selection and valid saved range/navigation ch
 });
 
 it("uses persisted sort only when the URL has no supported sort", () => {
-  expect(containerRouteState(new URLSearchParams(), 0, "restarts").sort).toBe(
-    "restarts"
-  );
   expect(
-    containerRouteState(new URLSearchParams("sort=memory"), 0, "restarts").sort
-  ).toBe("memory");
+    containerRouteState(new URLSearchParams(), 0, {
+      by: "restarts",
+      dir: "asc",
+    }).sort
+  ).toEqual({ by: "restarts", dir: "asc" });
+  expect(
+    containerRouteState(new URLSearchParams("sort=memory"), 0, {
+      by: "restarts",
+      dir: "asc",
+    }).sort
+  ).toEqual({ by: "memory", dir: "desc" });
 });
 
 it.each([

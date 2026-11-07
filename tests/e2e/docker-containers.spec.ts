@@ -353,7 +353,19 @@ test("task script identifies top CPU and memory, links chart focus and scopes a 
   await expect(
     page.getByRole("heading", { name: "Memory by container", exact: true })
   ).toBeVisible();
+  await expect(
+    table.getByRole("columnheader", { name: "Memory", exact: true })
+  ).toHaveAttribute("aria-sort", "descending");
+  await expect(table.getByRole("link").first()).toHaveText(/^api · liveoak$/);
   await table.getByRole("button", { name: /^Memory/ }).click();
+  await expect(
+    table.getByRole("columnheader", { name: "Memory", exact: true })
+  ).toHaveAttribute("aria-sort", "ascending");
+  await expect(table.getByRole("link").first()).toHaveText(/^caddy · liveoak$/);
+  await table.getByRole("button", { name: /^Memory/ }).click();
+  await expect(
+    table.getByRole("columnheader", { name: "Memory", exact: true })
+  ).toHaveAttribute("aria-sort", "descending");
   await expect(table.getByRole("link").first()).toHaveText(/^api · liveoak$/);
   await page.getByRole("button", { name: "api", exact: true }).focus();
   await expect(table.locator('[data-container-id="container-0"]')).toHaveClass(

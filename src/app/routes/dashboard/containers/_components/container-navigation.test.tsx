@@ -14,7 +14,7 @@ it("captures table return offsets at click time rather than render time", async 
     <main>
       <ContainerTable
         rows={[row]}
-        sort="cpu"
+        sort={{ by: "cpu", dir: "desc" }}
         onSort={() => {}}
         grouped={false}
         onCollapse={() => {}}
