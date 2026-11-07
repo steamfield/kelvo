@@ -2,15 +2,13 @@ import { formatRate } from "@core/format";
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { AppsNote, AppsShell } from "~/components/app-table";
-import { SortHeader } from "~/components/sort-header";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  useDataTable,
+} from "~/components/data-table";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import {
   topRowsView,
   useProcessInterest,
@@ -21,6 +19,24 @@ import { InitialChip } from "~/widgets/initial-chip";
 import { measuredTraffic } from "../_lib/network";
 
 const ROWS = 12;
+interface NowRow {
+  pid: number;
+  name: string;
+  bps: number;
+}
+const helper = columnHelper<NowRow>();
+const columns = helper.columns([
+  helper.accessor("name", {
+    header: "App",
+    enableSorting: false,
+    meta: { align: "left" },
+  }),
+  helper.accessor("bps", {
+    header: "Now",
+    meta: { align: "right", ranked: true },
+  }),
+]);
+const processId = (row: NowRow) => String(row.pid);
 
 /**
  * "Network history off": no totals and no brush, only live rates
@@ -44,6 +60,12 @@ export function AppsNowCard() {
             .slice(0, ROWS),
     [live]
   );
+  const data = useDataTable({
+    data: rows,
+    columns,
+    getRowId: processId,
+    manualSorting: true,
+  });
 
   return (
     <AppsShell title="Apps, now">
@@ -59,13 +81,12 @@ export function AppsNowCard() {
       </AppsNote>
       <Table aria-label="Network by app, now">
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>App</TableHead>
-            <SortHeader ranked label="Now" />
-          </TableRow>
+          <DataTableHead table={data.table} />
         </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
+        <DataTable
+          table={data.table}
+          rows={data.rows}
+          empty={
             <TableRow className="hover:bg-transparent">
               <TableCell
                 colSpan={2}
@@ -76,22 +97,21 @@ export function AppsNowCard() {
                   : "None of your processes sent or received anything."}
               </TableCell>
             </TableRow>
-          ) : (
-            rows.map((r) => (
-              <TableRow key={r.pid} className="text-[12px]">
-                <TableCell className="px-3 py-1.75 text-foreground">
-                  <span className="inline-flex items-center gap-2">
-                    <InitialChip text={r.name} />
-                    {r.name}
-                  </span>
-                </TableCell>
-                <TableCell className="figures px-3 py-1.75 text-right text-foreground">
-                  {formatRate(r.bps, { units: units.rate })}
-                </TableCell>
-              </TableRow>
-            ))
+          }
+          renderRow={({ original: r }) => (
+            <TableRow key={r.pid} className="text-[12px]">
+              <TableCell className="px-3 py-1.75 text-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <InitialChip text={r.name} />
+                  {r.name}
+                </span>
+              </TableCell>
+              <TableCell className="figures px-3 py-1.75 text-right text-foreground">
+                {formatRate(r.bps, { units: units.rate })}
+              </TableCell>
+            </TableRow>
           )}
-        </TableBody>
+        />
       </Table>
     </AppsShell>
   );

@@ -2,6 +2,7 @@ import type { TimeRange } from "@core/brush";
 import { recordedDate } from "@core/chart-range";
 import { formatSpan } from "@core/format";
 import type {
+  HistoricalUsageApp,
   HistoricalUsageFigures,
   HistoricalUsageMetric,
   HistoricalUsageReply,
@@ -11,10 +12,12 @@ import {
   HISTORICAL_COLUMNS,
   HISTORICAL_LABELS,
   historicalCoverage,
+  historicalValue,
 } from "@core/historical-usage";
 import { historyKeys } from "@core/query-keys";
 import { remoteQueryText } from "@core/remote-errors";
 import { useQueryClient } from "@tanstack/react-query";
+import type { SortingState } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -23,24 +26,28 @@ import {
   AppsShell,
   UnrecordedRange,
 } from "~/components/app-table";
+import {
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
 import { HistoricalUsageCells } from "~/components/historical-usage-cells";
 import { HistoricalUsageProcesses } from "~/components/historical-usage-processes";
-import { type ColumnSort, SortHeader } from "~/components/sort-header";
 import { Button } from "~/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import { useHistoricalUsage } from "~/hooks/use-historical-usage";
 import { useUnits } from "~/hooks/use-units";
 import { cn } from "~/lib/utils";
 import { useHostId } from "~/stores/host-store";
 import { InitialChip } from "~/widgets/initial-chip";
 import type { Accent } from "~/widgets/lib/accent";
+
+export interface HistoricalUsageSort {
+  by: HistoricalUsageMetric;
+  dir: "asc" | "desc";
+}
 
 export function HistoricalUsageCard({
   range,
@@ -58,14 +65,16 @@ export function HistoricalUsageCard({
   columns?: readonly HistoricalUsageMetric[];
   title?: string;
   compare?: boolean;
-  sort?: ColumnSort<HistoricalUsageMetric>;
-  onSortChange?: (sort: ColumnSort<HistoricalUsageMetric>) => void;
+  sort?: HistoricalUsageSort;
+  onSortChange?: (sort: HistoricalUsageSort) => void;
 }) {
-  const [localSort, setLocalSort] = useState<ColumnSort<HistoricalUsageMetric>>(
-    { by, dir: "desc" }
-  );
+  const [localSort, setLocalSort] = useState<HistoricalUsageSort>({
+    by,
+    dir: "desc",
+  });
   useEffect(() => setLocalSort({ by, dir: "desc" }), [by]);
-  const sort = controlledSort ?? localSort;
+  const selected = controlledSort ?? localSort;
+  const sort = visibleSort(selected, by, columns);
   const query = useHistoricalUsage(range, sort.by);
   const names = useMemo(
     () => query.data?.apps.map((app) => app.name) ?? [],
@@ -77,7 +86,7 @@ export function HistoricalUsageCard({
   });
   const host = useHostId();
   const client = useQueryClient();
-  const change = (next: ColumnSort<HistoricalUsageMetric>) => {
+  const change = (next: HistoricalUsageSort) => {
     setLocalSort(next);
     onSortChange?.(next);
   };
@@ -253,13 +262,52 @@ function HistoricalUsageTable({
   previous: HistoricalUsageReply | undefined;
   range: TimeRange;
   columns: readonly HistoricalUsageMetric[];
-  sort: ColumnSort<HistoricalUsageMetric>;
-  onSort: (sort: ColumnSort<HistoricalUsageMetric>) => void;
+  sort: HistoricalUsageSort;
+  onSort: (sort: HistoricalUsageSort) => void;
   compare: boolean;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const units = useUnits();
-  const rows = sort.dir === "asc" ? [...data.apps].reverse() : data.apps;
+  const apps = useMemo(
+    () => (sort.dir === "asc" ? [...data.apps].reverse() : data.apps),
+    [data.apps, sort.dir]
+  );
+  const sorting = useMemo<SortingState>(
+    () => [{ id: sort.by, desc: sort.dir === "desc" }],
+    [sort.by, sort.dir]
+  );
+  const definitions = useMemo(
+    () =>
+      helper.columns([
+        helper.accessor("name", {
+          header: "App",
+          enableSorting: false,
+          meta: { align: "left" },
+        }),
+        ...columns.map((metric) =>
+          helper.accessor((app) => gap(historicalValue(app.figures, metric)), {
+            id: metric,
+            header: HISTORICAL_LABELS[metric],
+            meta: { align: "right" },
+          })
+        ),
+      ]),
+    [columns]
+  );
+  const { table, rows } = useDataTable({
+    data: apps,
+    columns: definitions,
+    getRowId: appName,
+    manualSorting: true,
+    sorting,
+    onSortingChange: (updater) => {
+      const next = (
+        typeof updater === "function" ? updater(sorting) : updater
+      )[0];
+      const by = columns.find((metric) => metric === next?.id);
+      if (next && by) onSort({ by, dir: next.desc ? "desc" : "asc" });
+    },
+  });
   const prior = new Map(previous?.apps.map((app) => [app.name, app.figures]));
   const toggle = (name: string) =>
     setExpanded((current) => {
@@ -277,21 +325,12 @@ function HistoricalUsageTable({
     <div className="overflow-x-auto">
       <Table aria-label="Recorded apps in this range">
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>App</TableHead>
-            {columns.map((metric) => (
-              <SortHeader
-                key={metric}
-                label={HISTORICAL_LABELS[metric]}
-                by={metric}
-                sort={sort}
-                onSort={onSort}
-              />
-            ))}
-          </TableRow>
+          <DataTableHead table={table} />
         </TableHeader>
-        <TableBody>
-          {rows.map((app) => (
+        <DataTable
+          table={table}
+          rows={rows}
+          renderRow={({ original: app }) => (
             <HistoricalAppRows
               key={app.name}
               name={app.name}
@@ -306,21 +345,35 @@ function HistoricalUsageTable({
               open={expanded.has(app.name)}
               toggle={() => toggle(app.name)}
             />
-          ))}
-          <TableRow className="hover:bg-transparent">
-            <TableCell
-              colSpan={columns.length + 1}
-              className={`${APP_CELL} whitespace-normal text-[11px] text-muted-foreground`}
-            >
-              Up to ten recorded apps for{" "}
-              {HISTORICAL_LABELS[sort.by].toLowerCase()}; reversing the order
-              keeps those same apps. CPU power estimates CPU energy only.
-            </TableCell>
-          </TableRow>
-        </TableBody>
+          )}
+          after={
+            <TableRow className="hover:bg-transparent">
+              <TableCell
+                colSpan={columns.length + 1}
+                className={`${APP_CELL} whitespace-normal text-[11px] text-muted-foreground`}
+              >
+                Up to ten recorded apps for{" "}
+                {HISTORICAL_LABELS[sort.by].toLowerCase()}; reversing the order
+                keeps those same apps. CPU power estimates CPU energy only.
+              </TableCell>
+            </TableRow>
+          }
+        />
       </Table>
     </div>
   );
+}
+
+const helper = columnHelper<HistoricalUsageApp>();
+const appName = (app: HistoricalUsageApp) => app.name;
+
+function visibleSort(
+  sort: HistoricalUsageSort,
+  by: HistoricalUsageMetric,
+  columns: readonly HistoricalUsageMetric[]
+): HistoricalUsageSort {
+  if (columns.includes(sort.by)) return sort;
+  return { by: columns.includes(by) ? by : (columns[0] ?? by), dir: "desc" };
 }
 
 function HistoricalAppRows({

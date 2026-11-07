@@ -1,8 +1,15 @@
 import { formatPercent } from "@core/format";
+import type { UsageRow } from "@core/usage-rows";
 import { Info } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
+import {
+  columnHelper,
+  DataTableHead,
+  useDataTable,
+} from "~/components/data-table";
+import { ProcessSelectionHead } from "~/components/process-selection";
 import { SectionCard } from "~/components/section-card";
-import { TableCell, TableRow } from "~/components/ui/table";
+import { TableCell, TableHead, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import type { Accent } from "~/widgets/lib/accent";
 import { MeterTrack } from "~/widgets/meter-track";
@@ -144,5 +151,59 @@ export function ShareCell({
         </span>
       </span>
     </TableCell>
+  );
+}
+
+const headerHelper = columnHelper<UsageRow>();
+const headerRows: UsageRow[] = [];
+const usageId = (row: UsageRow) => row.app.name;
+
+export function UsageHead({
+  columns,
+  share,
+}: {
+  columns: readonly { label: string; ranked?: boolean }[];
+  share: boolean;
+}) {
+  const definitions = useMemo(
+    () =>
+      headerHelper.columns([
+        headerHelper.display({
+          id: "app",
+          header: "App",
+          meta: { align: "left" },
+        }),
+        ...columns.map((column) =>
+          headerHelper.display({
+            id: column.label,
+            header: column.label,
+            meta: {
+              align: "right",
+              ...(column.ranked ? { ranked: true } : {}),
+            },
+          })
+        ),
+      ]),
+    [columns]
+  );
+  const { table } = useDataTable({
+    data: headerRows,
+    columns: definitions,
+    getRowId: usageId,
+    manualSorting: true,
+  });
+  return (
+    <DataTableHead
+      table={table}
+      leading={<ProcessSelectionHead />}
+      trailing={
+        <>
+          {share && <TableHead className="text-right">Share</TableHead>}
+          <TableHead className="w-[132px]">
+            <span className="sr-only">Actions</span>
+          </TableHead>
+        </>
+      }
+    />
   );
 }

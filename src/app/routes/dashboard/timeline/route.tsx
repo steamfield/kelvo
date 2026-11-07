@@ -1,9 +1,6 @@
 import type { TimeRange } from "@core/brush";
 import { recordedDate, relativeWindow } from "@core/chart-range";
-import type {
-  HistoricalUsageMetric,
-  ModuleCap,
-} from "@core/generated/bindings";
+import type { ModuleCap } from "@core/generated/bindings";
 import { historyUnavailable } from "@core/history-state";
 import {
   ArrowLeft,
@@ -12,9 +9,11 @@ import {
   DownloadIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HistoricalUsageCard } from "~/components/historical-usage-card";
+import {
+  HistoricalUsageCard,
+  type HistoricalUsageSort,
+} from "~/components/historical-usage-card";
 import { HistoryNotices } from "~/components/history-notices";
-import type { ColumnSort } from "~/components/sort-header";
 import { Button } from "~/components/ui/button";
 import { WindowControl } from "~/components/window-control";
 import { useEvents } from "~/hooks/use-events";
@@ -55,7 +54,7 @@ export default function TimelineRoute() {
   const span = presentationSpan(view.windowMs);
   const live = view.endMs === null;
   const [compare, setCompare] = useState(false);
-  const [appSort, setAppSort] = useState<ColumnSort<HistoricalUsageMetric>>({
+  const [appSort, setAppSort] = useState<HistoricalUsageSort>({
     by: "cpu",
     dir: "desc",
   });

@@ -16,12 +16,6 @@ export interface AppRow {
   nowBps: number | null;
 }
 
-export type AppSortKey = "total" | "now";
-export interface AppSort {
-  by: AppSortKey;
-  dir: "asc" | "desc";
-}
-
 /** "Apps, last 5 minutes" or "Apps, selected 90 s". */
 export function appsTitle(
   selection: TimeRange | null,
@@ -129,22 +123,6 @@ export function remainderRows(data: NetworkByApp): AppRow[] {
     )
   );
   return out;
-}
-
-/** Apps by the chosen column; unknown "now" sorts last, names break ties. */
-export function sortApps(rows: readonly AppRow[], sort: AppSort): AppRow[] {
-  const val = (r: AppRow) => (sort.by === "total" ? r.totalBytes : r.nowBps);
-  const sign = sort.dir === "desc" ? -1 : 1;
-  return [...rows].sort((a, b) => {
-    const va = val(a);
-    const vb = val(b);
-    if (va === null || vb === null) {
-      if (va !== vb) return va === null ? 1 : -1;
-    } else if (va !== vb) {
-      return (va - vb) * sign;
-    }
-    return a.name.localeCompare(b.name);
-  });
 }
 
 /**

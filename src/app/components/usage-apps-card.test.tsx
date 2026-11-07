@@ -161,6 +161,19 @@ const full = (fromMs: number, toMs: number): UsageByApp => ({
 const table = () => screen.findByRole("table", { name: "Energy by app" });
 
 describe("UsageAppsCard (D-093, D-099)", () => {
+  it("keeps the ranked header descending and every column noninteractive", async () => {
+    render(full);
+    const rendered = await table();
+    const ranked = within(rendered).getByRole("columnheader", {
+      name: /Energy/,
+    });
+    expect(ranked).toHaveAttribute("aria-sort", "descending");
+    expect(ranked).toHaveTextContent("Energy ↓");
+    for (const head of within(rendered).getAllByRole("columnheader")) {
+      expect(within(head).queryByRole("button")).toBeNull();
+    }
+  });
+
   it("quits an app through its main process only, after the dialog", async () => {
     const { user, transport } = render(full);
     await table();

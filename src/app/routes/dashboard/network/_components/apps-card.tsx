@@ -10,6 +10,7 @@ import type { NetworkByApp } from "@core/generated/bindings";
 import { USAGE_KEEP_MS } from "@core/generated/bindings";
 import { networkByAppFailure } from "@core/history-state";
 import { CommandFailure } from "@core/transport";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { memo, type ReactNode, useMemo, useState } from "react";
 import {
   APP_CELL,
@@ -19,17 +20,16 @@ import {
   ShareCell,
   UnrecordedRange,
 } from "~/components/app-table";
+import {
+  columnHelper,
+  DataTable,
+  DataTableHead,
+  gap,
+  useDataTable,
+} from "~/components/data-table";
 import { HistoricalUsageCard } from "~/components/historical-usage-card";
 import { SelectionChip } from "~/components/selection-chip";
-import { SortHeader } from "~/components/sort-header";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Table, TableCell, TableHeader, TableRow } from "~/components/ui/table";
 import { heldFor, useOpenEdge, useRangeScope } from "~/hooks/use-range-scope";
 import { useUnits } from "~/hooks/use-units";
 import { cn } from "~/lib/utils";
@@ -42,7 +42,6 @@ import {
 } from "../_hooks/use-network-by-app";
 import {
   type AppRow,
-  type AppSort,
   appRows,
   appsTitle,
   firstRecordedMs,
@@ -50,7 +49,6 @@ import {
   openTailS,
   partialCoverage,
   remainderRows,
-  sortApps,
   unrecorded,
 } from "../_lib/apps";
 
@@ -93,14 +91,13 @@ function LiveAppsCard({ windowMs }: { windowMs: number }) {
   const totals = useNetworkByApp(range, { keepPrevious });
   const latest = useLatestBucket(complete);
   const units = useUnits();
-  const [sort, setSort] = useState<AppSort>({ by: "total", dir: "desc" });
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "total", desc: true },
+  ]);
 
   const data = heldFor(totals, windowMs);
   const now = useMemo(() => nowRates(latest.data), [latest.data]);
-  const rows = useMemo(
-    () => (data ? sortApps(appRows(data, now), sort) : []),
-    [data, now, sort]
-  );
+  const rows = useMemo(() => (data ? appRows(data, now) : []), [data, now]);
   const rest = useMemo(() => (data ? remainderRows(data) : []), [data]);
   const shown: TimeRange | null = data
     ? { fromMs: data.from_ms, toMs: data.to_ms }
@@ -149,9 +146,9 @@ function LiveAppsCard({ windowMs }: { windowMs: number }) {
         <AppsTable
           rows={rows}
           rest={rest}
-          sort={sort}
-          onSort={setSort}
           units={units.rate}
+          sorting={sorting}
+          onSortingChange={setSorting}
         />
       </>
     );
@@ -198,35 +195,44 @@ function Unrecorded({
   );
 }
 
-function AppsTable({
+export function AppsTable({
   rows,
   rest,
-  sort,
-  onSort,
   units,
+  sorting,
+  onSortingChange,
 }: {
   rows: readonly AppRow[];
   rest: readonly AppRow[];
-  sort: AppSort;
-  onSort: (s: AppSort) => void;
   units: RateUnits;
+  sorting: SortingState;
+  onSortingChange: OnChangeFn<SortingState>;
 }) {
+  const [paused, setPaused] = useState(false);
+  const { table, rows: sorted } = useDataTable({
+    data: rows,
+    columns: APP_COLUMNS,
+    getRowId: appKey,
+    tiebreak: byName,
+    sorting,
+    onSortingChange,
+    hold: { paused, resetKey: JSON.stringify(sorting) },
+  });
   const bytes = (n: number) => formatBytes(n);
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="overflow-x-auto"
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+    >
       <Table aria-label="Network by app">
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>App</TableHead>
-            <TableHead className="text-right">Down</TableHead>
-            <TableHead className="text-right">Up</TableHead>
-            <SortHeader by="total" label="Total" sort={sort} onSort={onSort} />
-            <TableHead className="text-right">Share</TableHead>
-            <SortHeader by="now" label="Now" sort={sort} onSort={onSort} />
-          </TableRow>
+          <DataTableHead table={table} />
         </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
+        <DataTable
+          table={table}
+          rows={sorted}
+          renderRow={({ original: r }) => (
             <TableRow key={r.key} className="text-fg-subtle">
               <TableCell className={APP_CELL}>
                 <span className="inline-flex items-center gap-2 text-foreground">
@@ -256,42 +262,82 @@ function AppsTable({
                 {formatRate(r.nowBps, { units })}
               </TableCell>
             </TableRow>
-          ))}
-          {rest.map((r, i) => (
-            <OtherAppsRow
-              key={r.key}
-              name={r.name}
-              system={r.kind === "system"}
-              first={i === 0}
-            >
-              <TableCell className={cn(APP_CELL, "figures text-right")}>
-                {bytes(r.rxBytes)}
-              </TableCell>
-              <TableCell className={cn(APP_CELL, "figures text-right")}>
-                {bytes(r.txBytes)}
-              </TableCell>
-              <TableCell className={cn(APP_CELL, "figures text-right")}>
-                {bytes(r.totalBytes)}
-              </TableCell>
-              <ShareCell share={r.share} muted />
-              <TableCell
-                className={cn(APP_CELL, "figures text-right text-fg-faint")}
-              >
-                {MISSING}
-              </TableCell>
-            </OtherAppsRow>
-          ))}
-          <TableRow className="hover:bg-transparent">
-            <TableCell
-              colSpan={6}
-              className="whitespace-normal px-3 pt-0 pb-2.5 pl-9 font-normal text-[11px] text-muted-foreground leading-[1.45]"
-            >
-              macOS services (updates, backups, DNS). StatGlass can't see these
-              without a helper.
-            </TableCell>
-          </TableRow>
-        </TableBody>
+          )}
+          after={
+            <>
+              {rest.map((r, i) => (
+                <OtherAppsRow
+                  key={r.key}
+                  name={r.name}
+                  system={r.kind === "system"}
+                  first={i === 0}
+                >
+                  <TableCell className={cn(APP_CELL, "figures text-right")}>
+                    {bytes(r.rxBytes)}
+                  </TableCell>
+                  <TableCell className={cn(APP_CELL, "figures text-right")}>
+                    {bytes(r.txBytes)}
+                  </TableCell>
+                  <TableCell className={cn(APP_CELL, "figures text-right")}>
+                    {bytes(r.totalBytes)}
+                  </TableCell>
+                  <ShareCell share={r.share} muted />
+                  <TableCell
+                    className={cn(APP_CELL, "figures text-right text-fg-faint")}
+                  >
+                    {MISSING}
+                  </TableCell>
+                </OtherAppsRow>
+              ))}
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={6}
+                  className="whitespace-normal px-3 pt-0 pb-2.5 pl-9 font-normal text-[11px] text-muted-foreground leading-[1.45]"
+                >
+                  macOS services (updates, backups, DNS). StatGlass can't see
+                  these without a helper.
+                </TableCell>
+              </TableRow>
+            </>
+          }
+        />
       </Table>
     </div>
   );
 }
+
+const helper = columnHelper<AppRow>();
+const APP_COLUMNS = helper.columns([
+  helper.accessor("name", {
+    header: "App",
+    sortFn: "text",
+    meta: { align: "left" },
+  }),
+  helper.accessor("rxBytes", {
+    id: "down",
+    header: "Down",
+    meta: { align: "right" },
+  }),
+  helper.accessor("txBytes", {
+    id: "up",
+    header: "Up",
+    meta: { align: "right" },
+  }),
+  helper.accessor("totalBytes", {
+    id: "total",
+    header: "Total",
+    meta: { align: "right" },
+  }),
+  helper.accessor((r) => gap(r.share), {
+    id: "share",
+    header: "Share",
+    meta: { align: "right" },
+  }),
+  helper.accessor((r) => gap(r.nowBps), {
+    id: "now",
+    header: "Now",
+    meta: { align: "right" },
+  }),
+]);
+const appKey = (r: AppRow) => r.key;
+const byName = (a: AppRow, b: AppRow) => a.name.localeCompare(b.name);
